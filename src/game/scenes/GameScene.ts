@@ -185,23 +185,33 @@ export class GameScene extends Phaser.Scene {
   }
   
   // Update is called on every game tick, used to update the game state and handle interactions
+  // _time is the current time in milliseconds,
+  // and deltaMs is the time elapsed since the last update in milliseconds
   public update(_time: number, deltaMs: number): void {
-    const deltaSeconds = Math.min(deltaMs / 1000, 1 / 30);
-    const playerInput = this.inputController.read();
 
-    this.updateTanks(deltaSeconds, playerInput);
-    this.processPendingMinePlacements();
-    this.updateBullets(deltaSeconds);
-    this.resolveBulletBulletCollisions();
-    this.updateMines(deltaSeconds);
-    this.processPendingDetonations();
-    this.resolveBulletImpacts();
-    this.resolveMineTankTriggers();
-    this.processRespawns();
-    this.cleanupBullets();
-    this.cleanupMines();
-    this.renderShotPreviews();
-    this.updateHud();
+    // Calculate deltaSeconds from deltaMs,
+    // capping it to a maximum value to prevent issues with very large delta times
+    // (e.g., when the game is paused or lags)
+    const deltaSeconds = Math.min(deltaMs / 1000, 1 / 30);
+
+    // Read the current player input from the input controller,
+    // which will be used to update the player tank's state and actions during this update cycle
+    const playerInput = this.inputController.read();
+    
+    // Main update loop for the game scene
+    this.updateTanks(deltaSeconds, playerInput); // Update the state of all tanks based on player input and AI controllers
+    this.processPendingMinePlacements(); // Handle any mines that are pending placement
+    this.updateBullets(deltaSeconds); // Update the state of all bullets
+    this.resolveBulletBulletCollisions(); // Check for and resolve collisions between bullets
+    this.updateMines(deltaSeconds); // Update the state of all mines
+    this.processPendingDetonations(); // Handle any mines that are pending detonation
+    this.resolveBulletImpacts(); // Check for and resolve bullet impacts on tanks and other objects
+    this.resolveMineTankTriggers(); // Check for and resolve mine triggers on tanks
+    this.processRespawns(); // Handle tank respawns
+    this.cleanupBullets(); // Remove any bullets that are no longer active
+    this.cleanupMines(); // Remove any mines that are no longer active
+    this.renderShotPreviews(); // Render the predicted trajectory of bullets for aiming
+    this.updateHud(); // Update the heads-up display with the latest game information
   }
 
   private updateTanks(deltaSeconds: number, playerInput: TankInput): void {
