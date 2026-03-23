@@ -22,6 +22,31 @@ import { EnemyAiController } from '../systems/EnemyAiController';
 import { SfxController } from '../systems/SfxController';
 import { predictBulletTrajectory } from '../utils/shotPrediction';
 
+//TODO remove magic numbers and magic strings
+//TODO increase code modularity by splitting GameScene into multiple classes/files
+
+//GAME MECHANICS TODOs:
+//TODO define multiple map layouts and load them at runtime, instead of hardcoding a single arena layout
+//TODO define multiple types of tanks
+//TODO add allies
+//TODO Add temporary invincibility and visual feedback on respawn, to avoid frustrating instant deaths right after respawning, especially in crowded areas with many active bullets and mines
+//TODO add directional rebouncing shield mechanics with left+right click to deploy, with cooldown and limited durability (rebounce bullets and protects from explosions while active) 
+//TODO add different weapons as collectables in the arena, with different primary (left click) and secondary (right click) fire modes, such as:
+// - spread shot with wider bullet angles and shorter range (left click: shoots, right click: explode)
+// - single large range missile with no rebounce but slighly controllable trajectory and bigger explosion radius (left click: shoots, right click: detonates mid-flight, left click+move mouse: applies a directional impulse to the missile)
+// - minigun with very high firerate small bullets but without rebounce and explosions and with cooldown and limited durability (left click: shoots)
+//TODO add powerups and pickups in the arena
+
+//TODO add the following game modes:
+// - story mode, which can either be single player or co-op, with a series of levels with different arena layouts and enemy configurations
+// - free-for-all multiplayer arena (online)
+
+
+// TankSlot represents a slot for a tank in the game,
+// which can be occupied by either a player-controlled tank or an AI-controlled enemy tank.
+// A slot includes information about whether it is controlled by the player,
+// the AI controller (if applicable), the tank's appearance,
+// the tank instance (if currently active), and the respawn time if the tank is destroyed.
 interface TankSlot {
   id: string;
   controlledByPlayer: boolean;
@@ -32,17 +57,6 @@ interface TankSlot {
 }
 
 export class GameScene extends Phaser.Scene {
-  private static readonly PLAYER_APPEARANCE: TankAppearance = {
-    bodyTextureKey: 'tank-body-player',
-    turretTextureKey: 'tank-turret-player',
-    bulletColor: 0xfbbf24,
-  };
-
-  private static readonly ENEMY_APPEARANCE: TankAppearance = {
-    bodyTextureKey: 'tank-body-enemy',
-    turretTextureKey: 'tank-turret-enemy',
-    bulletColor: 0xf87171,
-  };
 
   private arenaMap!: ArenaMap;
   private inputController!: InputController;
@@ -54,8 +68,24 @@ export class GameScene extends Phaser.Scene {
   private hudText!: Phaser.GameObjects.Text;
   private shotPreviewGraphics!: Phaser.GameObjects.Graphics;
   private sfx!: SfxController;
-
+  
   private readonly playerTankId = 'player-1';
+
+  // Defining appearances for player tank
+  private static readonly PLAYER_APPEARANCE: TankAppearance = {
+    bodyTextureKey: 'tank-body-player',
+    turretTextureKey: 'tank-turret-player',
+    bulletColor: 0xfbbf24,
+  };
+  // Defining appearances for enemy tanks
+  private static readonly ENEMY_APPEARANCE: TankAppearance = {
+    bodyTextureKey: 'tank-body-enemy',
+    turretTextureKey: 'tank-turret-enemy',
+    bulletColor: 0xf87171,
+  };
+
+  // An empty input object to use for AI tanks when
+  // they don't have a valid tank instance (e.g., during respawn)
   private readonly emptyInput: TankInput = {
     moveForward: false,
     moveBackward: false,
@@ -72,19 +102,30 @@ export class GameScene extends Phaser.Scene {
   public constructor() {
     super('game');
   }
-
+  
+  // Phaser scene lifecycle methods: preload, create, update
+  // Preload is called before the scene is created, used to load assets
   public preload(): void {
     this.createTextures();
   }
-
+  // Create is called once after preload, used to set up the game objects and initial state
   public create(): void {
-    this.arenaMap = new ArenaMap(this);
-    this.arenaMap.render();
 
+    // Render the arena map, which draws the background, grid, and walls onto the scene
+    this.arenaMap = new ArenaMap(this);  // Initialize the arena map, which generates the walls based on the scene's dimensions and renders the background, grid, and walls onto the scene
+    this.arenaMap.render(); // Render the arena map, which draws the background, grid, and walls onto the scene
+    
+    // Initialize the input controller, which will handle player input
+    // and provide it to the game logic during the update loop.
     this.inputController = new InputController(this);
-    this.input.mouse?.disableContextMenu();
-    const spawnPoints = this.getCornerSpawnPoints();
 
+    this.input.mouse?.disableContextMenu();  // Disable the default context menu on right-click to allow using right-click for game actions without interference
+    
+    // Define spawn points for tanks in the corners of the arena, with some padding from the walls, to ensure that tanks don't spawn too close to the walls and have some space to maneuver right after spawning
+    const spawnPoints = this.getCornerSpawnPoints(); 
+    
+    // Initialize the player tank in the first spawn point,
+    // with the defined appearance and controlledByPlayer set to true
     const playerSlot: TankSlot = {
       id: this.playerTankId,
       controlledByPlayer: true,
@@ -93,7 +134,10 @@ export class GameScene extends Phaser.Scene {
       tank: new Tank(this, this.playerTankId, spawnPoints[0].x, spawnPoints[0].y, GameScene.PLAYER_APPEARANCE),
       respawnAtMs: undefined,
     };
-
+    
+    // Initialize enemy tanks in the remaining spawn points,
+    // with the defined appearance and controlledByPlayer set to false,
+    // and assign an AI controller to each enemy tank based on the configured difficulty level
     const enemySlots: TankSlot[] = [];
     for (let enemyIndex = 0; enemyIndex < ENEMY_COUNT; enemyIndex += 1) {
       const enemyId = `enemy-${enemyIndex + 1}`;
@@ -108,26 +152,39 @@ export class GameScene extends Phaser.Scene {
         respawnAtMs: undefined,
       });
     }
-
+    
+    // Combine the player slot and enemy slots into the tanks array,
+    // which will be used to manage all tanks in the game
     this.tanks = [playerSlot, ...enemySlots];
-
+    
+    // Initialize the HUD (heads-up display) text object, which will display game information
+    // such as player health, score, etc., and set its depth and scroll factor
+    // to ensure it stays on top of other game objects and doesn't scroll with the camera
     this.hudText = this.add.text(16, 16, '', {
       color: '#e2e8f0',
       fontSize: '16px',
       fontFamily: 'monospace',
       lineSpacing: 6,
     });
-    this.hudText.setDepth(10);
-    this.hudText.setScrollFactor(0);
-
+    this.hudText.setDepth(10); // Set depth to ensure HUD is rendered above all other game objects
+    this.hudText.setScrollFactor(1);  // Set scroll factor to 0 to make the HUD stay fixed on the screen and not scroll with the camera
+    
+    // Initialize the graphics object for rendering shot previews,
+    // which will be used to visualize the predicted trajectory 
+    // of bullets when the player is aiming and about to shoot.
     this.shotPreviewGraphics = this.add.graphics();
-    this.shotPreviewGraphics.setDepth(5);
-
+    this.shotPreviewGraphics.setDepth(5); // Set depth to ensure shot previews are rendered above the arena and below the HUD
+    
+    // Initialize the sound effects controller,
+    // which will manage playing sound effects for various game actions such as shooting, explosions, etc.
     this.sfx = new SfxController(this);
-
+    
+    // Set up an event listener for the scene shutdown event
+    // to perform any necessary cleanup when the scene is shut down
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleShutdown, this);
   }
-
+  
+  // Update is called on every game tick, used to update the game state and handle interactions
   public update(_time: number, deltaMs: number): void {
     const deltaSeconds = Math.min(deltaMs / 1000, 1 / 30);
     const playerInput = this.inputController.read();
@@ -690,8 +747,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getCornerSpawnPoints(): Phaser.Math.Vector2[] {
+
+    // Define spawn points in the corners of the arena, with some padding from the walls,
+    // to ensure that tanks don't spawn too close to the walls 
+    // and have some space to maneuver right after spawning
+
+    // Calculate the playable bounds of the arena by analyzing the walls
+    // and determining how much they inset from each edge of the arena.
     const bounds = this.getPlayableBounds();
-    const p = SPAWN_CORNER_PADDING;
+    const p = SPAWN_CORNER_PADDING; // Padding from the walls to avoid spawning too close to them
 
     return [
       new Phaser.Math.Vector2(bounds.left + p, bounds.top + p),
@@ -712,7 +776,10 @@ export class GameScene extends Phaser.Scene {
     let rightInset = 0;
     let topInset = 0;
     let bottomInset = 0;
-
+    
+    // Analyze the walls to determine how much they inset from each edge of the arena,
+    // to calculate the playable area within the arena that is not obstructed by walls.
+    // This allows for more accurate spawn point placement and better gameplay experience.
     for (const wall of this.arenaMap.walls) {
       const touchesLeft = Math.abs(wall.x) <= epsilon;
       const touchesTop = Math.abs(wall.y) <= epsilon;
@@ -870,45 +937,56 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createTextures(): void {
+
+    // Create simple tank body and turret textures using Phaser's graphics API
     this.createTankBodyTexture('tank-body-player', 0x22c55e, 0x14532d);
     this.createTankTurretTexture('tank-turret-player', 0x4ade80);
-
+    
+    // Create enemy tank textures with different colors for visual distinction
     this.createTankBodyTexture('tank-body-enemy', 0xdc2626, 0x7f1d1d);
     this.createTankTurretTexture('tank-turret-enemy', 0xfca5a5);
   }
 
   private createTankBodyTexture(textureKey: string, outerColor: number, innerColor: number): void {
+    // The tank body is represented as a rounded rectangle with an inner detail, created using Phaser's graphics API
     const bodyGraphics = this.add.graphics();
-    bodyGraphics.fillStyle(outerColor, 1);
-    bodyGraphics.fillRoundedRect(0, 0, 40, 28, 8);
-    bodyGraphics.fillStyle(innerColor, 1);
-    bodyGraphics.fillRoundedRect(8, 5, 24, 18, 6);
-    bodyGraphics.generateTexture(textureKey, 40, 28);
-    bodyGraphics.destroy();
+    bodyGraphics.fillStyle(outerColor, 1); // Outer color for the tank body 
+    bodyGraphics.fillRoundedRect(0, 0, 40, 28, 8);  // Main body shape (rounded rectangle)
+    bodyGraphics.fillStyle(innerColor, 1); // Inner color for the tank body
+    bodyGraphics.fillRoundedRect(8, 5, 24, 18, 6); // Inner detail (smaller rounded rectangle)
+    bodyGraphics.generateTexture(textureKey, 40, 28);  // Generate a texture from the graphics and assign it a key for later use (textures are saved in Phaser's texture manager and can be used by game objects)
+    bodyGraphics.destroy(); // Destroy the graphics object after generating the texture to free up memory, as it's no longer needed
   }
 
   private createTankTurretTexture(textureKey: string, color: number): void {
+    // The tank turret is represented as a rounded rectangle with a circular detail, created using Phaser's graphics API
     const turretGraphics = this.add.graphics();
-    turretGraphics.fillStyle(color, 1);
-    turretGraphics.fillRoundedRect(0, 8, 28, 8, 4);
-    turretGraphics.fillCircle(10, 12, 9);
-    turretGraphics.generateTexture(textureKey, 28, 24);
-    turretGraphics.destroy();
+    turretGraphics.fillStyle(color, 1); // Fill color for the turret
+    turretGraphics.fillRoundedRect(0, 8, 28, 8, 4); // Main turret shape (rounded rectangle)
+    turretGraphics.fillCircle(10, 12, 9); // Circular detail at the base of the turret for visual interest
+    turretGraphics.generateTexture(textureKey, 28, 24); // Generate a texture from the graphics and assign it a key for later use (textures are saved in Phaser's texture manager and can be used by game objects)
+    turretGraphics.destroy(); // Destroy the graphics object after generating the texture to free up memory, as it's no longer needed
   }
 
   private handleShutdown(): void {
+
+    // Clean up all game objects and resources when the scene is shut down
+    // to prevent memory leaks and ensure a clean state if the scene is restarted
+
+    // Destroy all bullets, mines, and tanks to free up resources
+    // and ensure they are properly removed from the scene
     for (const bullet of this.bullets) {
       bullet.destroy();
     }
-
     for (const mine of this.mines) {
       mine.destroy();
     }
-
     for (const tankSlot of this.tanks) {
       tankSlot.tank?.destroy();
     }
-
+    
+    // Destroy the HUD text and shot preview graphics to free up resources
+    this.hudText.destroy();
     this.shotPreviewGraphics.destroy();
 
     this.bullets = [];

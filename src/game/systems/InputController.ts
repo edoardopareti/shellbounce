@@ -1,3 +1,11 @@
+//src/game/systems/InputController.ts
+// This file defines the InputController class, which is responsible 
+// for handling player input and translating it into a format that can be easily consumed by the game logic.
+// The InputController listens for keyboard and mouse input,
+// and provides a method to read the current input state as a TankInput object.
+// The TankInput object includes information about movement, firing, and other actions that the player can perform,
+// as well as the current position of the mouse pointer in world coordinates.
+
 import Phaser from 'phaser';
 
 export interface TankInput {
