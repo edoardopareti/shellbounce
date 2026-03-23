@@ -17,7 +17,7 @@ import {
   SPAWN_CORNER_PADDING,
   TANK_RESPAWN_DELAY_MS,
 } from '../constants';
-import { ENEMY_AI_DIFFICULTY } from '../config';
+import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT } from '../config';
 import { EnemyAiController } from '../systems/EnemyAiController';
 import { SfxController } from '../systems/SfxController';
 import { predictBulletTrajectory } from '../utils/shotPrediction';
@@ -56,7 +56,6 @@ export class GameScene extends Phaser.Scene {
   private sfx!: SfxController;
 
   private readonly playerTankId = 'player-1';
-  private readonly enemyTankId = 'enemy-1';
   private readonly emptyInput: TankInput = {
     moveForward: false,
     moveBackward: false,
@@ -86,24 +85,31 @@ export class GameScene extends Phaser.Scene {
     this.input.mouse?.disableContextMenu();
     const spawnPoints = this.getCornerSpawnPoints();
 
-    this.tanks = [
-      {
-        id: this.playerTankId,
-        controlledByPlayer: true,
-        aiController: undefined,
-        appearance: GameScene.PLAYER_APPEARANCE,
-        tank: new Tank(this, this.playerTankId, spawnPoints[0].x, spawnPoints[0].y, GameScene.PLAYER_APPEARANCE),
-        respawnAtMs: undefined,
-      },
-      {
-        id: this.enemyTankId,
+    const playerSlot: TankSlot = {
+      id: this.playerTankId,
+      controlledByPlayer: true,
+      aiController: undefined,
+      appearance: GameScene.PLAYER_APPEARANCE,
+      tank: new Tank(this, this.playerTankId, spawnPoints[0].x, spawnPoints[0].y, GameScene.PLAYER_APPEARANCE),
+      respawnAtMs: undefined,
+    };
+
+    const enemySlots: TankSlot[] = [];
+    for (let enemyIndex = 0; enemyIndex < ENEMY_COUNT; enemyIndex += 1) {
+      const enemyId = `enemy-${enemyIndex + 1}`;
+      const spawnPoint = spawnPoints[(enemyIndex + 1) % spawnPoints.length];
+
+      enemySlots.push({
+        id: enemyId,
         controlledByPlayer: false,
         aiController: new EnemyAiController(ENEMY_AI_DIFFICULTY),
         appearance: GameScene.ENEMY_APPEARANCE,
-        tank: new Tank(this, this.enemyTankId, spawnPoints[3].x, spawnPoints[3].y, GameScene.ENEMY_APPEARANCE),
+        tank: new Tank(this, enemyId, spawnPoint.x, spawnPoint.y, GameScene.ENEMY_APPEARANCE),
         respawnAtMs: undefined,
-      },
-    ];
+      });
+    }
+
+    this.tanks = [playerSlot, ...enemySlots];
 
     this.hudText = this.add.text(16, 16, '', {
       color: '#e2e8f0',
@@ -377,13 +383,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const tank = this.tanks.find((slot) => slot.id === tankId)?.tank;
-    if (tank === undefined) {
+    const tankSlot = this.tanks.find((slot) => slot.id === tankId);
+    if (tankSlot?.tank === undefined) {
       return;
     }
 
-    const mineColor = tankId === this.playerTankId ? 0xfacc15 : 0xfca5a5;
-    this.mines.push(new Mine(this, tankId, tank.x, tank.y, mineColor));
+    const mineColor = tankSlot.controlledByPlayer ? 0xfacc15 : 0xfca5a5;
+    this.mines.push(new Mine(this, tankId, tankSlot.tank.x, tankSlot.tank.y, mineColor));
     this.sfx.playMinePlace();
   }
 
@@ -791,6 +797,7 @@ export class GameScene extends Phaser.Scene {
       'Space: speed boost (limited duration + cooldown)',
       '',
       `Enemy AI: ${ENEMY_AI_DIFFICULTY}`,
+      `Enemy count: ${ENEMY_COUNT}`,
       `Active tanks: ${aliveTankCount}`,
       `Active bullets: ${this.bullets.length}`,
       `Active mines: ${this.mines.length}`,
