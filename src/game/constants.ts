@@ -1,5 +1,5 @@
 export const TANK_RADIUS = 18;
-export const TANK_MOVE_SPEED = 170;
+export const TANK_MOVE_SPEED = 200;
 export const TANK_REVERSE_SPEED = 105;
 export const TANK_ROTATION_SPEED = Math.PI * 1.8;
 export const TANK_BOOST_MULTIPLIER = 1.75;

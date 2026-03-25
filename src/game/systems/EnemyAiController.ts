@@ -7,8 +7,6 @@ import type { Wall } from '../map/types';
 import {
   BULLET_EXPLOSION_RADIUS,
   BULLET_RADIUS,
-  CHARGED_SHOT_MAX_HOLD_MS,
-  CHARGED_SHOT_MIN_HOLD_MS,
   SHOT_PREVIEW_MAX_DISTANCE,
   SHOT_PREVIEW_REFLECTIONS,
 } from '../constants';
@@ -41,8 +39,6 @@ interface DifficultyProfile {
   pathReplanMs: { min: number; max: number };
   minePlacementDistanceFactor: number;
   minePlacementCooldownMs: { min: number; max: number };
-  chargeShotChance: number;
-  chargeHoldMs: { min: number; max: number };
 }
 
 const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
@@ -70,8 +66,6 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     pathReplanMs: { min: 500, max: 850 },
     minePlacementDistanceFactor: 0.92,
     minePlacementCooldownMs: { min: 2200, max: 3400 },
-    chargeShotChance: 0.26,
-    chargeHoldMs: { min: 210, max: 620 },
   },
   medium: {
     aimErrorRadians: 0.23,
@@ -97,8 +91,6 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     pathReplanMs: { min: 320, max: 560 },
     minePlacementDistanceFactor: 1.02,
     minePlacementCooldownMs: { min: 1700, max: 2800 },
-    chargeShotChance: 0.45,
-    chargeHoldMs: { min: 340, max: 860 },
   },
   hard: {
     aimErrorRadians: 0.08,
@@ -124,8 +116,6 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     pathReplanMs: { min: 170, max: 300 },
     minePlacementDistanceFactor: 1.15,
     minePlacementCooldownMs: { min: 1300, max: 2200 },
-    chargeShotChance: 0.72,
-    chargeHoldMs: { min: 420, max: 1100 },
   },
 };
 
@@ -146,8 +136,6 @@ export class EnemyAiController {
   private nextAllowedShotAtMs = 0;
   private nextAllowedMineAtMs = 0;
   private nextPathPlanAtMs = 0;
-  private isChargingShot = false;
-  private chargeReleaseAtMs = 0;
   private pathWaypoints: Phaser.Math.Vector2[] = [];
   private pathWaypointIndex = 0;
 
@@ -163,8 +151,6 @@ export class EnemyAiController {
     bullets: readonly Bullet[],
   ): TankInput {
     if (targetTank === undefined) {
-      this.isChargingShot = false;
-
       const fallbackX = enemyTank.x + Math.cos(enemyTank.bodyAngle) * 120;
       const fallbackY = enemyTank.y + Math.sin(enemyTank.bodyAngle) * 120;
 
@@ -183,6 +169,11 @@ export class EnemyAiController {
         pointerWorldY: fallbackY,
       };
     }
+    
+    // The following logic determines the AI's actions based on the current game state,
+    // including the position of the enemy tank, the target tank, the walls, and the bullets.
+    // The AI will make decisions about movement, turning, firing, dodging, and other actions 
+    // based on its difficulty profile and the current situation in the game.
 
     if (nowMs >= this.nextDecisionAtMs) {
       this.aimSolution = this.computeAimSolution(enemyTank, targetTank, walls);
@@ -233,38 +224,14 @@ export class EnemyAiController {
     const shouldBoostForChase = distanceToTarget > this.profile.preferredDistanceMax * chaseDistanceThresholdMultiplier;
 
     let firePressed = false;
-    let fireHeld = false;
-    let fireReleased = false;
-
-    const canAttemptShot = canShootByPrediction && canShootByDistance && canShootByDodgeState;
-    if (this.isChargingShot) {
-      if (nowMs < this.chargeReleaseAtMs && canShootByDodgeState) {
-        fireHeld = true;
-      } else {
-        fireReleased = true;
-        this.isChargingShot = false;
-        this.nextAllowedShotAtMs =
-          nowMs + this.randomInRange(this.profile.fireCooldownMs.min, this.profile.fireCooldownMs.max);
-      }
-    } else if (canAttemptShot && nowMs >= this.nextAllowedShotAtMs) {
+    if (canShootByPrediction && canShootByDistance && canShootByDodgeState && nowMs >= this.nextAllowedShotAtMs) {
       firePressed = true;
-      const shouldCharge = this.aimSolution.predictedHit && Math.random() <= this.profile.chargeShotChance;
-
-      if (shouldCharge) {
-        const desiredHoldMs = Phaser.Math.Clamp(
-          this.randomInRange(this.profile.chargeHoldMs.min, this.profile.chargeHoldMs.max),
-          CHARGED_SHOT_MIN_HOLD_MS,
-          CHARGED_SHOT_MAX_HOLD_MS,
-        );
-        this.isChargingShot = true;
-        this.chargeReleaseAtMs = nowMs + desiredHoldMs;
-        fireHeld = true;
-      } else {
-        fireReleased = true;
-        this.nextAllowedShotAtMs =
-          nowMs + this.randomInRange(this.profile.fireCooldownMs.min, this.profile.fireCooldownMs.max);
-      }
+      this.nextAllowedShotAtMs =
+        nowMs + this.randomInRange(this.profile.fireCooldownMs.min, this.profile.fireCooldownMs.max);
     }
+
+    const fireHeld = false;
+    const fireReleased = firePressed;
 
     const detonatePressed = this.shouldDetonateOwnedBullet(enemyTank, targetTank, bullets);
     const placeMinePressed = this.shouldPlaceMine(nowMs, distanceToTarget, shouldDodge, moveBackward);

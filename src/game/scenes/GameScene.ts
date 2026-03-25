@@ -25,6 +25,7 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 //TODO increase code modularity by splitting GameScene into multiple classes/files
 
 //GAME MECHANICS TODOs:
+//TODO if left click is pressed for a certain amount of time without releasing, charge up a more powerful shot which moves faster and bigger explosion radius but without rebounce - add visual feedback for the charging state and the increased power level, and with a cooldown after firing to prevent spamming the charged shot 
 //TODO define multiple map layouts and load them at runtime, instead of hardcoding a single arena layout
 //TODO define multiple types of tanks
 //TODO add allies
@@ -74,13 +75,13 @@ export class GameScene extends Phaser.Scene {
   private static readonly PLAYER_APPEARANCE: TankAppearance = {
     bodyTextureKey: 'tank-body-player',
     turretTextureKey: 'tank-turret-player',
-    bulletColor: 0xfbbf24,
+    bulletColor: 0x22c55e,
   };
   // Defining appearances for enemy tanks
   private static readonly ENEMY_APPEARANCE: TankAppearance = {
     bodyTextureKey: 'tank-body-enemy',
     turretTextureKey: 'tank-turret-enemy',
-    bulletColor: 0xf87171,
+    bulletColor: 0xdc2626,
   };
 
   // An empty input object to use for AI tanks when
@@ -185,7 +186,8 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.handleShutdown, this);
   }
   
-  // Update is called on every game tick, used to update the game state and handle interactions
+  // Update is called automatically on every game tick,
+  // and is used to update the game state and handle interactions
   // _time is the current time in milliseconds,
   // and deltaMs is the time elapsed since the last update in milliseconds
   public update(_time: number, deltaMs: number): void {
@@ -216,23 +218,38 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateTanks(deltaSeconds: number, playerInput: TankInput): void {
+    // Update the state of all tanks in the game based on player input and AI controllers.
+    
+    // Find the player's tank instance from the tanks array using the playerTankId,
+    // which will be passed to the AI controllers to allow them to make informed decisions
+    // based on the player's position and actions.
     const playerTank = this.tanks.find((slot) => slot.id === this.playerTankId)?.tank;
-    this.pendingDetonationTankIds = [];
-    this.pendingMinePlacementTankIds = [];
+
+    this.pendingDetonationTankIds = [];  // Reset the list of pending detonation tank IDs at the start of each update cycle,
+    this.pendingMinePlacementTankIds = [];  // Reset the list of pending mine placement tank IDs at the start of each update cycle,
 
     for (const slot of this.tanks) {
       if (slot.tank === undefined) {
         continue;
       }
-
+       
+      // Resolve the input for the current tank slot,
+      // which will be either the player input (if controlled by player)
+      // or the AI controller's input (if controlled by AI)
       const input = this.resolveTankInput(slot, playerInput, playerTank);
+      
+      // Check if the fire, detonate, or place mine actions were triggered by the input,
+      // and if so, add the tank's ID to the corresponding pending action lists,
+      // to be processed later in the update cycle.
+      // This allows the game to handle these actions in a consistent way during the update loop, 
+      // and ensures that actions are not missed even if the input is read at a different time
+      // than when the actions are processed.
       if (input.detonatePressed && !this.pendingDetonationTankIds.includes(slot.id)) {
         this.pendingDetonationTankIds.push(slot.id);
       }
       if (input.placeMinePressed && !this.pendingMinePlacementTankIds.includes(slot.id)) {
         this.pendingMinePlacementTankIds.push(slot.id);
       }
-
       const canFire = this.getActiveBulletCountForTank(slot.id) < MAX_ACTIVE_BULLETS_PER_TANK;
       const updateResult = slot.tank.update(deltaSeconds, input, this.arenaMap.walls, canFire);
       if (updateResult.firedBullet !== undefined) {
@@ -279,14 +296,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveTankInput(slot: TankSlot, playerInput: TankInput, playerTank: Tank | undefined): TankInput {
+    
+    // Determine the input for a given tank slot,
+    // which will be the player input if the slot is controlled by the player,
+    // or the AI controller's input if the slot is controlled by AI.
+
     if (slot.controlledByPlayer) {
-      return playerInput;
+      return playerInput;  // If the slot is controlled by the player, return the player input directly.
     }
 
     if (slot.aiController === undefined || slot.tank === undefined) {
       return this.emptyInput;
     }
-
+    
+    // If the slot is controlled by AI, call the AI controller's readInput method to get the input for this tank.
     return slot.aiController.readInput(this.time.now, slot.tank, playerTank, this.arenaMap.walls, this.bullets);
   }
 
@@ -463,7 +486,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const mineColor = tankSlot.controlledByPlayer ? 0xfacc15 : 0xfca5a5;
+    const mineColor = tankSlot.controlledByPlayer ? 0x22c55e : 0xdc2626;
     this.mines.push(new Mine(this, tankId, tankSlot.tank.x, tankSlot.tank.y, mineColor));
     this.sfx.playMinePlace();
   }

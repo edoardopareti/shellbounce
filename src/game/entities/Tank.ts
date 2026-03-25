@@ -95,8 +95,11 @@ export class Tank {
   ): TankUpdateResult {
     this.updateBoost(deltaSeconds, input);
     this.updateBodyRotation(deltaSeconds, input);
+
     this.updateMovement(deltaSeconds, input, walls);
+    
     this.updateTurret(input);
+
     this.fireCooldownMs = Math.max(0, this.fireCooldownMs - deltaSeconds * 1000);
     const chargeState = this.updateChargeState(deltaSeconds, input, canFire);
     this.syncGraphics();
@@ -146,6 +149,14 @@ export class Tank {
   }
 
   private updateBodyRotation(deltaSeconds: number, input: TankInput): void {
+
+    // Update the tank's body rotation based on the player's input for turning left or right.
+    // The method calculates the rotation direction based on the input (e.g., turn left, turn right),
+    // and then updates the body angle by applying the rotation speed
+    // multiplied by the elapsed time (deltaSeconds).
+    // The resulting angle is normalized to ensure it stays within a valid range
+    // (e.g., 0 to 2π radians).
+
     let rotationDirection = 0;
 
     if (input.turnLeft) {
@@ -154,13 +165,32 @@ export class Tank {
     if (input.turnRight) {
       rotationDirection += 1;
     }
+    
+    // If there is no rotation input, return early to avoid unnecessary calculations.
+    if (rotationDirection === 0) {
+      return;
+    }
 
+    // Update the body angle based on
+    // the rotation direction, rotation speed, and elapsed time (deltaSeconds).
+    // The normalizeAngleRadians function is used to ensure that the resulting angle
+    // stays within a valid range (e.g., 0 to 2π radians).
     this.bodyAngleRadians = normalizeAngleRadians(
       this.bodyAngleRadians + rotationDirection * TANK_ROTATION_SPEED * deltaSeconds,
     );
   }
 
   private updateMovement(deltaSeconds: number, input: TankInput, walls: readonly Wall[]): void {
+    
+    // Update the tank's position based on the player's input for movement (forward/backward)
+    // and the current boost status, while also checking for collisions
+    // with the arena walls to prevent the tank from moving through them.
+
+    // The method calculates the desired movement vector based on 
+    // the input and the tank's current orientation,
+    // applies a boost multiplier if the boost is active,
+    // and then checks for potential collisions with walls before updating the tank's position.
+    
     let movementDirection = 0;
 
     if (input.moveForward) {
@@ -174,6 +204,7 @@ export class Tank {
     const boostMultiplier = this.boostRemainingMs > 0 ? TANK_BOOST_MULTIPLIER : 1;
     const speed = speedBase * boostMultiplier;
     const distance = speed * movementDirection * deltaSeconds;
+
     const velocity = new Phaser.Math.Vector2(
       Math.cos(this.bodyAngleRadians) * distance,
       Math.sin(this.bodyAngleRadians) * distance,
@@ -195,8 +226,20 @@ export class Tank {
   }
 
   private updateBoost(deltaSeconds: number, input: TankInput): void {
-    const deltaMs = deltaSeconds * 1000;
 
+    // Update the tank's boost status based on the player's input and the current boost state.
+    // This includes managing the boost duration and cooldown timers,
+    // and activating the boost when the player presses the boost button (spacebar),
+    // as long as the boost is not currently active and not on cooldown.
+
+    // When the boost is active, the tank's movement speed will be multiplied
+    // by a defined boost multiplier, allowing the tank to move faster for a short duration.
+    // After the boost duration expires, the boost will go on cooldown,
+    // preventing it from being activated again until the cooldown period has passed.
+    const deltaMs = deltaSeconds * 1000;
+    
+    // If the boost is currently active, decrease the remaining boost time by the elapsed time (deltaMs).
+    // If the boost duration has expired (boostRemainingMs <= 0), reset the boost remaining time to 0 and start the cooldown timer.
     if (this.boostRemainingMs > 0) {
       this.boostRemainingMs = Math.max(0, this.boostRemainingMs - deltaMs);
       if (this.boostRemainingMs === 0) {
@@ -205,7 +248,11 @@ export class Tank {
     } else if (this.boostCooldownMs > 0) {
       this.boostCooldownMs = Math.max(0, this.boostCooldownMs - deltaMs);
     }
-
+    
+    // If the boost button is pressed
+    // and the boost is not currently active (boostRemainingMs === 0)
+    // and not on cooldown (boostCooldownMs === 0),
+    // activate the boost by setting the boost remaining time to the defined boost duration.
     if (input.boostPressed && this.boostRemainingMs === 0 && this.boostCooldownMs === 0) {
       this.boostRemainingMs = TANK_BOOST_DURATION_MS;
     }
@@ -350,6 +397,9 @@ export class Tank {
   }
 
   private syncGraphics(): void {
+    // Update the positions and rotations of the tank's graphical components (body and turret sprites, shadow)
+    // to match the tank's current logical position and orientation.
+    // This method should be called after updating the tank's state to ensure that the visuals are in sync with the underlying data.
     this.container.setPosition(this.position.x, this.position.y);
     this.bodySprite.setRotation(this.bodyAngleRadians);
     this.turretSprite.setRotation(this.turretAngleRadians);
