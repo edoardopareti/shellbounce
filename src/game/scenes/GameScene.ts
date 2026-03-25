@@ -5,7 +5,6 @@ import { Mine } from '../entities/Mine';
 import { Tank, type TankAppearance } from '../entities/Tank';
 import { InputController, type TankInput } from '../systems/InputController';
 import {
-  BULLET_EXPLOSION_RADIUS,
   BULLET_EXPLOSION_VISUAL_DURATION_MS,
   BULLET_RADIUS,
   MAX_ACTIVE_MINES_PER_TANK,
@@ -92,6 +91,8 @@ export class GameScene extends Phaser.Scene {
     turnLeft: false,
     turnRight: false,
     firePressed: false,
+    fireHeld: false,
+    fireReleased: false,
     detonatePressed: false,
     placeMinePressed: false,
     boostPressed: false,
@@ -233,10 +234,14 @@ export class GameScene extends Phaser.Scene {
       }
 
       const canFire = this.getActiveBulletCountForTank(slot.id) < MAX_ACTIVE_BULLETS_PER_TANK;
-      const bullet = slot.tank.update(deltaSeconds, input, this.arenaMap.walls, canFire);
-      if (bullet !== undefined) {
-        this.bullets.push(bullet);
+      const updateResult = slot.tank.update(deltaSeconds, input, this.arenaMap.walls, canFire);
+      if (updateResult.firedBullet !== undefined) {
+        this.bullets.push(updateResult.firedBullet);
         this.sfx.playBulletShot();
+      }
+
+      if (updateResult.selfDestructed) {
+        this.destroyTank(slot);
       }
     }
   }
@@ -287,7 +292,10 @@ export class GameScene extends Phaser.Scene {
 
   private updateBullets(deltaSeconds: number): void {
     for (const bullet of this.bullets) {
-      bullet.update(deltaSeconds, this.arenaMap.walls);
+      const hitWall = bullet.update(deltaSeconds, this.arenaMap.walls);
+      if (hitWall && bullet.isAlive && bullet.explodeOnWallImpact) {
+        this.triggerBulletExplosion(bullet);
+      }
     }
   }
 
@@ -484,7 +492,8 @@ export class GameScene extends Phaser.Scene {
 
     bullet.destroy();
     this.sfx.playBulletExplosion();
-    this.applyAreaExplosion(centerX, centerY, BULLET_EXPLOSION_RADIUS, 0xf59e0b, BULLET_EXPLOSION_VISUAL_DURATION_MS);
+    const explosionColor = bullet.isCharged ? 0xf97316 : 0xf59e0b;
+    this.applyAreaExplosion(centerX, centerY, bullet.explosionRadius, explosionColor, BULLET_EXPLOSION_VISUAL_DURATION_MS);
   }
 
   private triggerMineExplosion(mine: Mine): void {
@@ -869,7 +878,7 @@ export class GameScene extends Phaser.Scene {
 
     this.hudText.setText([
       'WASD: move / rotate',
-      'Mouse: aim turret / left click: shoot',
+      'Mouse: aim turret / hold left click: charge shot / release: fire',
       'Right click: detonate oldest player bullet',
       'Space: speed boost (limited duration + cooldown)',
       '',
@@ -880,7 +889,9 @@ export class GameScene extends Phaser.Scene {
       `Active mines: ${this.mines.length}`,
       'Bullets destroy tanks (friendly fire on).',
       'Middle click: place mine.',
-      'Bullets disappear after 3 bounces.',
+      'Charged shots: faster, bigger blast, no bounce (long cooldown).',
+      'Overcharge: hold too long and your tank explodes.',
+      'Normal bullets disappear after 3 bounces.',
       respawning ? 'Respawn in progress...' : 'Tank ready.',
     ]);
   }
@@ -900,7 +911,7 @@ export class GameScene extends Phaser.Scene {
         tank.turretAngle,
         this.arenaMap.walls,
         BULLET_RADIUS,
-        SHOT_PREVIEW_REFLECTIONS,
+        tank.isChargingShot ? 0 : SHOT_PREVIEW_REFLECTIONS,
         SHOT_PREVIEW_MAX_DISTANCE,
       );
 

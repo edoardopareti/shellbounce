@@ -14,6 +14,8 @@ export interface TankInput {
   turnLeft: boolean;
   turnRight: boolean;
   firePressed: boolean;
+  fireHeld: boolean;
+  fireReleased: boolean;
   detonatePressed: boolean;
   placeMinePressed: boolean;
   boostPressed: boolean;
@@ -50,6 +52,7 @@ export class InputController {
     const middleDown = pointer.middleButtonDown();
 
     const firePressed = leftDown && !this.wasLeftDown;
+    const fireReleased = !leftDown && this.wasLeftDown;
     const detonatePressed = rightDown && !this.wasRightDown;
     const placeMinePressed = middleDown && !this.wasMiddleDown;
     const boostPressed = Phaser.Input.Keyboard.JustDown(this.keys.boost);
@@ -64,6 +67,8 @@ export class InputController {
       turnLeft: this.keys.left.isDown,
       turnRight: this.keys.right.isDown,
       firePressed,
+      fireHeld: leftDown,
+      fireReleased,
       detonatePressed,
       placeMinePressed,
       boostPressed,

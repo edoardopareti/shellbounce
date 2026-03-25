@@ -1,5 +1,13 @@
 import Phaser from 'phaser';
 import {
+  BULLET_EXPLOSION_RADIUS,
+  BULLET_SPEED,
+  CHARGED_SHOT_COOLDOWN_MS,
+  CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
+  CHARGED_SHOT_MAX_HOLD_MS,
+  CHARGED_SHOT_OVERCHARGE_MS,
+  CHARGED_SHOT_MAX_SPEED_MULTIPLIER,
+  CHARGED_SHOT_MIN_HOLD_MS,
   FIRE_COOLDOWN_MS,
   MUZZLE_OFFSET,
   TANK_BOOST_COOLDOWN_MS,
@@ -27,6 +35,11 @@ const DEFAULT_TANK_APPEARANCE: TankAppearance = {
   bulletColor: 0xfbbf24,
 };
 
+export interface TankUpdateResult {
+  firedBullet: Bullet | undefined;
+  selfDestructed: boolean;
+}
+
 export class Tank {
   public readonly id: string;
   public readonly radius = TANK_RADIUS;
@@ -35,6 +48,7 @@ export class Tank {
   private readonly bodySprite: Phaser.GameObjects.Image;
   private readonly turretSprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  private readonly chargeRing: Phaser.GameObjects.Arc;
   private readonly position: Phaser.Math.Vector2;
   private readonly appearance: TankAppearance;
   private bodyAngleRadians = -Math.PI / 2;
@@ -42,6 +56,9 @@ export class Tank {
   private fireCooldownMs = 0;
   private boostRemainingMs = 0;
   private boostCooldownMs = 0;
+  private isCharging = false;
+  private fireChargeMs = 0;
+  private chargePulseMs = 0;
 
   public constructor(
     private readonly scene: Phaser.Scene,
@@ -55,12 +72,15 @@ export class Tank {
     this.position = new Phaser.Math.Vector2(x, y);
 
     this.shadow = this.scene.add.ellipse(0, 6, 34, 20, 0x020617, 0.3);
+    this.chargeRing = this.scene.add.circle(0, 0, this.radius + 8, 0xf59e0b, 0);
+    this.chargeRing.setStrokeStyle(2, 0xfef08a, 0);
     this.bodySprite = this.scene.add.image(0, 0, this.appearance.bodyTextureKey);
     this.turretSprite = this.scene.add.image(0, 0, this.appearance.turretTextureKey);
     this.turretSprite.setOrigin(0.25, 0.5);
 
     this.container = this.scene.add.container(this.position.x, this.position.y, [
       this.shadow,
+      this.chargeRing,
       this.bodySprite,
       this.turretSprite,
     ]);
@@ -72,20 +92,26 @@ export class Tank {
     input: TankInput,
     walls: readonly Wall[],
     canFire = true,
-  ): Bullet | undefined {
+  ): TankUpdateResult {
     this.updateBoost(deltaSeconds, input);
     this.updateBodyRotation(deltaSeconds, input);
     this.updateMovement(deltaSeconds, input, walls);
     this.updateTurret(input);
     this.fireCooldownMs = Math.max(0, this.fireCooldownMs - deltaSeconds * 1000);
+    const chargeState = this.updateChargeState(deltaSeconds, input, canFire);
     this.syncGraphics();
 
-    if (canFire && input.firePressed && this.fireCooldownMs === 0) {
-      this.fireCooldownMs = FIRE_COOLDOWN_MS;
-      return this.createBullet();
+    if (chargeState.selfDestructed) {
+      return {
+        firedBullet: undefined,
+        selfDestructed: true,
+      };
     }
 
-    return undefined;
+    return {
+      firedBullet: chargeState.firedBullet,
+      selfDestructed: false,
+    };
   }
 
   public get x(): number {
@@ -102,6 +128,14 @@ export class Tank {
 
   public get turretAngle(): number {
     return this.turretAngleRadians;
+  }
+
+  public get isChargingShot(): boolean {
+    return this.isCharging;
+  }
+
+  public get chargeLevel(): number {
+    return this.getChargeRatio();
   }
 
   public getMuzzlePosition(): Phaser.Math.Vector2 {
@@ -188,6 +222,90 @@ export class Tank {
     this.turretAngleRadians = normalizeAngleRadians(targetAngle);
   }
 
+  private updateChargeState(
+    deltaSeconds: number,
+    input: TankInput,
+    canFire: boolean,
+  ): { firedBullet: Bullet | undefined; selfDestructed: boolean } {
+    if (!canFire && !this.isCharging) {
+      return { firedBullet: undefined, selfDestructed: false };
+    }
+
+    const deltaMs = deltaSeconds * 1000;
+    if (this.isCharging && input.fireHeld) {
+      this.fireChargeMs += deltaMs;
+
+      if (this.fireChargeMs >= CHARGED_SHOT_OVERCHARGE_MS) {
+        this.isCharging = false;
+        this.fireChargeMs = 0;
+        this.chargePulseMs = 0;
+        this.fireCooldownMs = FIRE_COOLDOWN_MS;
+        return { firedBullet: undefined, selfDestructed: true };
+      }
+    }
+
+    if (input.firePressed && canFire && this.fireCooldownMs === 0 && !this.isCharging) {
+      this.isCharging = true;
+      this.fireChargeMs = 0;
+      this.chargePulseMs = 0;
+    }
+
+    if (!this.isCharging) {
+      return { firedBullet: undefined, selfDestructed: false };
+    }
+
+    if (input.fireHeld) {
+      this.chargePulseMs += deltaMs;
+    }
+
+    if (!input.fireReleased) {
+      return { firedBullet: undefined, selfDestructed: false };
+    }
+
+    if (!canFire || this.fireCooldownMs > 0) {
+      this.isCharging = false;
+      this.fireChargeMs = 0;
+      this.chargePulseMs = 0;
+      return { firedBullet: undefined, selfDestructed: false };
+    }
+
+    const heldMs = this.fireChargeMs;
+    const chargeRatio = this.getChargeRatio();
+    const isChargedShot = heldMs >= CHARGED_SHOT_MIN_HOLD_MS;
+
+    this.isCharging = false;
+    this.fireChargeMs = 0;
+    this.chargePulseMs = 0;
+
+    if (!isChargedShot) {
+      this.fireCooldownMs = FIRE_COOLDOWN_MS;
+      return {
+        firedBullet: this.createBullet(),
+        selfDestructed: false,
+      };
+    }
+
+    const speed = Phaser.Math.Linear(BULLET_SPEED, BULLET_SPEED * CHARGED_SHOT_MAX_SPEED_MULTIPLIER, chargeRatio);
+    const explosionRadius = Phaser.Math.Linear(
+      BULLET_EXPLOSION_RADIUS,
+      BULLET_EXPLOSION_RADIUS * CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
+      chargeRatio,
+    );
+
+    this.fireCooldownMs = CHARGED_SHOT_COOLDOWN_MS;
+
+    return {
+      firedBullet: this.createBullet({
+        speed,
+        explosionRadius,
+        maxBounces: 0,
+        explodeOnWallImpact: true,
+        isCharged: true,
+      }),
+      selfDestructed: false,
+    };
+  }
+
   private intersectsAnyWall(position: Phaser.Math.Vector2, walls: readonly Wall[]): boolean {
     for (const wall of walls) {
       const closestX = clamp(position.x, wall.x, wall.x + wall.width);
@@ -202,16 +320,51 @@ export class Tank {
     return false;
   }
 
-  private createBullet(): Bullet {
+  private getChargeRatio(): number {
+    if (!this.isCharging) {
+      return 0;
+    }
+
+    const cappedChargeMs = Math.min(this.fireChargeMs, CHARGED_SHOT_MAX_HOLD_MS);
+    const normalized = (cappedChargeMs - CHARGED_SHOT_MIN_HOLD_MS) / (CHARGED_SHOT_MAX_HOLD_MS - CHARGED_SHOT_MIN_HOLD_MS);
+    return clamp(normalized, 0, 1);
+  }
+
+  private createBullet(config?: {
+    speed?: number;
+    explosionRadius?: number;
+    maxBounces?: number;
+    explodeOnWallImpact?: boolean;
+    isCharged?: boolean;
+  }): Bullet {
     const muzzle = this.getMuzzlePosition();
 
-    return new Bullet(this.scene, this.id, muzzle.x, muzzle.y, this.turretAngleRadians, this.appearance.bulletColor);
+    return new Bullet(this.scene, this.id, muzzle.x, muzzle.y, this.turretAngleRadians, {
+      color: this.appearance.bulletColor,
+      speed: config?.speed,
+      explosionRadius: config?.explosionRadius,
+      maxBounces: config?.maxBounces,
+      explodeOnWallImpact: config?.explodeOnWallImpact,
+      isCharged: config?.isCharged,
+    });
   }
 
   private syncGraphics(): void {
     this.container.setPosition(this.position.x, this.position.y);
     this.bodySprite.setRotation(this.bodyAngleRadians);
     this.turretSprite.setRotation(this.turretAngleRadians);
+
+    const chargeLevel = this.getChargeRatio();
+    if (!this.isCharging) {
+      this.chargeRing.setAlpha(0);
+      this.chargeRing.setScale(1);
+      return;
+    }
+
+    const pulse = 0.94 + Math.sin(this.chargePulseMs * 0.016) * 0.08;
+    this.chargeRing.setAlpha(0.2 + chargeLevel * 0.55);
+    this.chargeRing.setScale(Phaser.Math.Linear(0.86, 1.14, chargeLevel) * pulse);
+    this.chargeRing.setStrokeStyle(2 + chargeLevel * 2, 0xfef08a, 0.45 + chargeLevel * 0.4);
   }
 
   public destroy(): void {

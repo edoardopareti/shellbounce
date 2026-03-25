@@ -1,6 +1,21 @@
 import Phaser from 'phaser';
-import { BULLET_LIFETIME_MS, BULLET_MAX_BOUNCES, BULLET_RADIUS, BULLET_SPEED } from '../constants';
+import {
+  BULLET_EXPLOSION_RADIUS,
+  BULLET_LIFETIME_MS,
+  BULLET_MAX_BOUNCES,
+  BULLET_RADIUS,
+  BULLET_SPEED,
+} from '../constants';
 import type { Wall } from '../map/types';
+
+export interface BulletConfig {
+  color?: number;
+  speed?: number;
+  maxBounces?: number;
+  explosionRadius?: number;
+  explodeOnWallImpact?: boolean;
+  isCharged?: boolean;
+}
 
 interface HitResult {
   collisionX: number;
@@ -11,13 +26,17 @@ interface HitResult {
 export class Bullet {
   public readonly ownerTankId: string;
   public readonly sprite: Phaser.GameObjects.Arc;
-  public readonly radius = BULLET_RADIUS;
-  public bouncesRemaining = BULLET_MAX_BOUNCES;
+  public readonly radius: number;
+  public readonly explosionRadius: number;
+  public readonly explodeOnWallImpact: boolean;
+  public readonly isCharged: boolean;
+  public bouncesRemaining: number;
   public isAlive = true;
 
   private readonly velocity = new Phaser.Math.Vector2();
   private lifetimeMs = 0;
   private position: Phaser.Math.Vector2;
+  private chargedAura: Phaser.GameObjects.Arc | undefined;
 
   public constructor(
     private readonly scene: Phaser.Scene,
@@ -25,18 +44,33 @@ export class Bullet {
     x: number,
     y: number,
     angle: number,
-    color = 0xfbbf24,
+    config?: BulletConfig,
   ) {
+    const speed = config?.speed ?? BULLET_SPEED;
+    const color = config?.color ?? 0xfbbf24;
+
     this.ownerTankId = ownerTankId;
+    this.radius = BULLET_RADIUS;
+    this.explosionRadius = config?.explosionRadius ?? BULLET_EXPLOSION_RADIUS;
+    this.explodeOnWallImpact = config?.explodeOnWallImpact ?? false;
+    this.isCharged = config?.isCharged ?? false;
+    this.bouncesRemaining = config?.maxBounces ?? BULLET_MAX_BOUNCES;
     this.position = new Phaser.Math.Vector2(x, y);
-    this.velocity.setToPolar(angle, BULLET_SPEED);
+    this.velocity.setToPolar(angle, speed);
     this.sprite = this.scene.add.circle(x, y, this.radius, color);
     this.sprite.setDepth(3);
+
+    if (this.isCharged) {
+      this.sprite.setStrokeStyle(2, 0xfef08a, 0.75);
+      this.chargedAura = this.scene.add.circle(x, y, this.radius + 4, 0xf97316, 0.3);
+      this.chargedAura.setDepth(2.9);
+      this.chargedAura.setBlendMode(Phaser.BlendModes.ADD);
+    }
   }
 
-  public update(deltaSeconds: number, walls: readonly Wall[]): void {
+  public update(deltaSeconds: number, walls: readonly Wall[]): boolean {
     if (!this.isAlive) {
-      return;
+      return false;
     }
 
     const previousPosition = this.position.clone();
@@ -46,12 +80,18 @@ export class Bullet {
 
     if (hit !== undefined) {
       this.position.set(hit.collisionX, hit.collisionY);
+
+      if (this.explodeOnWallImpact) {
+        this.sprite.setPosition(this.position.x, this.position.y);
+        return true;
+      }
+
       this.reflect(hit.axis);
       this.bouncesRemaining -= 1;
 
       if (this.bouncesRemaining < 0) {
         this.destroy();
-        return;
+        return false;
       }
 
       const remainingMovement = previousPosition.distance(proposedPosition) - previousPosition.distance(this.position);
@@ -66,10 +106,18 @@ export class Bullet {
     this.lifetimeMs += deltaSeconds * 1000;
     if (this.lifetimeMs >= BULLET_LIFETIME_MS) {
       this.destroy();
-      return;
+      return false;
     }
 
     this.sprite.setPosition(this.position.x, this.position.y);
+    if (this.chargedAura !== undefined) {
+      const pulse = 1 + Math.sin(this.lifetimeMs * 0.02) * 0.22;
+      this.chargedAura.setPosition(this.position.x, this.position.y);
+      this.chargedAura.setScale(pulse);
+      this.chargedAura.setAlpha(0.18 + (pulse - 0.78) * 0.25);
+    }
+
+    return false;
   }
 
   public get x(): number {
@@ -217,6 +265,7 @@ export class Bullet {
     }
 
     this.isAlive = false;
+    this.chargedAura?.destroy();
     this.sprite.destroy();
   }
 }
