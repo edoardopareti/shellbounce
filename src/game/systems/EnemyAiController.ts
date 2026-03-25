@@ -151,6 +151,10 @@ export class EnemyAiController {
     bullets: readonly Bullet[],
   ): TankInput {
     if (targetTank === undefined) {
+
+      // If there is no target tank (e.g., the player has been destroyed),
+      // the AI will default to a fallback behavior
+
       const fallbackX = enemyTank.x + Math.cos(enemyTank.bodyAngle) * 120;
       const fallbackY = enemyTank.y + Math.sin(enemyTank.bodyAngle) * 120;
 
@@ -167,6 +171,11 @@ export class EnemyAiController {
         pointerWorldY: fallbackY,
       };
     }
+    
+    // The following logic determines the AI's actions based on the current game state,
+    // including the position of the enemy tank, the target tank, the walls, and the bullets.
+    // The AI will make decisions about movement, turning, firing, dodging, and other actions 
+    // based on its difficulty profile and the current situation in the game.
 
     if (nowMs >= this.nextDecisionAtMs) {
       this.aimSolution = this.computeAimSolution(enemyTank, targetTank, walls);
