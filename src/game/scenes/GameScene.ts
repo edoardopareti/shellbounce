@@ -5,7 +5,7 @@
 // checking for collisions, and rendering the game state to the screen.
 
 import Phaser from 'phaser';
-import { ArenaMap } from '../map/ArenaMap';
+import { ArenaMap } from '../maps/ArenaMap';
 import { Bullet } from '../entities/Bullet';
 import { Mine } from '../entities/Mine';
 import { Tank, type TankAppearance } from '../entities/Tank';
@@ -23,7 +23,7 @@ import {
   SPAWN_CORNER_PADDING,
   TANK_RESPAWN_DELAY_MS,
 } from '../constants';
-import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT } from '../config';
+import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT, SELECTED_MAP } from '../config';
 import { EnemyAiController } from '../systems/EnemyAiController';
 import { SfxController } from '../systems/SfxController';
 import { predictBulletTrajectory } from '../utils/shotPrediction';
@@ -35,7 +35,6 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 
 //GAME MECHANICS TODOs:
 //TODO if left click is pressed for a certain amount of time without releasing, charge up a more powerful shot which moves faster and bigger explosion radius but without rebounce - add visual feedback for the charging state and the increased power level, and with a cooldown after firing to prevent spamming the charged shot 
-//TODO define multiple map layouts and load them at runtime, instead of hardcoding a single arena layout
 //TODO define multiple types of tanks
 //TODO add allies
 //TODO Add temporary invincibility and visual feedback on respawn, to avoid frustrating instant deaths right after respawning, especially in crowded areas with many active bullets and mines
@@ -126,7 +125,7 @@ export class GameScene extends Phaser.Scene {
   public create(): void {
 
     // Render the arena map, which draws the background, grid, and walls onto the scene
-    this.arenaMap = new ArenaMap(this);  // Initialize the arena map, which generates the walls based on the scene's dimensions and renders the background, grid, and walls onto the scene
+    this.arenaMap = new ArenaMap(this, SELECTED_MAP);  // Initialize the arena map, using the map selected in config.ts
     this.arenaMap.render(); // Render the arena map, which draws the background, grid, and walls onto the scene
     
     // Initialize the input controller, which will handle player input

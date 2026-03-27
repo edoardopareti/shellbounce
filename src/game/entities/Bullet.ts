@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BULLET_LIFETIME_MS, BULLET_MAX_BOUNCES, BULLET_RADIUS, BULLET_SPEED } from '../constants';
-import type { Wall } from '../map/types';
+import type { Wall } from '../maps/types';
 
 interface HitResult {
   collisionX: number;

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Wall } from '../map/types';
+import type { Wall } from '../maps/types';
 
 interface GridCell {
   column: number;

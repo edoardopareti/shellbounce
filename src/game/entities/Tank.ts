@@ -10,7 +10,7 @@ import {
   TANK_REVERSE_SPEED,
   TANK_ROTATION_SPEED,
 } from '../constants';
-import type { Wall } from '../map/types';
+import type { Wall } from '../maps/types';
 import type { TankInput } from '../systems/InputController';
 import { clamp, normalizeAngleRadians } from '../utils/math';
 import { Bullet } from './Bullet';
