@@ -16,29 +16,36 @@ import { buildNavigationGrid, findPath } from '../utils/pathfinding';
 export type EnemyAiDifficulty = 'easy' | 'medium' | 'hard';
 
 interface DifficultyProfile {
-  aimErrorRadians: number;
-  steeringDeadZoneRadians: number;
-  preferredDistanceMin: number;
-  preferredDistanceMax: number;
-  searchStepRadians: number;
-  useRicochetChance: number;
-  holdWhenOnTarget: boolean;
-  targetHitSlack: number;
-  bulletThreatHorizonMs: number;
-  dodgeMargin: number;
-  dodgeReactionChance: number;
-  canShootWhileDodging: boolean;
-  wallProbeDistance: number;
-  wallAvoidanceTurnBiasRadians: number;
-  decisionIntervalMs: { min: number; max: number };
-  fireCooldownMs: { min: number; max: number };
-  maxFireRange: number;
-  detonationMargin: number;
-  selfPreservationMargin: number;
-  pathCellSize: number;
-  pathReplanMs: { min: number; max: number };
-  minePlacementDistanceFactor: number;
-  minePlacementCooldownMs: { min: number; max: number };
+  aimErrorRadians: number; // Random angular inaccuracy added to aim solutions (higher = less precise).
+  steeringDeadZoneRadians: number; // Minimum heading delta before the AI starts turning.
+  preferredDistanceMin: number; // Lower bound of desired combat distance from the target.
+  preferredDistanceMax: number; // Upper bound of desired combat distance from the target.
+  searchStepRadians: number; // Angle step used while scanning ricochet candidate shots.
+  useRicochetChance: number; // Chance to evaluate ricochet trajectories instead of only direct fire.
+  holdWhenOnTarget: boolean; // If true, AI may stop advancing when aim prediction is favorable.
+  targetHitSlack: number; // Extra tolerance added to hit validation against predicted trajectory.
+  bulletThreatHorizonMs: number; // Time window used to forecast incoming bullet threats.
+  dodgeMargin: number; // Extra safety margin around tank radius when evaluating bullet danger.
+  dodgeReactionChance: number; // Probability of reacting to a detected projectile threat.
+  canShootWhileDodging: boolean; // Whether AI is allowed to fire while actively dodging.
+  wallProbeDistance: number; // Forward probe distance used to detect walls during steering.
+  wallAvoidanceTurnBiasRadians: number; // Turn offset applied when path ahead is blocked by walls.
+  decisionIntervalMs: { min: number; max: number }; // Interval range between expensive aim/decision recalculations.
+  fireCooldownMs: { min: number; max: number }; // Delay range between consecutive AI shots.
+  maxFireRange: number; // Maximum distance at which AI considers firing.
+  detonationMargin: number; // Extra proximity tolerance for remote bullet detonation near target.
+  selfPreservationMargin: number; // Additional self-safety margin to avoid self-damage on detonation.
+  pathCellSize: number; // Grid cell size used for navigation/pathfinding.
+  pathReplanMs: { min: number; max: number }; // Interval range for path recalculation frequency.
+  minePlacementDistanceFactor: number; // Scales preferred distance to determine mine-drop trigger range.
+  minePlacementCooldownMs: { min: number; max: number }; // Cooldown range between tactical mine placements.
+  pursuitRangeMultiplier: number; // Multiplier for how far AI keeps pressing forward before easing pursuit.
+  closeReverseDistanceMultiplier: number; // Multiplier controlling how close AI gets before reversing.
+  suppressionFireRangeFactor: number; // Fraction of max range where AI can fire suppressively without perfect prediction.
+  chaseBoostDistanceMultiplier: number; // Distance multiplier that triggers boost during target chase.
+  lineOfFireAvoidanceChance: number; // Probability of evasive action when standing in player's aim lane.
+  lineOfFireDangerMaxDistance: number; // Max player-to-AI distance where aim-lane threat is considered dangerous.
+  lineOfFireMargin: number; // Extra lateral padding for line-of-fire danger corridor width.
 }
 
 const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
@@ -66,6 +73,13 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     pathReplanMs: { min: 500, max: 850 },
     minePlacementDistanceFactor: 0.92,
     minePlacementCooldownMs: { min: 2200, max: 3400 },
+    pursuitRangeMultiplier: 1.3,
+    closeReverseDistanceMultiplier: 0.82,
+    suppressionFireRangeFactor: 1,
+    chaseBoostDistanceMultiplier: 1.6,
+    lineOfFireAvoidanceChance: 0.2,
+    lineOfFireDangerMaxDistance: 300,
+    lineOfFireMargin: 5,
   },
   medium: {
     aimErrorRadians: 0.23,
@@ -91,15 +105,22 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     pathReplanMs: { min: 320, max: 560 },
     minePlacementDistanceFactor: 1.02,
     minePlacementCooldownMs: { min: 1700, max: 2800 },
+    pursuitRangeMultiplier: 1.16,
+    closeReverseDistanceMultiplier: 0.68,
+    suppressionFireRangeFactor: 0.35,
+    chaseBoostDistanceMultiplier: 1.3,
+    lineOfFireAvoidanceChance: 0.58,
+    lineOfFireDangerMaxDistance: 450,
+    lineOfFireMargin: 9,
   },
   hard: {
     aimErrorRadians: 0.08,
     steeringDeadZoneRadians: 0.1,
-    preferredDistanceMin: 130,
-    preferredDistanceMax: 280,
+    preferredDistanceMin: 90,
+    preferredDistanceMax: 220,
     searchStepRadians: Phaser.Math.DegToRad(5),
     useRicochetChance: 1,
-    holdWhenOnTarget: true,
+    holdWhenOnTarget: false,
     targetHitSlack: 3,
     bulletThreatHorizonMs: 1200,
     dodgeMargin: 34,
@@ -108,7 +129,7 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     wallProbeDistance: 110,
     wallAvoidanceTurnBiasRadians: Phaser.Math.DegToRad(55),
     decisionIntervalMs: { min: 110, max: 220 },
-    fireCooldownMs: { min: 180, max: 320 },
+    fireCooldownMs: { min: 300, max: 600 },
     maxFireRange: 640,
     detonationMargin: 4,
     selfPreservationMargin: 6,
@@ -116,6 +137,13 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     pathReplanMs: { min: 170, max: 300 },
     minePlacementDistanceFactor: 1.15,
     minePlacementCooldownMs: { min: 1300, max: 2200 },
+    pursuitRangeMultiplier: 1.05,
+    closeReverseDistanceMultiplier: 0.55,
+    suppressionFireRangeFactor: 0.75,
+    chaseBoostDistanceMultiplier: 1.15,
+    lineOfFireAvoidanceChance: 0.96,
+    lineOfFireDangerMaxDistance: 700,
+    lineOfFireMargin: 16,
   },
 };
 
@@ -127,6 +155,10 @@ interface AimSolution {
 interface BulletThreat {
   bullet: Bullet;
   timeToClosest: number;
+}
+
+interface LineOfFireThreat {
+  aimDirection: Phaser.Math.Vector2;
 }
 
 export class EnemyAiController {
@@ -186,10 +218,15 @@ export class EnemyAiController {
 
     const threat = this.findMostDangerousBullet(enemyTank, bullets);
     const shouldDodge = threat !== undefined && Math.random() <= this.profile.dodgeReactionChance;
+    const lineOfFireThreat = this.detectPlayerLineOfFireThreat(enemyTank, targetTank, walls);
+    const shouldAvoidLineOfFire =
+      lineOfFireThreat !== undefined && Math.random() <= this.profile.lineOfFireAvoidanceChance;
 
     let desiredHeading = Phaser.Math.Angle.Between(enemyTank.x, enemyTank.y, targetTank.x, targetTank.y);
     if (shouldDodge && threat !== undefined) {
       desiredHeading = this.computeDodgeHeading(enemyTank, threat.bullet, walls);
+    } else if (shouldAvoidLineOfFire && lineOfFireThreat !== undefined) {
+      desiredHeading = this.computeLineOfFireDodgeHeading(enemyTank, lineOfFireThreat, walls);
     } else {
       const pathHeading = this.computePathAwareHeading(nowMs, enemyTank, targetTank, walls);
       desiredHeading = this.computeWallAwareHeading(enemyTank, pathHeading, walls);
@@ -209,18 +246,34 @@ export class EnemyAiController {
       (this.hasPendingPathWaypoint(enemyTank) && distanceToTarget > this.profile.preferredDistanceMin);
     let moveBackward = distanceToTarget < this.profile.preferredDistanceMin;
 
-    if (shouldDodge) {
+    if (shouldDodge || shouldAvoidLineOfFire) {
       moveForward = true;
       moveBackward = false;
+    }
+
+    if (!shouldDodge && !shouldAvoidLineOfFire) {
+      const pushUntilDistance = this.profile.preferredDistanceMax * this.profile.pursuitRangeMultiplier;
+      const stopAndReverseDistance = this.profile.preferredDistanceMin * this.profile.closeReverseDistanceMultiplier;
+
+      moveForward = distanceToTarget > stopAndReverseDistance;
+      moveBackward = distanceToTarget < stopAndReverseDistance;
+
+      if (distanceToTarget > pushUntilDistance) {
+        moveForward = true;
+        moveBackward = false;
+      }
     }
 
     const shouldHoldPosition = hasPredictedShot && this.profile.holdWhenOnTarget;
 
     const canShootByDistance = distanceToTarget <= this.profile.maxFireRange;
-    const canShootByPrediction = hasPredictedShot || this.difficulty === 'easy';
+    const suppressionRange = this.profile.maxFireRange * this.profile.suppressionFireRangeFactor;
+    const canShootByPrediction =
+      hasPredictedShot ||
+      (this.profile.suppressionFireRangeFactor > 0 && distanceToTarget <= suppressionRange);
     const canShootByDodgeState = !shouldDodge || this.profile.canShootWhileDodging;
-    const shouldBoostForDodge = shouldDodge;
-    const chaseDistanceThresholdMultiplier = this.difficulty === 'hard' ? 1.15 : this.difficulty === 'medium' ? 1.3 : 1.6;
+    const shouldBoostForDodge = shouldDodge || shouldAvoidLineOfFire;
+    const chaseDistanceThresholdMultiplier = this.profile.chaseBoostDistanceMultiplier;
     const shouldBoostForChase = distanceToTarget > this.profile.preferredDistanceMax * chaseDistanceThresholdMultiplier;
 
     let firePressed = false;
@@ -233,7 +286,7 @@ export class EnemyAiController {
     const fireHeld = false;
     const fireReleased = firePressed;
 
-    const detonatePressed = this.shouldDetonateOwnedBullet(enemyTank, targetTank, bullets);
+    const detonatePressed = this.shouldDetonateOwnedBullet(enemyTank, targetTank, bullets, walls);
     const placeMinePressed = this.shouldPlaceMine(nowMs, distanceToTarget, shouldDodge, moveBackward);
     const boostPressed = shouldBoostForDodge || shouldBoostForChase;
 
@@ -270,15 +323,33 @@ export class EnemyAiController {
     return true;
   }
 
-  private shouldDetonateOwnedBullet(enemyTank: Tank, targetTank: Tank, bullets: readonly Bullet[]): boolean {
+  private shouldDetonateOwnedBullet(
+    enemyTank: Tank,
+    targetTank: Tank,
+    bullets: readonly Bullet[],
+    walls: readonly Wall[],
+  ): boolean {
     const oldestOwnedBullet = bullets.find((bullet) => bullet.isAlive && bullet.ownerTankId === enemyTank.id);
     if (oldestOwnedBullet === undefined) {
       return false;
     }
 
+    const detonationProximityFactor = 0.72;
+
     const targetDistance = Phaser.Math.Distance.Between(oldestOwnedBullet.x, oldestOwnedBullet.y, targetTank.x, targetTank.y);
-    const targetReach = BULLET_EXPLOSION_RADIUS + targetTank.radius + this.profile.detonationMargin;
+    const targetReach = (BULLET_EXPLOSION_RADIUS + targetTank.radius) * detonationProximityFactor + this.profile.detonationMargin;
     if (targetDistance > targetReach) {
+      return false;
+    }
+
+    const blockedByWall = this.isLineOfSightBlocked(
+      oldestOwnedBullet.x,
+      oldestOwnedBullet.y,
+      targetTank.x,
+      targetTank.y,
+      walls,
+    );
+    if (blockedByWall) {
       return false;
     }
 
@@ -456,6 +527,49 @@ export class EnemyAiController {
     return Phaser.Math.Angle.Between(0, 0, chosen.x, chosen.y);
   }
 
+  private detectPlayerLineOfFireThreat(
+    enemyTank: Tank,
+    targetTank: Tank,
+    walls: readonly Wall[],
+  ): LineOfFireThreat | undefined {
+    const aimDirection = new Phaser.Math.Vector2(Math.cos(targetTank.turretAngle), Math.sin(targetTank.turretAngle));
+    const fromPlayerToEnemy = new Phaser.Math.Vector2(enemyTank.x - targetTank.x, enemyTank.y - targetTank.y);
+    const forwardDistance = fromPlayerToEnemy.dot(aimDirection);
+
+    if (forwardDistance <= 0 || forwardDistance > this.profile.lineOfFireDangerMaxDistance) {
+      return undefined;
+    }
+
+    const lateralDistance = Math.abs(fromPlayerToEnemy.x * aimDirection.y - fromPlayerToEnemy.y * aimDirection.x);
+    const dangerLaneHalfWidth = enemyTank.radius + BULLET_RADIUS + this.profile.lineOfFireMargin;
+    if (lateralDistance > dangerLaneHalfWidth) {
+      return undefined;
+    }
+
+    const blockedByWall = this.isLineOfSightBlocked(targetTank.x, targetTank.y, enemyTank.x, enemyTank.y, walls);
+    if (blockedByWall) {
+      return undefined;
+    }
+
+    return { aimDirection };
+  }
+
+  private computeLineOfFireDodgeHeading(
+    enemyTank: Tank,
+    lineOfFireThreat: LineOfFireThreat,
+    walls: readonly Wall[],
+  ): number {
+    const aimDirection = lineOfFireThreat.aimDirection;
+    const leftPerpendicular = new Phaser.Math.Vector2(-aimDirection.y, aimDirection.x);
+    const rightPerpendicular = new Phaser.Math.Vector2(aimDirection.y, -aimDirection.x);
+
+    const leftScore = this.evaluateDirectionClearance(enemyTank, leftPerpendicular, walls);
+    const rightScore = this.evaluateDirectionClearance(enemyTank, rightPerpendicular, walls);
+
+    const chosenDirection = leftScore >= rightScore ? leftPerpendicular : rightPerpendicular;
+    return Phaser.Math.Angle.Between(0, 0, chosenDirection.x, chosenDirection.y);
+  }
+
   private computeWallAwareHeading(enemyTank: Tank, desiredHeading: number, walls: readonly Wall[]): number {
     const frontBlocked = this.isDirectionBlocked(enemyTank, desiredHeading, walls, this.profile.wallProbeDistance);
     if (!frontBlocked) {
@@ -505,6 +619,87 @@ export class EnemyAiController {
     }
 
     return false;
+  }
+
+  private isLineOfSightBlocked(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    walls: readonly Wall[],
+  ): boolean {
+    for (const wall of walls) {
+      if (this.segmentIntersectsRectangle(startX, startY, endX, endY, wall)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private segmentIntersectsRectangle(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    rect: Wall,
+  ): boolean {
+    const dx = endX - startX;
+    const dy = endY - startY;
+
+    let tMin = 0;
+    let tMax = 1;
+
+    const xResult = this.clipSegmentAxis(startX, dx, rect.x, rect.x + rect.width, tMin, tMax);
+    if (xResult === undefined) {
+      return false;
+    }
+    tMin = xResult.tMin;
+    tMax = xResult.tMax;
+
+    const yResult = this.clipSegmentAxis(startY, dy, rect.y, rect.y + rect.height, tMin, tMax);
+    if (yResult === undefined) {
+      return false;
+    }
+
+    tMin = yResult.tMin;
+    tMax = yResult.tMax;
+
+    return tMin <= tMax && tMax >= 0 && tMin <= 1;
+  }
+
+  private clipSegmentAxis(
+    start: number,
+    delta: number,
+    min: number,
+    max: number,
+    currentTMin: number,
+    currentTMax: number,
+  ): { tMin: number; tMax: number } | undefined {
+    if (Math.abs(delta) < Number.EPSILON) {
+      if (start < min || start > max) {
+        return undefined;
+      }
+
+      return { tMin: currentTMin, tMax: currentTMax };
+    }
+
+    const inverseDelta = 1 / delta;
+    let t1 = (min - start) * inverseDelta;
+    let t2 = (max - start) * inverseDelta;
+
+    if (t1 > t2) {
+      [t1, t2] = [t2, t1];
+    }
+
+    const nextTMin = Math.max(currentTMin, t1);
+    const nextTMax = Math.min(currentTMax, t2);
+
+    if (nextTMin > nextTMax) {
+      return undefined;
+    }
+
+    return { tMin: nextTMin, tMax: nextTMax };
   }
 
   private buildAngleCandidates(directAngle: number, stepRadians: number): number[] {
