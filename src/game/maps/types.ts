@@ -4,3 +4,5 @@ export interface Wall {
   width: number;
   height: number;
 }
+
+export type MapName = 'map1' | 'map2' | 'map3';

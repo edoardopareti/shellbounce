@@ -5,7 +5,7 @@
 // checking for collisions, and rendering the game state to the screen.
 
 import Phaser from 'phaser';
-import { ArenaMap } from '../map/ArenaMap';
+import { ArenaMap } from '../maps/ArenaMap';
 import { Bullet } from '../entities/Bullet';
 import { Mine } from '../entities/Mine';
 import { Tank, type TankAppearance } from '../entities/Tank';
@@ -22,7 +22,7 @@ import {
   SPAWN_CORNER_PADDING,
   TANK_RESPAWN_DELAY_MS,
 } from '../constants';
-import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT } from '../config';
+import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT, SELECTED_MAP } from '../config';
 import { EnemyAiController } from '../systems/EnemyAiController';
 import { SfxController } from '../systems/SfxController';
 import { predictBulletTrajectory } from '../utils/shotPrediction';
@@ -34,7 +34,6 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 
 //GAME MECHANICS TODOs:
 //TODO if left click is pressed for a certain amount of time without releasing, charge up a more powerful shot which moves faster and bigger explosion radius but without rebounce - add visual feedback for the charging state and the increased power level, and with a cooldown after firing to prevent spamming the charged shot 
-//TODO define multiple map layouts and load them at runtime, instead of hardcoding a single arena layout
 //TODO define multiple types of tanks
 //TODO add allies
 //TODO Add temporary invincibility and visual feedback on respawn, to avoid frustrating instant deaths right after respawning, especially in crowded areas with many active bullets and mines
@@ -127,7 +126,7 @@ export class GameScene extends Phaser.Scene {
   public create(): void {
 
     // Render the arena map, which draws the background, grid, and walls onto the scene
-    this.arenaMap = new ArenaMap(this);  // Initialize the arena map, which generates the walls based on the scene's dimensions and renders the background, grid, and walls onto the scene
+    this.arenaMap = new ArenaMap(this, SELECTED_MAP);  // Initialize the arena map using the selected map's own world size definition
     this.arenaMap.render(); // Render the arena map, which draws the background, grid, and walls onto the scene
     
     // Initialize the input controller, which will handle player input
@@ -171,6 +170,8 @@ export class GameScene extends Phaser.Scene {
     // Combine the player slot and enemy slots into the tanks array,
     // which will be used to manage all tanks in the game
     this.tanks = [playerSlot, ...enemySlots];
+
+    this.configureCamera(playerSlot.tank);
     
     // Initialize the HUD (heads-up display) text object, which will display game information
     // such as player health, score, etc., and set its depth and scroll factor
@@ -182,7 +183,7 @@ export class GameScene extends Phaser.Scene {
       lineSpacing: 6,
     });
     this.hudText.setDepth(10); // Set depth to ensure HUD is rendered above all other game objects
-    this.hudText.setScrollFactor(1);  // Set scroll factor to 0 to make the HUD stay fixed on the screen and not scroll with the camera
+    this.hudText.setScrollFactor(0);  // Keep HUD fixed on the viewport while camera moves through the map
     
     // Initialize the graphics object for rendering shot previews,
     // which will be used to visualize the predicted trajectory 
@@ -534,7 +535,23 @@ export class GameScene extends Phaser.Scene {
       // Create a new tank instance for the respawning tank slot at the chosen spawn point
       tankSlot.tank = new Tank(this, tankSlot.id, spawnPoint.x, spawnPoint.y, tankSlot.appearance);
       tankSlot.respawnAtMs = undefined;
+
+      if (tankSlot.id === this.playerTankId) {
+        this.configureCamera(tankSlot.tank);
+      }
     }
+  }
+
+  private configureCamera(playerTank: Tank | undefined): void {
+    const camera = this.cameras.main;
+    camera.setBounds(0, 0, this.arenaMap.width, this.arenaMap.height);
+
+    if (playerTank === undefined) {
+      return;
+    }
+
+    camera.startFollow(playerTank.container, true, 0.12, 0.12);
+    camera.roundPixels = true;
   }
 
   private cleanupBullets(): void {
@@ -1012,8 +1029,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getPlayableBounds(): { left: number; top: number; right: number; bottom: number } {
-    const width = this.scale.width;
-    const height = this.scale.height;
+    const width = this.arenaMap.width;
+    const height = this.arenaMap.height;
     const epsilon = 0.001;
     const fullWidthThreshold = width * 0.95;
     const fullHeightThreshold = height * 0.95;

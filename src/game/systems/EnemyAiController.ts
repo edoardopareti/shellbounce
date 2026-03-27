@@ -3,7 +3,7 @@ import type { Tank } from '../entities/Tank';
 import type { Bullet } from '../entities/Bullet';
 import type { TankInput } from './InputController';
 import { normalizeAngleRadians } from '../utils/math';
-import type { Wall } from '../map/types';
+import type { Wall } from '../maps/types';
 import {
   BULLET_EXPLOSION_RADIUS,
   BULLET_RADIUS,

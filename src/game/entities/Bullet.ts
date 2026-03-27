@@ -1,12 +1,6 @@
 import Phaser from 'phaser';
-import {
-  BULLET_EXPLOSION_RADIUS,
-  BULLET_LIFETIME_MS,
-  BULLET_MAX_BOUNCES,
-  BULLET_RADIUS,
-  BULLET_SPEED,
-} from '../constants';
-import type { Wall } from '../map/types';
+import { BULLET_EXPLOSION_RADIUS, BULLET_LIFETIME_MS, BULLET_MAX_BOUNCES, BULLET_RADIUS, BULLET_SPEED } from '../constants';
+import type { Wall } from '../maps/types';
 
 export interface BulletConfig {
   color?: number;
