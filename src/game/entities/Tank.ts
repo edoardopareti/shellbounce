@@ -142,10 +142,50 @@ export class Tank {
   }
 
   public getMuzzlePosition(): Phaser.Math.Vector2 {
+    // Calculate and return the position of the tank's turret muzzle,
+    // which is the point from which bullets are fired.
+    // The muzzle position is calculated based on the tank's current position,
+    // the turret angle, and a defined muzzle offset that determines
+    // how far from the center of the tank the muzzle is located.
+    // This allows bullets to be spawned at the correct location
+    // corresponding to the end of the turret, regardless of the tank's orientation.
     return new Phaser.Math.Vector2(
       this.position.x + Math.cos(this.turretAngleRadians) * MUZZLE_OFFSET,
       this.position.y + Math.sin(this.turretAngleRadians) * MUZZLE_OFFSET,
     );
+  }
+
+  private updateBoost(deltaSeconds: number, input: TankInput): void {
+
+    // Update the tank's boost status based on the player's input and the current boost state.
+    // This includes managing the boost duration and cooldown timers,
+    // and activating the boost when the player presses the boost button (spacebar),
+    // as long as the boost is not currently active and not on cooldown.
+
+    // When the boost is active, the tank's movement speed will be multiplied
+    // by a defined boost multiplier, allowing the tank to move faster for a short duration.
+    // After the boost duration expires, the boost will go on cooldown,
+    // preventing it from being activated again until the cooldown period has passed.
+    const deltaMs = deltaSeconds * 1000;
+    
+    // If the boost is currently active, decrease the remaining boost time by the elapsed time (deltaMs).
+    // If the boost duration has expired (boostRemainingMs <= 0), reset the boost remaining time to 0 and start the cooldown timer.
+    if (this.boostRemainingMs > 0) {
+      this.boostRemainingMs = Math.max(0, this.boostRemainingMs - deltaMs);
+      if (this.boostRemainingMs === 0) {
+        this.boostCooldownMs = TANK_BOOST_COOLDOWN_MS;
+      }
+    } else if (this.boostCooldownMs > 0) {
+      this.boostCooldownMs = Math.max(0, this.boostCooldownMs - deltaMs);
+    }
+    
+    // If the boost button is pressed
+    // and the boost is not currently active (boostRemainingMs === 0)
+    // and not on cooldown (boostCooldownMs === 0),
+    // activate the boost by setting the boost remaining time to the defined boost duration.
+    if (input.boostPressed && this.boostRemainingMs === 0 && this.boostCooldownMs === 0) {
+      this.boostRemainingMs = TANK_BOOST_DURATION_MS;
+    }
   }
 
   private updateBodyRotation(deltaSeconds: number, input: TankInput): void {
@@ -204,61 +244,44 @@ export class Tank {
     const boostMultiplier = this.boostRemainingMs > 0 ? TANK_BOOST_MULTIPLIER : 1;
     const speed = speedBase * boostMultiplier;
     const distance = speed * movementDirection * deltaSeconds;
-
+    
+    // If there is no movement input, return early to avoid unnecessary calculations.
+    if (movementDirection === 0) {
+      return;
+    }
+    // Compute the velocity vector based on the tank's current body angle
+    // and the desired movement distance.
+    // This vector represents the proposed movement for the current update cycle. 
     const velocity = new Phaser.Math.Vector2(
       Math.cos(this.bodyAngleRadians) * distance,
       Math.sin(this.bodyAngleRadians) * distance,
     );
-
+    // If there is no movement (velocity length is zero),
+    // return early to avoid unnecessary calculations.
     if (velocity.lengthSq() === 0) {
       return;
     }
-
+    // Calculate the proposed new X and Y positions by adding
+    // the velocity vector to the current position.
+    // If the proposed position does not collide with any walls,
+    // update the tank's position to the proposed position.
+    // If there is no collision, the tank moves freely.
     const candidateX = new Phaser.Math.Vector2(this.position.x + velocity.x, this.position.y);
     if (!this.intersectsAnyWall(candidateX, walls)) {
       this.position.x = candidateX.x;
     }
-
     const candidateY = new Phaser.Math.Vector2(this.position.x, this.position.y + velocity.y);
     if (!this.intersectsAnyWall(candidateY, walls)) {
       this.position.y = candidateY.y;
     }
   }
 
-  private updateBoost(deltaSeconds: number, input: TankInput): void {
-
-    // Update the tank's boost status based on the player's input and the current boost state.
-    // This includes managing the boost duration and cooldown timers,
-    // and activating the boost when the player presses the boost button (spacebar),
-    // as long as the boost is not currently active and not on cooldown.
-
-    // When the boost is active, the tank's movement speed will be multiplied
-    // by a defined boost multiplier, allowing the tank to move faster for a short duration.
-    // After the boost duration expires, the boost will go on cooldown,
-    // preventing it from being activated again until the cooldown period has passed.
-    const deltaMs = deltaSeconds * 1000;
-    
-    // If the boost is currently active, decrease the remaining boost time by the elapsed time (deltaMs).
-    // If the boost duration has expired (boostRemainingMs <= 0), reset the boost remaining time to 0 and start the cooldown timer.
-    if (this.boostRemainingMs > 0) {
-      this.boostRemainingMs = Math.max(0, this.boostRemainingMs - deltaMs);
-      if (this.boostRemainingMs === 0) {
-        this.boostCooldownMs = TANK_BOOST_COOLDOWN_MS;
-      }
-    } else if (this.boostCooldownMs > 0) {
-      this.boostCooldownMs = Math.max(0, this.boostCooldownMs - deltaMs);
-    }
-    
-    // If the boost button is pressed
-    // and the boost is not currently active (boostRemainingMs === 0)
-    // and not on cooldown (boostCooldownMs === 0),
-    // activate the boost by setting the boost remaining time to the defined boost duration.
-    if (input.boostPressed && this.boostRemainingMs === 0 && this.boostCooldownMs === 0) {
-      this.boostRemainingMs = TANK_BOOST_DURATION_MS;
-    }
-  }
-
   private updateTurret(input: TankInput): void {
+    // Update the tank's turret angle to point towards the current position 
+    // of the mouse pointer in world coordinates.
+    // The method calculates the angle between the tank's position and the mouse pointer position,
+    // and then sets the turret angle to this target angle
+    // allowing the turret to aim towards the mouse pointer.
     const targetAngle = Phaser.Math.Angle.Between(
       this.position.x,
       this.position.y,
@@ -354,6 +377,10 @@ export class Tank {
   }
 
   private intersectsAnyWall(position: Phaser.Math.Vector2, walls: readonly Wall[]): boolean {
+    // Check if the given position intersects with any of the walls in the arena.
+    // This method is used to determine if the tank can move to a proposed position
+    // without colliding with walls. It checks each wall to see if the distance from the position
+    // to the closest point on the wall is less than the tank's radius, which would indicate a collision.
     for (const wall of walls) {
       const closestX = clamp(position.x, wall.x, wall.x + wall.width);
       const closestY = clamp(position.y, wall.y, wall.y + wall.height);
@@ -418,6 +445,9 @@ export class Tank {
   }
 
   public destroy(): void {
+    // Clean up the tank's resources by destroying its container and all child game objects (body sprite, turret sprite, shadow).
+    // This method should be called when the tank is removed from the game (e.g., when it is destroyed or when the player leaves the game)
+    // to ensure that all associated resources are properly released and to prevent memory leaks.
     this.container.destroy(true);
   }
 }

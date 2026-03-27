@@ -260,6 +260,8 @@ export class Bullet {
   }
 
   public destroy(): void {
+    // Remove the bullet from the game by marking it as no longer alive
+    // and destroying its visual representation (sprite).
     if (!this.isAlive) {
       return;
     }

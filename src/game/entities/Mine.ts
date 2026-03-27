@@ -27,10 +27,13 @@ export class Mine {
   }
 
   public update(deltaSeconds: number): boolean {
+
+    // Update the mine's state by incrementing its lifetime and checking if it has reached its maximum lifetime,
+    // which would indicate that the mine should explode and be removed from the game. The method returns a boolean
+    // indicating whether the mine's lifetime has expired and it should be removed from the game.
     if (!this.isAlive) {
       return false;
     }
-
     this.lifetimeMs += deltaSeconds * 1000;
     return this.lifetimeMs >= MINE_LIFETIME_MS;
   }
@@ -66,6 +69,8 @@ export class Mine {
   }
 
   public destroy(): void {
+    // Remove the mine from the game by marking it as no longer alive
+    // and destroying its visual representation (sprite).
     if (!this.isAlive) {
       return;
     }
