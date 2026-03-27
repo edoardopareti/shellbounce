@@ -1,3 +1,9 @@
+// src/game/scenes/GameScene.ts
+// This file defines the GameScene class, which is the main scene for the game.
+// The GameScene is responsible for managing the game state, including tanks, bullets, mines, and the arena map.
+// It handles the game loop, processing player input, updating game objects,
+// checking for collisions, and rendering the game state to the screen.
+
 import Phaser from 'phaser';
 import { ArenaMap } from '../map/ArenaMap';
 import { Bullet } from '../entities/Bullet';
@@ -24,6 +30,7 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 //TODO remove magic numbers and magic strings
 //TODO increase code modularity by splitting GameScene into multiple classes/files
 // - Move HUD-related code to a separate class/file
+// - ...
 
 //GAME MECHANICS TODOs:
 //TODO if left click is pressed for a certain amount of time without releasing, charge up a more powerful shot which moves faster and bigger explosion radius but without rebounce - add visual feedback for the charging state and the increased power level, and with a cooldown after firing to prevent spamming the charged shot 
@@ -57,6 +64,10 @@ interface TankSlot {
   respawnAtMs: number | undefined;
 }
 
+// GameScene is the main scene for the game, responsible for
+// managing the game state, including tanks, bullets, mines, and the arena map.
+// It handles the game loop, processing player input, updating game objects,
+// checking for collisions, and rendering the game state to the screen.
 export class GameScene extends Phaser.Scene {
 
   private arenaMap!: ArenaMap;
@@ -106,7 +117,8 @@ export class GameScene extends Phaser.Scene {
     super('game');
   }
   
-  // Phaser scene lifecycle methods: preload, create, update
+  // -------- Phaser scene lifecycle methods: preload, create, update --------
+
   // Preload is called before the scene is created, used to load assets
   public preload(): void {
     this.createTextures();
@@ -285,6 +297,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getActiveBulletCountForTank(tankId: string): number {
+
+    // Count the number of active bullets in the game that belong to a specific tank ID,
+    // which is used to determine if a tank can fire a new bullet based on the maximum allowed active bullets per tank.
+
     let activeCount = 0;
 
     for (const bullet of this.bullets) {
@@ -367,6 +383,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveBulletImpacts(): void {
+
+    // Check for and resolve impacts of bullets on tanks and mines
+    // by iterating through all active bullets, and for each bullet,
+    // checking if it is colliding with any mines or tanks,
+    // and if so, applying the appropriate effects such as destroying the bullet,
+    // triggering mine explosions,
+    // and destroying tanks that are hit by bullets.
+    
     for (const bullet of this.bullets) {
       if (!bullet.isAlive) {
         continue;
@@ -410,6 +434,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveBulletBulletCollisions(): void {
+    // Check for and resolve collisions between bullets
+    // by iterating through all pairs of active bullets,
+    // and if a collision is detected, trigger the explosion effects for both bullets.
+
     for (let i = 0; i < this.bullets.length; i += 1) {
       const first = this.bullets[i];
       if (!first.isAlive) {
@@ -440,6 +468,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resolveMineTankTriggers(): void {
+    // Check for and resolve triggers of mines on tanks
+    // by iterating through all active mines, and for each mine,
+    // checking if it is being triggered by any tanks that are within its trigger radius,
+    // and if so, triggering the mine explosion and applying the appropriate effects
+    // to the affected tanks.
+
     for (const mine of this.mines) {
       if (!mine.isAlive) {
         continue;
@@ -640,6 +674,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerMinesInExplosion(centerX: number, centerY: number, radius: number): void {
+    // Trigger other mines that are within the explosion radius,
+    // taking into account line of sight and walls blocking the explosion.
     for (const mine of this.mines) {
       if (!mine.isAlive) {
         continue;
@@ -709,6 +745,9 @@ export class GameScene extends Phaser.Scene {
     currentTMin: number,
     currentTMax: number,
   ): { tMin: number; tMax: number } | undefined {
+    // Clip a line segment against a single axis-aligned boundary defined by min and max,
+    // which is used in the segment-rectangle intersection test
+    // to determine if a line segment intersects with a rectangle.
     if (Math.abs(delta) < Number.EPSILON) {
       if (start < min || start > max) {
         return undefined;
@@ -736,6 +775,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private playExplosionEffect(centerX: number, centerY: number, radius: number, color: number, durationMs: number): void {
+    // Play the visual effects for an explosion, which includes a shockwave and a flash,
+    // to provide visual feedback for the explosion event and enhance the game's visual appeal.
     const wave = this.add.circle(centerX, centerY, 8, color, 0.45);
     wave.setDepth(6);
 
@@ -750,24 +791,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isBulletHittingTank(bullet: Bullet, tank: Tank): boolean {
+    // Check if a bullet is hitting a tank by calculating
+    // the distance between the bullet and the tank,
+    // and comparing it to the sum of their radii.
     const hitDistance = bullet.radius + tank.radius;
     const distanceSquared = Phaser.Math.Distance.Squared(bullet.x, bullet.y, tank.x, tank.y);
     return distanceSquared <= hitDistance * hitDistance;
   }
 
   private areBulletsColliding(first: Bullet, second: Bullet): boolean {
+    // Check if two bullets are colliding by calculating
+    // the distance between the two bullets,
+    // and comparing it to the sum of their radii.
     const hitDistance = first.radius + second.radius;
     const distanceSquared = Phaser.Math.Distance.Squared(first.x, first.y, second.x, second.y);
     return distanceSquared <= hitDistance * hitDistance;
   }
 
   private isMineHittingTank(mine: Mine, tank: Tank): boolean {
+    // Check if a mine is hitting a tank by calculating
+    // the distance between the mine and the tank,
+    // and comparing it to the sum of their radii.
     const hitDistance = mine.radius + tank.radius;
     const distanceSquared = Phaser.Math.Distance.Squared(mine.x, mine.y, tank.x, tank.y);
     return distanceSquared <= hitDistance * hitDistance;
   }
 
   private isBulletHittingMine(bullet: Bullet, mine: Mine): boolean {
+    // Check if a bullet is hitting a mine by calculating
+    // the distance between the bullet and the mine,
+    // and comparing it to the sum of their radii.
     const hitDistance = bullet.radius + mine.radius;
     const distanceSquared = Phaser.Math.Distance.Squared(bullet.x, bullet.y, mine.x, mine.y);
     return distanceSquared <= hitDistance * hitDistance;
@@ -923,6 +976,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private pickAvailableCornerSpawn(excludedTankId: string): Phaser.Math.Vector2 | undefined {
+    // Pick an available spawn point for a tank to respawn at, prioritizing the corners of the arena,
+    // and ensuring that the chosen spawn point is not blocked by walls or too close to existing tanks.
     const spawnPoints = this.getCornerSpawnPoints();
     Phaser.Utils.Array.Shuffle(spawnPoints);
 
@@ -1003,6 +1058,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isSpawnPointBlocked(spawnPoint: Phaser.Math.Vector2, excludedTankId: string): boolean {
+    // Check if a spawn point is blocked by walls or too close to existing tanks,
+    // which would make it an invalid spawn location for a tank.
     const playerRadius = this.getTankRadius();
 
     for (const wall of this.arenaMap.walls) {
@@ -1036,6 +1093,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getTankRadius(): number {
+    // Get the radius of the tanks in the game,
+    // which is used for various calculations
+    // such as collision detection and spawn point placement.
     const livingTank = this.tanks.find((tankSlot) => tankSlot.tank !== undefined)?.tank;
     if (livingTank !== undefined) {
       return livingTank.radius;
