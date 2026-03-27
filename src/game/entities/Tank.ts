@@ -29,21 +29,20 @@ export interface TankAppearance {
   bulletColor: number;
 }
 
-const DEFAULT_TANK_APPEARANCE: TankAppearance = {
-  bodyTextureKey: 'tank-body',
-  turretTextureKey: 'tank-turret',
-  bulletColor: 0xfbbf24,
-};
+export type TankType = 'PolPot' | 'Hightillery' | 'SSugar' | 'Fantanyl';
+
+export const ALL_TANK_TYPES: readonly TankType[] = ['PolPot', 'Hightillery', 'SSugar', 'Fantanyl'];
 
 export interface TankUpdateResult {
   firedBullet: Bullet | undefined;
   selfDestructed: boolean;
 }
 
-export class Tank {
+export abstract class Tank {
   public readonly id: string;
   public readonly radius = TANK_RADIUS;
   public readonly container: Phaser.GameObjects.Container;
+  public abstract readonly tankType: TankType;
 
   private readonly bodySprite: Phaser.GameObjects.Image;
   private readonly turretSprite: Phaser.GameObjects.Image;
@@ -66,10 +65,10 @@ export class Tank {
     id: string,
     x: number,
     y: number,
-    appearance?: TankAppearance,
+    appearance: TankAppearance,
   ) {
     this.id = id;
-    this.appearance = appearance ?? DEFAULT_TANK_APPEARANCE;
+    this.appearance = appearance;
     this.position = new Phaser.Math.Vector2(x, y);
 
     this.shadow = this.scene.add.ellipse(0, 6, 34, 20, 0x020617, 0.3);
@@ -144,6 +143,10 @@ export class Tank {
 
   public get chargeLevel(): number {
     return this.getChargeRatio();
+  }
+
+  public get bulletColor(): number {
+    return this.appearance.bulletColor;
   }
 
   public getMuzzlePosition(): Phaser.Math.Vector2 {
@@ -461,10 +464,158 @@ export class Tank {
     this.chargeGlowInner.setScale(Phaser.Math.Linear(0.45, 1.2, chargeLevel) * pulse);
   }
 
+  protected static createTankBodyTexture(
+    scene: Phaser.Scene,
+    textureKey: string,
+    outerColor: number,
+    innerColor: number,
+  ): void {
+    if (scene.textures.exists(textureKey)) {
+      return;
+    }
+
+    const bodyGraphics = scene.add.graphics();
+    bodyGraphics.fillStyle(outerColor, 1);
+    bodyGraphics.fillRoundedRect(0, 0, 40, 28, 8);
+    bodyGraphics.fillStyle(innerColor, 1);
+    bodyGraphics.fillRoundedRect(8, 5, 24, 18, 6);
+    bodyGraphics.generateTexture(textureKey, 40, 28);
+    bodyGraphics.destroy();
+  }
+
+  protected static createTankTurretTexture(scene: Phaser.Scene, textureKey: string, color: number): void {
+    if (scene.textures.exists(textureKey)) {
+      return;
+    }
+
+    const turretGraphics = scene.add.graphics();
+    turretGraphics.fillStyle(color, 1);
+    turretGraphics.fillRoundedRect(0, 8, 28, 8, 4);
+    turretGraphics.fillCircle(10, 12, 9);
+    turretGraphics.generateTexture(textureKey, 28, 24);
+    turretGraphics.destroy();
+  }
+
   public destroy(): void {
     // Clean up the tank's resources by destroying its container and all child game objects (body sprite, turret sprite, shadow).
     // This method should be called when the tank is removed from the game (e.g., when it is destroyed or when the player leaves the game)
     // to ensure that all associated resources are properly released and to prevent memory leaks.
     this.container.destroy(true);
+  }
+}
+
+export class PolPotTank extends Tank {
+  public static readonly typeName: TankType = 'PolPot';
+
+  private static readonly appearance: TankAppearance = {
+    bodyTextureKey: 'tank-body-polpot',
+    turretTextureKey: 'tank-turret-polpot',
+    bulletColor: 0x22c55e,
+  };
+
+  public readonly tankType = PolPotTank.typeName;
+
+  public constructor(scene: Phaser.Scene, id: string, x: number, y: number) {
+    PolPotTank.createTextures(scene);
+    super(scene, id, x, y, PolPotTank.appearance);
+  }
+
+  public static createTextures(scene: Phaser.Scene): void {
+    Tank.createTankBodyTexture(scene, PolPotTank.appearance.bodyTextureKey, 0x22c55e, 0x14532d);
+    Tank.createTankTurretTexture(scene, PolPotTank.appearance.turretTextureKey, 0x4ade80);
+  }
+}
+
+export class HightilleryTank extends Tank {
+  public static readonly typeName: TankType = 'Hightillery';
+
+  private static readonly appearance: TankAppearance = {
+    bodyTextureKey: 'tank-body-hightillery',
+    turretTextureKey: 'tank-turret-hightillery',
+    bulletColor: 0xdc2626,
+  };
+
+  public readonly tankType = HightilleryTank.typeName;
+
+  public constructor(scene: Phaser.Scene, id: string, x: number, y: number) {
+    HightilleryTank.createTextures(scene);
+    super(scene, id, x, y, HightilleryTank.appearance);
+  }
+
+  public static createTextures(scene: Phaser.Scene): void {
+    Tank.createTankBodyTexture(scene, HightilleryTank.appearance.bodyTextureKey, 0xdc2626, 0x7f1d1d);
+    Tank.createTankTurretTexture(scene, HightilleryTank.appearance.turretTextureKey, 0xfca5a5);
+  }
+}
+
+export class SSugarTank extends Tank {
+  public static readonly typeName: TankType = 'SSugar';
+
+  private static readonly appearance: TankAppearance = {
+    bodyTextureKey: 'tank-body-ssugar',
+    turretTextureKey: 'tank-turret-ssugar',
+    bulletColor: 0xf8fafc,
+  };
+
+  public readonly tankType = SSugarTank.typeName;
+
+  public constructor(scene: Phaser.Scene, id: string, x: number, y: number) {
+    SSugarTank.createTextures(scene);
+    super(scene, id, x, y, SSugarTank.appearance);
+  }
+
+  public static createTextures(scene: Phaser.Scene): void {
+    Tank.createTankBodyTexture(scene, SSugarTank.appearance.bodyTextureKey, 0xf8fafc, 0xcbd5e1);
+    Tank.createTankTurretTexture(scene, SSugarTank.appearance.turretTextureKey, 0xe2e8f0);
+  }
+}
+
+export class FantanylTank extends Tank {
+  public static readonly typeName: TankType = 'Fantanyl';
+
+  private static readonly appearance: TankAppearance = {
+    bodyTextureKey: 'tank-body-fantanyl',
+    turretTextureKey: 'tank-turret-fantanyl',
+    bulletColor: 0xfacc15,
+  };
+
+  public readonly tankType = FantanylTank.typeName;
+
+  public constructor(scene: Phaser.Scene, id: string, x: number, y: number) {
+    FantanylTank.createTextures(scene);
+    super(scene, id, x, y, FantanylTank.appearance);
+  }
+
+  public static createTextures(scene: Phaser.Scene): void {
+    Tank.createTankBodyTexture(scene, FantanylTank.appearance.bodyTextureKey, 0xfacc15, 0xa16207);
+    Tank.createTankTurretTexture(scene, FantanylTank.appearance.turretTextureKey, 0xfde047);
+  }
+}
+
+export function preloadTankTextures(scene: Phaser.Scene): void {
+  PolPotTank.createTextures(scene);
+  HightilleryTank.createTextures(scene);
+  SSugarTank.createTextures(scene);
+  FantanylTank.createTextures(scene);
+}
+
+export function createTankByType(
+  scene: Phaser.Scene,
+  tankType: TankType,
+  id: string,
+  x: number,
+  y: number,
+): Tank {
+  switch (tankType) {
+    case 'PolPot':
+      return new PolPotTank(scene, id, x, y);
+    case 'Hightillery':
+      return new HightilleryTank(scene, id, x, y);
+    case 'SSugar':
+      return new SSugarTank(scene, id, x, y);
+    case 'Fantanyl':
+      return new FantanylTank(scene, id, x, y);
+    default:
+      return new PolPotTank(scene, id, x, y);
   }
 }

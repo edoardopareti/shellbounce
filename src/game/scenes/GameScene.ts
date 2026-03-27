@@ -8,7 +8,7 @@ import Phaser from 'phaser';
 import { ArenaMap } from '../maps/ArenaMap';
 import { Bullet } from '../entities/Bullet';
 import { Mine } from '../entities/Mine';
-import { Tank, type TankAppearance } from '../entities/Tank';
+import { ALL_TANK_TYPES, createTankByType, preloadTankTextures, Tank, type TankType } from '../entities/Tank';
 import { InputController, type TankInput } from '../systems/InputController';
 import {
   BULLET_EXPLOSION_VISUAL_DURATION_MS,
@@ -22,7 +22,7 @@ import {
   SPAWN_CORNER_PADDING,
   TANK_RESPAWN_DELAY_MS,
 } from '../constants';
-import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT, SELECTED_MAP } from '../config';
+import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT, PLAYER_TANK_TYPE, SELECTED_MAP } from '../config';
 import { EnemyAiController } from '../systems/EnemyAiController';
 import { SfxController } from '../systems/SfxController';
 import { predictBulletTrajectory } from '../utils/shotPrediction';
@@ -34,7 +34,6 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 
 //GAME MECHANICS TODOs:
 //TODO if left click is pressed for a certain amount of time without releasing, charge up a more powerful shot which moves faster and bigger explosion radius but without rebounce - add visual feedback for the charging state and the increased power level, and with a cooldown after firing to prevent spamming the charged shot 
-//TODO define multiple types of tanks
 //TODO add allies
 //TODO Add temporary invincibility and visual feedback on respawn, to avoid frustrating instant deaths right after respawning, especially in crowded areas with many active bullets and mines
 //TODO add directional rebouncing shield mechanics with left+right click to deploy, with cooldown and limited durability (rebounce bullets and protects from explosions while active) 
@@ -52,13 +51,13 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 // TankSlot represents a slot for a tank in the game,
 // which can be occupied by either a player-controlled tank or an AI-controlled enemy tank.
 // A slot includes information about whether it is controlled by the player,
-// the AI controller (if applicable), the tank's appearance,
+// the AI controller (if applicable), the tank type,
 // the tank instance (if currently active), and the respawn time if the tank is destroyed.
 interface TankSlot {
   id: string;
   controlledByPlayer: boolean;
   aiController: EnemyAiController | undefined;
-  appearance: TankAppearance;
+  tankType: TankType;
   tank: Tank | undefined;
   respawnAtMs: number | undefined;
 }
@@ -81,19 +80,6 @@ export class GameScene extends Phaser.Scene {
   private sfx!: SfxController;
   
   private readonly playerTankId = 'player-1';
-
-  // Defining appearances for player tank
-  private static readonly PLAYER_APPEARANCE: TankAppearance = {
-    bodyTextureKey: 'tank-body-player',
-    turretTextureKey: 'tank-turret-player',
-    bulletColor: 0x22c55e,
-  };
-  // Defining appearances for enemy tanks
-  private static readonly ENEMY_APPEARANCE: TankAppearance = {
-    bodyTextureKey: 'tank-body-enemy',
-    turretTextureKey: 'tank-turret-enemy',
-    bulletColor: 0xdc2626,
-  };
 
   // An empty input object to use for AI tanks when
   // they don't have a valid tank instance (e.g., during respawn)
@@ -120,7 +106,7 @@ export class GameScene extends Phaser.Scene {
 
   // Preload is called before the scene is created, used to load assets
   public preload(): void {
-    this.createTextures();
+    preloadTankTextures(this);
   }
   // Create is called once after preload, used to set up the game objects and initial state
   public create(): void {
@@ -139,30 +125,31 @@ export class GameScene extends Phaser.Scene {
     const spawnPoints = this.getCornerSpawnPoints(); 
     
     // Initialize the player tank in the first spawn point,
-    // with the defined appearance and controlledByPlayer set to true
+    // with the selected tank type and controlledByPlayer set to true
     const playerSlot: TankSlot = {
       id: this.playerTankId,
       controlledByPlayer: true,
       aiController: undefined,
-      appearance: GameScene.PLAYER_APPEARANCE,
-      tank: new Tank(this, this.playerTankId, spawnPoints[0].x, spawnPoints[0].y, GameScene.PLAYER_APPEARANCE),
+      tankType: PLAYER_TANK_TYPE,
+      tank: createTankByType(this, PLAYER_TANK_TYPE, this.playerTankId, spawnPoints[0].x, spawnPoints[0].y),
       respawnAtMs: undefined,
     };
     
     // Initialize enemy tanks in the remaining spawn points,
-    // with the defined appearance and controlledByPlayer set to false,
+    // with configured tank types and controlledByPlayer set to false,
     // and assign an AI controller to each enemy tank based on the configured difficulty level
     const enemySlots: TankSlot[] = [];
     for (let enemyIndex = 0; enemyIndex < ENEMY_COUNT; enemyIndex += 1) {
       const enemyId = `enemy-${enemyIndex + 1}`;
       const spawnPoint = spawnPoints[(enemyIndex + 1) % spawnPoints.length];
+      const tankType = ALL_TANK_TYPES[(enemyIndex + 1) % ALL_TANK_TYPES.length];
 
       enemySlots.push({
         id: enemyId,
         controlledByPlayer: false,
         aiController: new EnemyAiController(ENEMY_AI_DIFFICULTY),
-        appearance: GameScene.ENEMY_APPEARANCE,
-        tank: new Tank(this, enemyId, spawnPoint.x, spawnPoint.y, GameScene.ENEMY_APPEARANCE),
+        tankType,
+        tank: createTankByType(this, tankType, enemyId, spawnPoint.x, spawnPoint.y),
         respawnAtMs: undefined,
       });
     }
@@ -533,7 +520,7 @@ export class GameScene extends Phaser.Scene {
       }
       
       // Create a new tank instance for the respawning tank slot at the chosen spawn point
-      tankSlot.tank = new Tank(this, tankSlot.id, spawnPoint.x, spawnPoint.y, tankSlot.appearance);
+      tankSlot.tank = createTankByType(this, tankSlot.tankType, tankSlot.id, spawnPoint.x, spawnPoint.y);
       tankSlot.respawnAtMs = undefined;
 
       if (tankSlot.id === this.playerTankId) {
@@ -593,8 +580,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     
-    // Determine the color of the mine based on whether the tank placing it is controlled by the player or AI
-    const mineColor = tankSlot.controlledByPlayer ? 0x22c55e : 0xdc2626;
+    const mineColor = tankSlot.tank.bulletColor;
     // Create a new mine instance at the tank's current position and add it to the mines array
     // When Mine constructor is called, it will create the visual representation of the mine in the game scene
     this.mines.push(new Mine(this, tankId, tankSlot.tank.x, tankSlot.tank.y, mineColor));
@@ -854,7 +840,7 @@ export class GameScene extends Phaser.Scene {
     const destroyedTankY = tankSlot.tank.y;
 
     // Play the tank destruction effect at the location of the destroyed tank
-    this.playTankDestructionEffect(destroyedTankX, destroyedTankY, tankSlot.appearance.bulletColor);
+    this.playTankDestructionEffect(destroyedTankX, destroyedTankY, tankSlot.tank.bulletColor);
     
     // Destroy the tank instance, which will mark it as no longer active
     // and remove its visual representation from the game.
@@ -1170,7 +1156,7 @@ export class GameScene extends Phaser.Scene {
       );  // Use the predictBulletTrajectory function to calculate the predicted path of the bullet based on the tank's turret angle, the arena walls, and other parameters such as bullet radius and maximum distance for the preview.
 
       for (const segment of trajectory.segments) {
-        this.drawDashedLine(segment.start, segment.end, tankSlot.appearance.bulletColor, 10, 8, 0.8);
+        this.drawDashedLine(segment.start, segment.end, tank.bulletColor, 10, 8, 0.8);
       }
     }
   }
@@ -1214,38 +1200,6 @@ export class GameScene extends Phaser.Scene {
 
       traveled += dashLength + gapLength;
     }
-  }
-
-  private createTextures(): void {
-
-    // Create simple tank body and turret textures using Phaser's graphics API
-    this.createTankBodyTexture('tank-body-player', 0x22c55e, 0x14532d);
-    this.createTankTurretTexture('tank-turret-player', 0x4ade80);
-    
-    // Create enemy tank textures with different colors for visual distinction
-    this.createTankBodyTexture('tank-body-enemy', 0xdc2626, 0x7f1d1d);
-    this.createTankTurretTexture('tank-turret-enemy', 0xfca5a5);
-  }
-
-  private createTankBodyTexture(textureKey: string, outerColor: number, innerColor: number): void {
-    // The tank body is represented as a rounded rectangle with an inner detail, created using Phaser's graphics API
-    const bodyGraphics = this.add.graphics();
-    bodyGraphics.fillStyle(outerColor, 1); // Outer color for the tank body 
-    bodyGraphics.fillRoundedRect(0, 0, 40, 28, 8);  // Main body shape (rounded rectangle)
-    bodyGraphics.fillStyle(innerColor, 1); // Inner color for the tank body
-    bodyGraphics.fillRoundedRect(8, 5, 24, 18, 6); // Inner detail (smaller rounded rectangle)
-    bodyGraphics.generateTexture(textureKey, 40, 28);  // Generate a texture from the graphics and assign it a key for later use (textures are saved in Phaser's texture manager and can be used by game objects)
-    bodyGraphics.destroy(); // Destroy the graphics object after generating the texture to free up memory, as it's no longer needed
-  }
-
-  private createTankTurretTexture(textureKey: string, color: number): void {
-    // The tank turret is represented as a rounded rectangle with a circular detail, created using Phaser's graphics API
-    const turretGraphics = this.add.graphics();
-    turretGraphics.fillStyle(color, 1); // Fill color for the turret
-    turretGraphics.fillRoundedRect(0, 8, 28, 8, 4); // Main turret shape (rounded rectangle)
-    turretGraphics.fillCircle(10, 12, 9); // Circular detail at the base of the turret for visual interest
-    turretGraphics.generateTexture(textureKey, 28, 24); // Generate a texture from the graphics and assign it a key for later use (textures are saved in Phaser's texture manager and can be used by game objects)
-    turretGraphics.destroy(); // Destroy the graphics object after generating the texture to free up memory, as it's no longer needed
   }
 
   private handleShutdown(): void {
