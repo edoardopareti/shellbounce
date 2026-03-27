@@ -125,7 +125,7 @@ export class GameScene extends Phaser.Scene {
   public create(): void {
 
     // Render the arena map, which draws the background, grid, and walls onto the scene
-    this.arenaMap = new ArenaMap(this, SELECTED_MAP);  // Initialize the arena map, using the map selected in config.ts
+    this.arenaMap = new ArenaMap(this, SELECTED_MAP);  // Initialize the arena map using the selected map's own world size definition
     this.arenaMap.render(); // Render the arena map, which draws the background, grid, and walls onto the scene
     
     // Initialize the input controller, which will handle player input
@@ -169,6 +169,8 @@ export class GameScene extends Phaser.Scene {
     // Combine the player slot and enemy slots into the tanks array,
     // which will be used to manage all tanks in the game
     this.tanks = [playerSlot, ...enemySlots];
+
+    this.configureCamera(playerSlot.tank);
     
     // Initialize the HUD (heads-up display) text object, which will display game information
     // such as player health, score, etc., and set its depth and scroll factor
@@ -180,7 +182,7 @@ export class GameScene extends Phaser.Scene {
       lineSpacing: 6,
     });
     this.hudText.setDepth(10); // Set depth to ensure HUD is rendered above all other game objects
-    this.hudText.setScrollFactor(1);  // Set scroll factor to 0 to make the HUD stay fixed on the screen and not scroll with the camera
+    this.hudText.setScrollFactor(0);  // Keep HUD fixed on the viewport while camera moves through the map
     
     // Initialize the graphics object for rendering shot previews,
     // which will be used to visualize the predicted trajectory 
@@ -533,7 +535,23 @@ export class GameScene extends Phaser.Scene {
       // Create a new tank instance for the respawning tank slot at the chosen spawn point
       tankSlot.tank = new Tank(this, tankSlot.id, spawnPoint.x, spawnPoint.y, tankSlot.appearance);
       tankSlot.respawnAtMs = undefined;
+
+      if (tankSlot.id === this.playerTankId) {
+        this.configureCamera(tankSlot.tank);
+      }
     }
+  }
+
+  private configureCamera(playerTank: Tank | undefined): void {
+    const camera = this.cameras.main;
+    camera.setBounds(0, 0, this.arenaMap.width, this.arenaMap.height);
+
+    if (playerTank === undefined) {
+      return;
+    }
+
+    camera.startFollow(playerTank.container, true, 0.12, 0.12);
+    camera.roundPixels = true;
   }
 
   private cleanupBullets(): void {
@@ -1010,8 +1028,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getPlayableBounds(): { left: number; top: number; right: number; bottom: number } {
-    const width = this.scale.width;
-    const height = this.scale.height;
+    const width = this.arenaMap.width;
+    const height = this.arenaMap.height;
     const epsilon = 0.001;
     const fullWidthThreshold = width * 0.95;
     const fullHeightThreshold = height * 0.95;

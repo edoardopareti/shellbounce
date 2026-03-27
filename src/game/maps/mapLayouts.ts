@@ -3,6 +3,14 @@ import type { MapName, Wall } from './types';
 interface ArenaLayout {
   baseWidth: number;
   baseHeight: number;
+  worldWidth: number;
+  worldHeight: number;
+  walls: Wall[];
+}
+
+interface ArenaWorld {
+  width: number;
+  height: number;
   walls: Wall[];
 }
 
@@ -10,6 +18,8 @@ const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
   map1: {
     baseWidth: 960,
     baseHeight: 640,
+    worldWidth: 1920,
+    worldHeight: 1080,
     walls: [
       { x: 0, y: 0, width: 960, height: 24 },
       { x: 0, y: 616, width: 960, height: 24 },
@@ -29,6 +39,8 @@ const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
   map2: {
     baseWidth: 960,
     baseHeight: 640,
+    worldWidth: 2560,
+    worldHeight: 1706,
     walls: [
       { x: 0, y: 0, width: 960, height: 24 },
       { x: 0, y: 616, width: 960, height: 24 },
@@ -46,6 +58,8 @@ const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
   map3: {
     baseWidth: 960,
     baseHeight: 640,
+    worldWidth: 3200,
+    worldHeight: 2133,
     walls: [
       { x: 0, y: 0, width: 960, height: 24 },
       { x: 0, y: 616, width: 960, height: 24 },
@@ -63,19 +77,23 @@ const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
   },
 };
 
-export function getScaledArenaWalls(
+export function getArenaWorld(
   mapName: MapName,
-  width: number,
-  height: number,
-): Wall[] {
+): ArenaWorld {
   const selectedMap = MAP_LAYOUTS[mapName];
-  const scaleX = width / selectedMap.baseWidth;
-  const scaleY = height / selectedMap.baseHeight;
+  const worldWidth = selectedMap.worldWidth;
+  const worldHeight = selectedMap.worldHeight;
+  const scaleX = worldWidth / selectedMap.baseWidth;
+  const scaleY = worldHeight / selectedMap.baseHeight;
 
-  return selectedMap.walls.map((wall) => ({
-    x: wall.x * scaleX,
-    y: wall.y * scaleY,
-    width: wall.width * scaleX,
-    height: wall.height * scaleY,
-  }));
+  return {
+    width: worldWidth,
+    height: worldHeight,
+    walls: selectedMap.walls.map((wall) => ({
+      x: wall.x * scaleX,
+      y: wall.y * scaleY,
+      width: wall.width * scaleX,
+      height: wall.height * scaleY,
+    })),
+  };
 }
