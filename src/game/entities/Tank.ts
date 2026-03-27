@@ -27,6 +27,34 @@ export interface TankAppearance {
   bodyTextureKey: string;
   turretTextureKey: string;
   bulletColor: number;
+  bodyShape: TankBodyShape;
+  turretShape: TankTurretShape;
+}
+
+export interface TankBodyShape {
+  width: number;
+  height: number;
+  cornerRadius: number;
+  innerOffsetX: number;
+  innerOffsetY: number;
+  innerWidth: number;
+  innerHeight: number;
+  innerCornerRadius: number;
+}
+
+export interface TankTurretShape {
+  textureWidth: number;
+  textureHeight: number;
+  barrelX: number;
+  barrelY: number;
+  barrelWidth: number;
+  barrelHeight: number;
+  barrelCornerRadius: number;
+  baseX: number;
+  baseY: number;
+  baseRadius: number;
+  originX: number;
+  originY: number;
 }
 
 export type TankType = 'PolPot' | 'Hightillery' | 'SSugar' | 'Fantanyl';
@@ -71,15 +99,23 @@ export abstract class Tank {
     this.appearance = appearance;
     this.position = new Phaser.Math.Vector2(x, y);
 
-    this.shadow = this.scene.add.ellipse(0, 6, 34, 20, 0x020617, 0.3);
-    this.chargeGlowOuter = this.scene.add.circle(0, 0, 8, this.appearance.bulletColor, 0);
+    const bodyShape = this.appearance.bodyShape;
+    const turretShape = this.appearance.turretShape;
+    const shadowOffsetY = Math.max(4, bodyShape.height * 0.22);
+    const shadowWidth = bodyShape.width * 0.88;
+    const shadowHeight = bodyShape.height * 0.72;
+    const glowOuterRadius = Phaser.Math.Clamp(bodyShape.width * 0.22, 6, 13);
+    const glowInnerRadius = glowOuterRadius * 0.5;
+
+    this.shadow = this.scene.add.ellipse(0, shadowOffsetY, shadowWidth, shadowHeight, 0x020617, 0.3);
+    this.chargeGlowOuter = this.scene.add.circle(0, 0, glowOuterRadius, this.appearance.bulletColor, 0);
     this.chargeGlowOuter.setStrokeStyle(2, this.appearance.bulletColor, 0);
     this.chargeGlowOuter.setBlendMode(Phaser.BlendModes.ADD);
-    this.chargeGlowInner = this.scene.add.circle(0, 0, 4, this.appearance.bulletColor, 0);
+    this.chargeGlowInner = this.scene.add.circle(0, 0, glowInnerRadius, this.appearance.bulletColor, 0);
     this.chargeGlowInner.setBlendMode(Phaser.BlendModes.ADD);
     this.bodySprite = this.scene.add.image(0, 0, this.appearance.bodyTextureKey);
     this.turretSprite = this.scene.add.image(0, 0, this.appearance.turretTextureKey);
-    this.turretSprite.setOrigin(0.25, 0.5);
+    this.turretSprite.setOrigin(turretShape.originX, turretShape.originY);
 
     this.container = this.scene.add.container(this.position.x, this.position.y, [
       this.shadow,
@@ -469,6 +505,7 @@ export abstract class Tank {
     textureKey: string,
     outerColor: number,
     innerColor: number,
+    bodyShape: TankBodyShape,
   ): void {
     if (scene.textures.exists(textureKey)) {
       return;
@@ -476,23 +513,40 @@ export abstract class Tank {
 
     const bodyGraphics = scene.add.graphics();
     bodyGraphics.fillStyle(outerColor, 1);
-    bodyGraphics.fillRoundedRect(0, 0, 40, 28, 8);
+    bodyGraphics.fillRoundedRect(0, 0, bodyShape.width, bodyShape.height, bodyShape.cornerRadius);
     bodyGraphics.fillStyle(innerColor, 1);
-    bodyGraphics.fillRoundedRect(8, 5, 24, 18, 6);
-    bodyGraphics.generateTexture(textureKey, 40, 28);
+    bodyGraphics.fillRoundedRect(
+      bodyShape.innerOffsetX,
+      bodyShape.innerOffsetY,
+      bodyShape.innerWidth,
+      bodyShape.innerHeight,
+      bodyShape.innerCornerRadius,
+    );
+    bodyGraphics.generateTexture(textureKey, bodyShape.width, bodyShape.height);
     bodyGraphics.destroy();
   }
 
-  protected static createTankTurretTexture(scene: Phaser.Scene, textureKey: string, color: number): void {
+  protected static createTankTurretTexture(
+    scene: Phaser.Scene,
+    textureKey: string,
+    color: number,
+    turretShape: TankTurretShape,
+  ): void {
     if (scene.textures.exists(textureKey)) {
       return;
     }
 
     const turretGraphics = scene.add.graphics();
     turretGraphics.fillStyle(color, 1);
-    turretGraphics.fillRoundedRect(0, 8, 28, 8, 4);
-    turretGraphics.fillCircle(10, 12, 9);
-    turretGraphics.generateTexture(textureKey, 28, 24);
+    turretGraphics.fillRoundedRect(
+      turretShape.barrelX,
+      turretShape.barrelY,
+      turretShape.barrelWidth,
+      turretShape.barrelHeight,
+      turretShape.barrelCornerRadius,
+    );
+    turretGraphics.fillCircle(turretShape.baseX, turretShape.baseY, turretShape.baseRadius);
+    turretGraphics.generateTexture(textureKey, turretShape.textureWidth, turretShape.textureHeight);
     turretGraphics.destroy();
   }
 
@@ -507,10 +561,38 @@ export abstract class Tank {
 export class PolPotTank extends Tank {
   public static readonly typeName: TankType = 'PolPot';
 
+  private static readonly bodyShape: TankBodyShape = {
+    width: 40,
+    height: 28,
+    cornerRadius: 8,
+    innerOffsetX: 8,
+    innerOffsetY: 5,
+    innerWidth: 24,
+    innerHeight: 18,
+    innerCornerRadius: 6,
+  };
+
+  private static readonly turretShape: TankTurretShape = {
+    textureWidth: 28,
+    textureHeight: 24,
+    barrelX: 0,
+    barrelY: 8,
+    barrelWidth: 28,
+    barrelHeight: 8,
+    barrelCornerRadius: 4,
+    baseX: 10,
+    baseY: 12,
+    baseRadius: 9,
+    originX: 0.25,
+    originY: 0.5,
+  };
+
   private static readonly appearance: TankAppearance = {
     bodyTextureKey: 'tank-body-polpot',
     turretTextureKey: 'tank-turret-polpot',
     bulletColor: 0x22c55e,
+    bodyShape: PolPotTank.bodyShape,
+    turretShape: PolPotTank.turretShape,
   };
 
   public readonly tankType = PolPotTank.typeName;
@@ -521,18 +603,46 @@ export class PolPotTank extends Tank {
   }
 
   public static createTextures(scene: Phaser.Scene): void {
-    Tank.createTankBodyTexture(scene, PolPotTank.appearance.bodyTextureKey, 0x22c55e, 0x14532d);
-    Tank.createTankTurretTexture(scene, PolPotTank.appearance.turretTextureKey, 0x4ade80);
+    Tank.createTankBodyTexture(scene, PolPotTank.appearance.bodyTextureKey, 0x22c55e, 0x14532d, PolPotTank.bodyShape);
+    Tank.createTankTurretTexture(scene, PolPotTank.appearance.turretTextureKey, 0x4ade80, PolPotTank.turretShape);
   }
 }
 
 export class HightilleryTank extends Tank {
   public static readonly typeName: TankType = 'Hightillery';
 
+  private static readonly bodyShape: TankBodyShape = {
+    width: 50,
+    height: 34,
+    cornerRadius: 9,
+    innerOffsetX: 10,
+    innerOffsetY: 6,
+    innerWidth: 30,
+    innerHeight: 22,
+    innerCornerRadius: 7,
+  };
+
+  private static readonly turretShape: TankTurretShape = {
+    textureWidth: 36,
+    textureHeight: 28,
+    barrelX: 0,
+    barrelY: 10,
+    barrelWidth: 36,
+    barrelHeight: 8,
+    barrelCornerRadius: 4,
+    baseX: 12,
+    baseY: 14,
+    baseRadius: 11,
+    originX: 0.22,
+    originY: 0.5,
+  };
+
   private static readonly appearance: TankAppearance = {
     bodyTextureKey: 'tank-body-hightillery',
     turretTextureKey: 'tank-turret-hightillery',
     bulletColor: 0xdc2626,
+    bodyShape: HightilleryTank.bodyShape,
+    turretShape: HightilleryTank.turretShape,
   };
 
   public readonly tankType = HightilleryTank.typeName;
@@ -543,18 +653,52 @@ export class HightilleryTank extends Tank {
   }
 
   public static createTextures(scene: Phaser.Scene): void {
-    Tank.createTankBodyTexture(scene, HightilleryTank.appearance.bodyTextureKey, 0xdc2626, 0x7f1d1d);
-    Tank.createTankTurretTexture(scene, HightilleryTank.appearance.turretTextureKey, 0xfca5a5);
+    Tank.createTankBodyTexture(
+      scene,
+      HightilleryTank.appearance.bodyTextureKey,
+      0xdc2626,
+      0x7f1d1d,
+      HightilleryTank.bodyShape,
+    );
+    Tank.createTankTurretTexture(scene, HightilleryTank.appearance.turretTextureKey, 0xfca5a5, HightilleryTank.turretShape);
   }
 }
 
 export class SSugarTank extends Tank {
   public static readonly typeName: TankType = 'SSugar';
 
+  private static readonly bodyShape: TankBodyShape = {
+    width: 36,
+    height: 28,
+    cornerRadius: 7,
+    innerOffsetX: 6,
+    innerOffsetY: 4,
+    innerWidth: 20,
+    innerHeight: 14,
+    innerCornerRadius: 5,
+  };
+
+  private static readonly turretShape: TankTurretShape = {
+    textureWidth: 24,
+    textureHeight: 20,
+    barrelX: 0,
+    barrelY: 7,
+    barrelWidth: 24,
+    barrelHeight: 6,
+    barrelCornerRadius: 3,
+    baseX: 8,
+    baseY: 10,
+    baseRadius: 7,
+    originX: 0.26,
+    originY: 0.5,
+  };
+
   private static readonly appearance: TankAppearance = {
     bodyTextureKey: 'tank-body-ssugar',
     turretTextureKey: 'tank-turret-ssugar',
     bulletColor: 0xf8fafc,
+    bodyShape: SSugarTank.bodyShape,
+    turretShape: SSugarTank.turretShape,
   };
 
   public readonly tankType = SSugarTank.typeName;
@@ -565,18 +709,46 @@ export class SSugarTank extends Tank {
   }
 
   public static createTextures(scene: Phaser.Scene): void {
-    Tank.createTankBodyTexture(scene, SSugarTank.appearance.bodyTextureKey, 0xf8fafc, 0xcbd5e1);
-    Tank.createTankTurretTexture(scene, SSugarTank.appearance.turretTextureKey, 0xe2e8f0);
+    Tank.createTankBodyTexture(scene, SSugarTank.appearance.bodyTextureKey, 0xf8fafc, 0xcbd5e1, SSugarTank.bodyShape);
+    Tank.createTankTurretTexture(scene, SSugarTank.appearance.turretTextureKey, 0xe2e8f0, SSugarTank.turretShape);
   }
 }
 
 export class FantanylTank extends Tank {
   public static readonly typeName: TankType = 'Fantanyl';
 
+  private static readonly bodyShape: TankBodyShape = {
+    width: 48,
+    height: 36,
+    cornerRadius: 10,
+    innerOffsetX: 10,
+    innerOffsetY: 6,
+    innerWidth: 28,
+    innerHeight: 24,
+    innerCornerRadius: 8,
+  };
+
+  private static readonly turretShape: TankTurretShape = {
+    textureWidth: 34,
+    textureHeight: 30,
+    barrelX: 1,
+    barrelY: 11,
+    barrelWidth: 33,
+    barrelHeight: 8,
+    barrelCornerRadius: 4,
+    baseX: 12,
+    baseY: 15,
+    baseRadius: 10,
+    originX: 0.24,
+    originY: 0.5,
+  };
+
   private static readonly appearance: TankAppearance = {
     bodyTextureKey: 'tank-body-fantanyl',
     turretTextureKey: 'tank-turret-fantanyl',
     bulletColor: 0xfacc15,
+    bodyShape: FantanylTank.bodyShape,
+    turretShape: FantanylTank.turretShape,
   };
 
   public readonly tankType = FantanylTank.typeName;
@@ -587,8 +759,8 @@ export class FantanylTank extends Tank {
   }
 
   public static createTextures(scene: Phaser.Scene): void {
-    Tank.createTankBodyTexture(scene, FantanylTank.appearance.bodyTextureKey, 0xfacc15, 0xa16207);
-    Tank.createTankTurretTexture(scene, FantanylTank.appearance.turretTextureKey, 0xfde047);
+    Tank.createTankBodyTexture(scene, FantanylTank.appearance.bodyTextureKey, 0xfacc15, 0xa16207, FantanylTank.bodyShape);
+    Tank.createTankTurretTexture(scene, FantanylTank.appearance.turretTextureKey, 0xfde047, FantanylTank.turretShape);
   }
 }
 
