@@ -24,6 +24,12 @@ export function predictBulletTrajectory(
   maxReflections: number,
   maxDistance: number,
 ): PredictedTrajectory {
+
+  // Predict the trajectory of a bullet fired from a given origin point at a specified angle,
+  // taking into account the walls in the arena, the bullet's radius for collision detection,
+  // the maximum number of reflections allowed, and the maximum distance the bullet can travel for the preview.
+  // The function calculates the path of the bullet as it bounces off walls, returning a series of line segments 
+  // that represent the predicted trajectory for aiming purposes.
   const segments: PredictedSegment[] = [];
   const direction = new Phaser.Math.Vector2(Math.cos(angle), Math.sin(angle));
   const current = origin.clone();

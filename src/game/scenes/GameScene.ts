@@ -24,6 +24,7 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 
 //TODO remove magic numbers and magic strings
 //TODO increase code modularity by splitting GameScene into multiple classes/files
+// - Move HUD-related code to a separate class/file
 
 //GAME MECHANICS TODOs:
 //TODO if left click is pressed for a certain amount of time without releasing, charge up a more powerful shot which moves faster and bigger explosion radius but without rebounce - add visual feedback for the charging state and the increased power level, and with a cooldown after firing to prevent spamming the charged shot 
@@ -200,20 +201,41 @@ export class GameScene extends Phaser.Scene {
     // which will be used to update the player tank's state and actions during this update cycle
     const playerInput = this.inputController.read();
     
-    // Main update loop for the game scene
-    this.updateTanks(deltaSeconds, playerInput); // Update the state of all tanks based on player input and AI controllers
-    this.processPendingMinePlacements(); // Handle any mines that are pending placement
-    this.updateBullets(deltaSeconds); // Update the state of all bullets
-    this.resolveBulletBulletCollisions(); // Check for and resolve collisions between bullets
-    this.updateMines(deltaSeconds); // Update the state of all mines
-    this.processPendingDetonations(); // Handle any mines that are pending detonation
-    this.resolveBulletImpacts(); // Check for and resolve bullet impacts on tanks and other objects
-    this.resolveMineTankTriggers(); // Check for and resolve mine triggers on tanks
-    this.processRespawns(); // Handle tank respawns
-    this.cleanupBullets(); // Remove any bullets that are no longer active
-    this.cleanupMines(); // Remove any mines that are no longer active
-    this.renderShotPreviews(); // Render the predicted trajectory of bullets for aiming
-    this.updateHud(); // Update the heads-up display with the latest game information
+    // ------------ Main update loop for the game scene ------------
+    
+    // Update the state of all tanks based on player input and AI controllers
+    this.updateTanks(deltaSeconds, playerInput);
+
+    // Render the predicted trajectory of bullets for aiming
+    this.renderShotPreviews();
+
+    // Handle any mines that are pending placement
+    this.processPendingMinePlacements();
+    // Handle any mines that are pending detonation
+    this.processPendingDetonations();
+
+    // Update the state of all bullets
+    this.updateBullets(deltaSeconds);
+    // Update the state of all mines
+    this.updateMines(deltaSeconds);
+    
+    // Check for and resolve collisions between bullets
+    this.resolveBulletBulletCollisions(); 
+    // Check for and resolve bullet impacts on tanks and other objects
+    this.resolveBulletImpacts();
+    // Check for and resolve mine triggers on tanks
+    this.resolveMineTankTriggers(); 
+
+    // Handle tank respawns
+    this.processRespawns();
+
+    // Remove any bullets that are no longer active
+    this.cleanupBullets();
+    // Remove any mines that are no longer active
+    this.cleanupMines();
+    
+    // Update the heads-up display with the latest game information
+    this.updateHud();
   }
 
   private updateTanks(deltaSeconds: number, playerInput: TankInput): void {
@@ -240,18 +262,20 @@ export class GameScene extends Phaser.Scene {
       // Check if the fire, detonate, or place mine actions were triggered by the input,
       // and if so, add the tank's ID to the corresponding pending action lists,
       // to be processed later in the update cycle.
-      // This allows the game to handle these actions in a consistent way during the update loop, 
-      // and ensures that actions are not missed even if the input is read at a different time
-      // than when the actions are processed.
       if (input.detonatePressed && !this.pendingDetonationTankIds.includes(slot.id)) {
         this.pendingDetonationTankIds.push(slot.id);
       }
       if (input.placeMinePressed && !this.pendingMinePlacementTankIds.includes(slot.id)) {
         this.pendingMinePlacementTankIds.push(slot.id);
       }
+
+      // Determine if the tank can fire a new bullet based on the number of active bullets it currently has,
       const canFire = this.getActiveBulletCountForTank(slot.id) < MAX_ACTIVE_BULLETS_PER_TANK;
 
       // Update the tank's state based on the input and the arena walls
+      // this method returns a new bullet instance if the tank has fired
+      // during this update cycle, which will be added to the bullets array
+      // and processed in subsequent update steps.
       const bullet = slot.tank.update(deltaSeconds, input, this.arenaMap.walls, canFire);
 
       // If the tank has fired a bullet (i.e., the update method returns a new bullet instance),
@@ -280,6 +304,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getActiveMineCountForTank(tankId: string): number {
+    // Count the number of active mines in the game that belong to a specific tank ID,
+    // which is used to determine if a tank can place a new mine based on the maximum allowed active mines per tank.
     let activeCount = 0;
 
     for (const mine of this.mines) {
@@ -314,18 +340,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateBullets(deltaSeconds: number): void {
+    // Update the state of all bullets in the game by calling their update method,
+    // which will move the bullets according to their velocity, check for collisions with walls,
+    // and handle their lifetime and destruction when they expire or collide.
     for (const bullet of this.bullets) {
       bullet.update(deltaSeconds, this.arenaMap.walls);
     }
   }
 
   private updateMines(deltaSeconds: number): void {
+    // Update the state of all mines in the game by calling their update method,
+    // which will check for triggers based on nearby tanks, handle the explosion timing,
+    // and determine when the mine should explode and be removed from the game.
+
     for (const mine of this.mines) {
       if (!mine.isAlive) {
         continue;
       }
-
+      // Determine if the mine's lifetime has expired and it should explode
       const shouldExplode = mine.update(deltaSeconds);
+      // If the mine should explode, trigger the explosion and handle the effects on nearby tanks and bullets
       if (shouldExplode) {
         this.triggerMineExplosion(mine);
       }
@@ -439,33 +473,53 @@ export class GameScene extends Phaser.Scene {
   }
 
   private processRespawns(): void {
+    // Handle the respawning of tanks that are scheduled to respawn
+    // by checking the current time against their scheduled respawn time, and if it's time to respawn,
+    // create a new tank instance for them at an available spawn point,
+    // or delay the respawn if no spawn point is currently available.
     const now = this.time.now;
 
     for (const tankSlot of this.tanks) {
+      
+      // If the tank slot is currently occupied by an active tank,
+      // or if it doesn't have a scheduled respawn time,
+      // or if the current time is still before the scheduled respawn time,
+      // skip to the next tank slot.
       if (tankSlot.tank !== undefined || tankSlot.respawnAtMs === undefined || now < tankSlot.respawnAtMs) {
         continue;
       }
-
+      
+      // Pick an available spawn point for the tank to respawn at, 
+      // ensuring that it doesn't spawn on top of another tank or too close to walls.
       const spawnPoint = this.pickAvailableCornerSpawn(tankSlot.id);
       if (spawnPoint === undefined) {
-        tankSlot.respawnAtMs = now + 250;
+        tankSlot.respawnAtMs = now + 250; // If no spawn point is currently available, delay the respawn and try again in the next update cycle.
         continue;
       }
-
+      
+      // Create a new tank instance for the respawning tank slot at the chosen spawn point
       tankSlot.tank = new Tank(this, tankSlot.id, spawnPoint.x, spawnPoint.y, tankSlot.appearance);
       tankSlot.respawnAtMs = undefined;
     }
   }
 
   private cleanupBullets(): void {
+    // Remove any bullets that are no longer alive from the bullets array of the game scene,
+    // which will effectively remove them from the game and stop rendering them.
     this.bullets = this.bullets.filter((bullet) => bullet.isAlive);
   }
 
   private cleanupMines(): void {
+    // Remove any mines that are no longer alive from the mines array of the game scene,
+    // which will effectively remove them from the game and stop rendering them.
     this.mines = this.mines.filter((mine) => mine.isAlive);
   }
 
   private processPendingMinePlacements(): void {
+    // Handle any mines that are pending placement by iterating through the list of tank IDs
+    // that have requested to place a mine, and attempting to place a mine for each of those tanks
+    // if they are allowed to do so
+
     for (const tankId of this.pendingMinePlacementTankIds) {
       this.tryPlaceMineForTank(tankId);
     }
@@ -474,17 +528,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   private tryPlaceMineForTank(tankId: string): void {
+    // Attempt to place a mine for a given tank ID,
+    // checking if the tank is allowed to place a mine based on the number of active mines it currently has,
+    // and if so, create a new mine instance at the tank's current position and add it to the mines array.
+    
+    // Assess whether the tank can place a new mine based on the number of active mines it currently has
     if (this.getActiveMineCountForTank(tankId) >= MAX_ACTIVE_MINES_PER_TANK) {
       return;
     }
-
+    
     const tankSlot = this.tanks.find((slot) => slot.id === tankId);
     if (tankSlot?.tank === undefined) {
       return;
     }
-
+    
+    // Determine the color of the mine based on whether the tank placing it is controlled by the player or AI
     const mineColor = tankSlot.controlledByPlayer ? 0x22c55e : 0xdc2626;
+    // Create a new mine instance at the tank's current position and add it to the mines array
+    // When Mine constructor is called, it will create the visual representation of the mine in the game scene
     this.mines.push(new Mine(this, tankId, tankSlot.tank.x, tankSlot.tank.y, mineColor));
+    // Play the mine placement sound effect
     this.sfx.playMinePlace();
   }
 
@@ -516,15 +579,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerMineExplosion(mine: Mine): void {
+    // Trigger the explosion of a mine, applying area damage and effects to nearby tanks and bullets,
+    // and playing the explosion sound effect.
+
     if (!mine.isAlive) {
       return;
     }
-
+    
+    // Mine position is used as the center of the explosion
     const centerX = mine.x;
     const centerY = mine.y;
-
+    
+    // Destroy the mine, which will mark it as no longer active and remove its visual representation from the game.
     mine.destroy();
+    // Play the mine explosion sound effect to provide audio feedback for the explosion event.
     this.sfx.playMineExplosion();
+    // Apply the area explosion effects, which will damage nearby tanks,
+    // trigger other mines, and play the visual explosion effect.
     this.applyAreaExplosion(centerX, centerY, MINE_EXPLOSION_RADIUS, 0xfb7185, MINE_EXPLOSION_VISUAL_DURATION_MS);
   }
 
@@ -535,22 +606,32 @@ export class GameScene extends Phaser.Scene {
     color: number,
     durationMs: number,
   ): void {
+    // Apply the effects of an explosion in a given area,
+    // which includes damaging tanks within the explosion radius,
+    // triggering other mines within the explosion radius,
+    // and playing the visual explosion effect.
     this.applyExplosionDamage(centerX, centerY, radius);
     this.triggerMinesInExplosion(centerX, centerY, radius);
     this.playExplosionEffect(centerX, centerY, radius, color, durationMs);
   }
 
   private applyExplosionDamage(centerX: number, centerY: number, radius: number): void {
+    // Apply damage to tanks within the explosion radius,
+    // taking into account line of sight and walls blocking the explosion.
     for (const tankSlot of this.tanks) {
       const tank = tankSlot.tank;
       if (tank === undefined) {
         continue;
       }
-
+      
+      // Effective explosion radius is increased by the tank's radius
       const damageDistance = radius + tank.radius;
+      // Calculate the squared distance from the explosion center to the tank's position
       const distanceSquared = Phaser.Math.Distance.Squared(centerX, centerY, tank.x, tank.y);
+      // Check if the explosion is blocked by a wall between the explosion center and the tank's position
       const blockedByWall = this.isExplosionBlockedByWall(centerX, centerY, tank.x, tank.y);
-
+      // If the tank is within the damage distance and there is a clear line of sight
+      // (not blocked by walls) to the explosion center, destroy the tank.
       if (distanceSquared <= damageDistance * damageDistance && !blockedByWall) {
         this.destroyTank(tankSlot);
       }
@@ -574,6 +655,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isExplosionBlockedByWall(startX: number, startY: number, endX: number, endY: number): boolean {
+    // Check if there is a wall blocking the line of sight between the explosion center and a target position,
+    // which would prevent the explosion from affecting the target.
     for (const wall of this.arenaMap.walls) {
       if (this.segmentIntersectsRectangle(startX, startY, endX, endY, wall)) {
         return true;
@@ -590,6 +673,9 @@ export class GameScene extends Phaser.Scene {
     endY: number,
     rect: { x: number; y: number; width: number; height: number },
   ): boolean {
+    // Check if a line segment defined by its start and end points intersects with a rectangle,
+    // which is used to determine if a wall is blocking the line of sight for an explosion.
+    // If the segment intersects the rectangle, it means there is a wall blocking the explosion's effect on the target.
     const dx = endX - startX;
     const dy = endY - startY;
 
@@ -687,86 +773,152 @@ export class GameScene extends Phaser.Scene {
   }
 
   private destroyTank(tankSlot: TankSlot): void {
+    // Handle the destruction of a tank, which includes playing the destruction effect,
+    // destroying the tank instance, and setting up the respawn timer for the tank slot.
     if (tankSlot.tank === undefined) {
       return;
     }
 
     const destroyedTankX = tankSlot.tank.x;
     const destroyedTankY = tankSlot.tank.y;
-    this.playTankDestructionEffect(destroyedTankX, destroyedTankY, tankSlot.appearance.bulletColor);
 
+    // Play the tank destruction effect at the location of the destroyed tank
+    this.playTankDestructionEffect(destroyedTankX, destroyedTankY, tankSlot.appearance.bulletColor);
+    
+    // Destroy the tank instance, which will mark it as no longer active
+    // and remove its visual representation from the game.
     tankSlot.tank.destroy();
     tankSlot.tank = undefined;
     tankSlot.respawnAtMs = this.time.now + TANK_RESPAWN_DELAY_MS;
   }
 
   private playTankDestructionEffect(x: number, y: number, color: number): void {
-    this.sfx.playTankDestroyed();
 
-    const flash = this.add.circle(x, y, 14, color, 0.95);
-    flash.setDepth(7);
+    // Play the visual and audio effects for a tank destruction event,
+    // which includes a flash, shockwave, debris particles,
+    // and a scorch mark on the ground,
+    // as well as shaking the camera to enhance the impact of the explosion.
+
+    // Play the tank destroyed sound effect to provide audio feedback for the destruction event.
+    this.sfx.playTankDestroyed();
+    
+    // Flash effect parameters
+    // Flash is a bright circle that quickly expands and fades out at the location of the destroyed tank,
+    // to create a burst of light effect for the explosion.
+    const flashRadius = 14;
+    const flashAlpha = 0.95;
+    const flashDepth = 7;
+    const flashScale = 2.8;
+    const flashDurationMs = 220;
+    
+    // Shockwave effect parameters
+    // Shockwave is a circular outline that expands and fades out, simulating the shockwave of the explosion.
+    const shockwaveRadius = 18;
+    const shockwaveDepth = 6.8;
+    const shockwaveStrokeWidth = 4;
+    const shockwaveStrokeAlpha = 0.7;
+    const shockwaveScale = 2.6;
+    const shockwaveDurationMs = 300;
+    
+    // Debris particle parameters
+    // Debris particles are small rectangles that are emitted from the explosion center,
+    // flying outwards in random directions with random speeds and rotations,
+    // to create a dynamic and chaotic explosion effect.
+    const debrisCount = 200;
+    const debrisDistanceMin = 36;
+    const debrisDistanceMax = 112;
+    const debrisSizeMin = 3;
+    const debrisSizeMax = 7;
+    const debrisHeightScale = 1.8;
+    const debrisDepth = 6.9;
+    const debrisRotationMin = -270;
+    const debrisRotationMax = 270;
+    const debrisScale = 0.3;
+    const debrisDurationMinMs = 240;
+    const debrisDurationMaxMs = 430;
+    
+    // Scorch mark parameters
+    // Scorch mark is an ellipse that appears on the ground at the location of the explosion,
+    // simulating a burn mark left by the explosion, and it slowly fades out over time.
+    const scorchOffsetY = 10;
+    const scorchWidth = 30;
+    const scorchHeight = 16;
+    const scorchColor = 0x020617;
+    const scorchAlpha = 0.5;
+    const scorchDepth = 1.5;
+    const scorchScaleX = 1.5;
+    const scorchScaleY = 1.15;
+    const scorchDurationMs = 650;
+    
+    // Camera shake parameters
+    // The camera shake adds a brief shaking effect to the entire view when a tank is destroyed,
+    // enhancing the impact and intensity of the explosion.
+    const cameraShakeDurationMs = 90;
+    const cameraShakeIntensity = 0.0050;
+
+    const flash = this.add.circle(x, y, flashRadius, color, flashAlpha);
+    flash.setDepth(flashDepth);
     flash.setBlendMode(Phaser.BlendModes.ADD);
 
     this.tweens.add({
       targets: flash,
-      scaleX: 2.8,
-      scaleY: 2.8,
+      scaleX: flashScale,
+      scaleY: flashScale,
       alpha: 0,
-      duration: 220,
+      duration: flashDurationMs,
       ease: 'Cubic.Out',
       onComplete: () => flash.destroy(),
     });
 
-    const shockwave = this.add.circle(x, y, 18, color, 0);
-    shockwave.setDepth(6.8);
-    shockwave.setStrokeStyle(4, color, 0.7);
+    const shockwave = this.add.circle(x, y, shockwaveRadius, color, 0);
+    shockwave.setDepth(shockwaveDepth);
+    shockwave.setStrokeStyle(shockwaveStrokeWidth, color, shockwaveStrokeAlpha);
 
     this.tweens.add({
       targets: shockwave,
-      scaleX: 2.6,
-      scaleY: 2.6,
+      scaleX: shockwaveScale,
+      scaleY: shockwaveScale,
       alpha: 0,
-      duration: 300,
+      duration: shockwaveDurationMs,
       ease: 'Quad.Out',
       onComplete: () => shockwave.destroy(),
     });
 
-    const debrisCount = 12;
     for (let i = 0; i < debrisCount; i += 1) {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const distance = Phaser.Math.Between(36, 112);
-      const size = Phaser.Math.Between(3, 7);
-      const shard = this.add.rectangle(x, y, size, size * 1.8, color, 0.95);
-      shard.setDepth(6.9);
+      const distance = Phaser.Math.Between(debrisDistanceMin, debrisDistanceMax);
+      const size = Phaser.Math.Between(debrisSizeMin, debrisSizeMax);
+      const shard = this.add.rectangle(x, y, size, size * debrisHeightScale, color, flashAlpha);
+      shard.setDepth(debrisDepth);
       shard.setRotation(angle);
 
       this.tweens.add({
         targets: shard,
         x: x + Math.cos(angle) * distance,
         y: y + Math.sin(angle) * distance,
-        angle: Phaser.Math.Between(-270, 270),
+        angle: Phaser.Math.Between(debrisRotationMin, debrisRotationMax),
         alpha: 0,
-        scaleX: 0.3,
-        scaleY: 0.3,
-        duration: Phaser.Math.Between(240, 430),
+        scaleX: debrisScale,
+        scaleY: debrisScale,
+        duration: Phaser.Math.Between(debrisDurationMinMs, debrisDurationMaxMs),
         ease: 'Cubic.Out',
         onComplete: () => shard.destroy(),
       });
     }
 
-    const scorch = this.add.ellipse(x, y + 10, 30, 16, 0x020617, 0.5);
-    scorch.setDepth(1.5);
+    const scorch = this.add.ellipse(x, y + scorchOffsetY, scorchWidth, scorchHeight, scorchColor, scorchAlpha);
+    scorch.setDepth(scorchDepth);
     this.tweens.add({
       targets: scorch,
       alpha: 0,
-      scaleX: 1.5,
-      scaleY: 1.15,
-      duration: 650,
+      scaleX: scorchScaleX,
+      scaleY: scorchScaleY,
+      duration: scorchDurationMs,
       ease: 'Quad.Out',
       onComplete: () => scorch.destroy(),
     });
 
-    this.cameras.main.shake(90, 0.0028, true);
+    this.cameras.main.shake(cameraShakeDurationMs, cameraShakeIntensity, true);
   }
 
   private pickAvailableCornerSpawn(excludedTankId: string): Phaser.Math.Vector2 | undefined {
@@ -892,6 +1044,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud(): void {
+    // Update the heads-up display (HUD) text with the latest game information,
+    // such as player health, score, enemy count, active bullets, etc.
+
     const aliveTankCount = this.tanks.filter((tankSlot) => tankSlot.tank !== undefined).length;
     const respawning = this.tanks.some((tankSlot) => tankSlot.id === this.playerTankId && tankSlot.tank === undefined);
 
@@ -914,7 +1069,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderShotPreviews(): void {
-    this.shotPreviewGraphics.clear();
+    // Render the predicted trajectory of bullets for aiming
+
+    this.shotPreviewGraphics.clear(); // Clear previous shot previews before rendering new ones, to ensure that only the current predicted trajectories are displayed on the screen.
 
     for (const tankSlot of this.tanks) {
       const tank = tankSlot.tank;
@@ -922,7 +1079,7 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      const origin = tank.getMuzzlePosition();
+      const origin = tank.getMuzzlePosition();  // Get the position of the tank's turret muzzle, which is the starting point for the bullet trajectory prediction.
       const trajectory = predictBulletTrajectory(
         origin,
         tank.turretAngle,
@@ -930,7 +1087,7 @@ export class GameScene extends Phaser.Scene {
         BULLET_RADIUS,
         SHOT_PREVIEW_REFLECTIONS,
         SHOT_PREVIEW_MAX_DISTANCE,
-      );
+      );  // Use the predictBulletTrajectory function to calculate the predicted path of the bullet based on the tank's turret angle, the arena walls, and other parameters such as bullet radius and maximum distance for the preview.
 
       for (const segment of trajectory.segments) {
         this.drawDashedLine(segment.start, segment.end, tankSlot.appearance.bulletColor, 10, 8, 0.8);
@@ -946,6 +1103,11 @@ export class GameScene extends Phaser.Scene {
     gapLength: number,
     alpha: number,
   ): void {
+    
+    // Draw a dashed line between the start and end points
+    // with the specified color, dash length, gap length, and alpha transparency.
+    // This is used to render the predicted bullet trajectories as dashed lines on the screen.
+
     const totalLength = Phaser.Math.Distance.Between(start.x, start.y, end.x, end.y);
     if (totalLength <= 0.001) {
       return;

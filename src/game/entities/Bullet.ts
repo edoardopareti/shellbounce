@@ -27,14 +27,18 @@ export class Bullet {
     angle: number,
     color = 0xfbbf24,
   ) {
-    this.ownerTankId = ownerTankId;
-    this.position = new Phaser.Math.Vector2(x, y);
-    this.velocity.setToPolar(angle, BULLET_SPEED);
-    this.sprite = this.scene.add.circle(x, y, this.radius, color);
-    this.sprite.setDepth(3);
+    this.ownerTankId = ownerTankId;  // Keep track of which tank fired this bullet.
+    this.position = new Phaser.Math.Vector2(x, y);  // Initialize the bullet's position based on the provided x and y coordinates.
+    this.velocity.setToPolar(angle, BULLET_SPEED);  // Set the bullet's velocity based on the provided angle and speed.
+    this.sprite = this.scene.add.circle(x, y, this.radius, color);  // Create the bullet's visual representation as a circle.
+    this.sprite.setDepth(3);  // Set the rendering depth of the bullet to ensure it appears above other game elements.
   }
 
   public update(deltaSeconds: number, walls: readonly Wall[]): void {
+    // Update the bullet's position based on its velocity and the elapsed time (deltaSeconds),
+    // check for collisions with walls, and handle bouncing and lifetime expiration.
+
+    // If the bullet is not alive (either it has expired or has been destroyed), skip the update logic.
     if (!this.isAlive) {
       return;
     }
@@ -212,6 +216,8 @@ export class Bullet {
   }
 
   public destroy(): void {
+    // Remove the bullet from the game by marking it as no longer alive
+    // and destroying its visual representation (sprite).
     if (!this.isAlive) {
       return;
     }
