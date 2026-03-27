@@ -48,7 +48,8 @@ export class Tank {
   private readonly bodySprite: Phaser.GameObjects.Image;
   private readonly turretSprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
-  private readonly chargeRing: Phaser.GameObjects.Arc;
+  private readonly chargeGlowOuter: Phaser.GameObjects.Arc;
+  private readonly chargeGlowInner: Phaser.GameObjects.Arc;
   private readonly position: Phaser.Math.Vector2;
   private readonly appearance: TankAppearance;
   private bodyAngleRadians = -Math.PI / 2;
@@ -72,15 +73,19 @@ export class Tank {
     this.position = new Phaser.Math.Vector2(x, y);
 
     this.shadow = this.scene.add.ellipse(0, 6, 34, 20, 0x020617, 0.3);
-    this.chargeRing = this.scene.add.circle(0, 0, this.radius + 8, 0xf59e0b, 0);
-    this.chargeRing.setStrokeStyle(2, 0xfef08a, 0);
+    this.chargeGlowOuter = this.scene.add.circle(0, 0, 8, this.appearance.bulletColor, 0);
+    this.chargeGlowOuter.setStrokeStyle(2, this.appearance.bulletColor, 0);
+    this.chargeGlowOuter.setBlendMode(Phaser.BlendModes.ADD);
+    this.chargeGlowInner = this.scene.add.circle(0, 0, 4, this.appearance.bulletColor, 0);
+    this.chargeGlowInner.setBlendMode(Phaser.BlendModes.ADD);
     this.bodySprite = this.scene.add.image(0, 0, this.appearance.bodyTextureKey);
     this.turretSprite = this.scene.add.image(0, 0, this.appearance.turretTextureKey);
     this.turretSprite.setOrigin(0.25, 0.5);
 
     this.container = this.scene.add.container(this.position.x, this.position.y, [
       this.shadow,
-      this.chargeRing,
+      this.chargeGlowOuter,
+      this.chargeGlowInner,
       this.bodySprite,
       this.turretSprite,
     ]);
@@ -431,17 +436,29 @@ export class Tank {
     this.bodySprite.setRotation(this.bodyAngleRadians);
     this.turretSprite.setRotation(this.turretAngleRadians);
 
+    const muzzleX = Math.cos(this.turretAngleRadians) * MUZZLE_OFFSET;
+    const muzzleY = Math.sin(this.turretAngleRadians) * MUZZLE_OFFSET;
+    this.chargeGlowOuter.setPosition(muzzleX, muzzleY);
+    this.chargeGlowInner.setPosition(muzzleX, muzzleY);
+
     const chargeLevel = this.getChargeRatio();
     if (!this.isCharging) {
-      this.chargeRing.setAlpha(0);
-      this.chargeRing.setScale(1);
+      this.chargeGlowOuter.setAlpha(0);
+      this.chargeGlowOuter.setScale(1);
+      this.chargeGlowInner.setAlpha(0);
+      this.chargeGlowInner.setScale(1);
       return;
     }
 
-    const pulse = 0.94 + Math.sin(this.chargePulseMs * 0.016) * 0.08;
-    this.chargeRing.setAlpha(0.2 + chargeLevel * 0.55);
-    this.chargeRing.setScale(Phaser.Math.Linear(0.86, 1.14, chargeLevel) * pulse);
-    this.chargeRing.setStrokeStyle(2 + chargeLevel * 2, 0xfef08a, 0.45 + chargeLevel * 0.4);
+    const pulse = 0.95 + Math.sin(this.chargePulseMs * 0.018) * 0.08;
+    const chargeScale = Phaser.Math.Linear(0.35, 1.45, chargeLevel) * pulse;
+
+    this.chargeGlowOuter.setAlpha(0.15 + chargeLevel * 0.4);
+    this.chargeGlowOuter.setScale(chargeScale);
+    this.chargeGlowOuter.setStrokeStyle(1.5 + chargeLevel * 2.5, this.appearance.bulletColor, 0.3 + chargeLevel * 0.5);
+
+    this.chargeGlowInner.setAlpha(0.2 + chargeLevel * 0.65);
+    this.chargeGlowInner.setScale(Phaser.Math.Linear(0.45, 1.2, chargeLevel) * pulse);
   }
 
   public destroy(): void {
