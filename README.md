@@ -1,6 +1,6 @@
 # shellbounce
 
-A classic tank arena web game built with Phaser, TypeScript, and Vite.
+An authoritative client-server tank arena web game built with Phaser, TypeScript, Vite, and WebSocket transport.
 
 ## Prerequisites
 
@@ -31,25 +31,47 @@ Install dependencies:
 npm install
 ```
 
+## Architecture
+
+- Client app: browser rendering + input capture only (`src/client`)
+- Server app: authoritative fixed-timestep simulation (`src/server`)
+- Shared domain package: simulation types and rules (`src/shared`)
+
+The browser does not drive core mechanics. The server is the source of truth and streams snapshots to all connected clients.
+
 ## Quickstart (Development)
 
-Start the development server:
+1. Start the authoritative server first:
 
 ```bash
-npm run dev
+npm run dev:server
 ```
 
-Vite will print a local URL in the terminal (usually `http://localhost:5173`).
-Open it in your browser to play and test changes with hot reload.
+2. In a second terminal, start the browser client:
+
+```bash
+npm run dev:client
+```
+
+3. Open the client URL printed by Vite (usually `http://localhost:5173`).
+
+If needed, override the WebSocket URL for the client:
+
+```bash
+VITE_SERVER_WS_URL=ws://localhost:8080/ws npm run dev:client
+```
 
 ## Useful Scripts
 
-- `npm run dev`: Start local development server
-- `npm run build`: Type-check and build production assets
-- `npm run preview`: Preview the production build locally
+- `npm run dev`: Alias for Vite client dev server
+- `npm run dev:client`: Start browser client dev server
+- `npm run dev:server`: Start authoritative server in watch mode
+- `npm run build`: Type-check client and build production assets
+- `npm run typecheck:server`: Type-check server and shared packages
+- `npm run preview`: Preview production client build locally
 
 ## Development Notes
 
-- Source code lives in `src/`
-- Main entry point is `src/main.ts`
-- Core gameplay code is organized under `src/game/`
+- Main browser entry point is `src/main.ts` -> `src/client/main.ts`
+- Authoritative server entry point is `src/server/index.ts`
+- Shared simulation code is under `src/shared`

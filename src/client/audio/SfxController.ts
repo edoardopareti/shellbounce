@@ -1,11 +1,9 @@
-import Phaser from 'phaser';
-
 type WebAudioContext = AudioContext;
 
 export class SfxController {
   private readonly context: WebAudioContext | undefined;
 
-  public constructor(_scene: Phaser.Scene) {
+  public constructor() {
     this.context = this.resolveContext();
   }
 

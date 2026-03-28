@@ -1,3 +1,4 @@
+import { DEFAULT_WORLD_HEIGHT, DEFAULT_WORLD_WIDTH } from './constants';
 import type { MapName, Wall } from './types';
 
 interface ArenaLayout {
@@ -8,7 +9,7 @@ interface ArenaLayout {
   walls: Wall[];
 }
 
-interface ArenaWorld {
+export interface ArenaWorld {
   width: number;
   height: number;
   walls: Wall[];
@@ -58,8 +59,8 @@ const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
   map3: {
     baseWidth: 960,
     baseHeight: 640,
-    worldWidth: 3200,
-    worldHeight: 2133,
+    worldWidth: DEFAULT_WORLD_WIDTH,
+    worldHeight: DEFAULT_WORLD_HEIGHT,
     walls: [
       { x: 0, y: 0, width: 960, height: 24 },
       { x: 0, y: 616, width: 960, height: 24 },
@@ -77,18 +78,14 @@ const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
   },
 };
 
-export function getArenaWorld(
-  mapName: MapName,
-): ArenaWorld {
+export function getArenaWorld(mapName: MapName): ArenaWorld {
   const selectedMap = MAP_LAYOUTS[mapName];
-  const worldWidth = selectedMap.worldWidth;
-  const worldHeight = selectedMap.worldHeight;
-  const scaleX = worldWidth / selectedMap.baseWidth;
-  const scaleY = worldHeight / selectedMap.baseHeight;
+  const scaleX = selectedMap.worldWidth / selectedMap.baseWidth;
+  const scaleY = selectedMap.worldHeight / selectedMap.baseHeight;
 
   return {
-    width: worldWidth,
-    height: worldHeight,
+    width: selectedMap.worldWidth,
+    height: selectedMap.worldHeight,
     walls: selectedMap.walls.map((wall) => ({
       x: wall.x * scaleX,
       y: wall.y * scaleY,
@@ -96,4 +93,8 @@ export function getArenaWorld(
       height: wall.height * scaleY,
     })),
   };
+}
+
+export function getDefaultArenaWorld(): ArenaWorld {
+  return getArenaWorld('map3');
 }

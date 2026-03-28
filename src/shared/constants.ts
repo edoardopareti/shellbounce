@@ -1,0 +1,51 @@
+export const TICK_RATE = 60;
+export const FIXED_TIMESTEP_SECONDS = 1 / TICK_RATE;
+
+export const TANK_RADIUS = 18;
+export const TANK_MOVE_SPEED = 200;
+export const TANK_REVERSE_SPEED = 150;
+export const TANK_ROTATION_SPEED = Math.PI * 1.8;
+
+export const TANK_BOOST_MULTIPLIER = 1.75;
+export const TANK_BOOST_DURATION_MS = 1400;
+export const TANK_BOOST_COOLDOWN_MS = 2600;
+
+export const BULLET_RADIUS = 5;
+export const BULLET_SPEED = 420;
+export const BULLET_MAX_BOUNCES = 3;
+export const BULLET_LIFETIME_MS = 4000;
+export const BULLET_EXPLOSION_RADIUS = 84;
+export const BULLET_EXPLOSION_VISUAL_DURATION_MS = 160;
+
+export const FIRE_COOLDOWN_MS = 100;
+export const MUZZLE_OFFSET = 26;
+
+export const CHARGED_SHOT_MIN_HOLD_MS = 150;
+export const CHARGED_SHOT_MAX_HOLD_MS = 1200;
+export const CHARGED_SHOT_OVERCHARGE_MS = 2400;
+export const CHARGED_SHOT_COOLDOWN_MS = 2400;
+export const CHARGED_SHOT_MAX_SPEED_MULTIPLIER = 2.5;
+export const CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER = 1.5;
+
+export const TANK_SHIELD_RADIUS = 25;
+export const TANK_SHIELD_FORWARD_OFFSET = 15;
+export const TANK_SHIELD_SECTOR_ANGLE_RADIANS = Math.PI * 0.7;
+export const SHIELD_OVERCHARGE_MS = 2400;
+export const SHIELD_COOLDOWN_MS = 2400;
+
+export const MINE_RADIUS = 10;
+export const MINE_LIFETIME_MS = 8000;
+export const MINE_ARMING_DELAY_MS = 380;
+export const MINE_EXPLOSION_RADIUS = 118;
+export const MINE_EXPLOSION_VISUAL_DURATION_MS = 210;
+
+export const MAX_ACTIVE_BULLETS_PER_TANK = 4;
+export const MAX_ACTIVE_MINES_PER_TANK = 3;
+
+export const TANK_RESPAWN_DELAY_MS = 3000;
+export const SPAWN_CORNER_PADDING = 56;
+export const SHOT_PREVIEW_REFLECTIONS = 1;
+export const SHOT_PREVIEW_MAX_DISTANCE = 720;
+
+export const DEFAULT_WORLD_WIDTH = 3200;
+export const DEFAULT_WORLD_HEIGHT = 2133;
