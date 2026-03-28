@@ -33,10 +33,8 @@ import { predictBulletTrajectory } from '../utils/shotPrediction';
 // - ...
 
 //GAME MECHANICS TODOs:
-//TODO if left click is pressed for a certain amount of time without releasing, charge up a more powerful shot which moves faster and bigger explosion radius but without rebounce - add visual feedback for the charging state and the increased power level, and with a cooldown after firing to prevent spamming the charged shot 
 //TODO add allies
 //TODO Add temporary invincibility and visual feedback on respawn, to avoid frustrating instant deaths right after respawning, especially in crowded areas with many active bullets and mines
-//TODO add directional rebouncing shield mechanics with left+right click to deploy, with cooldown and limited durability (rebounce bullets and protects from explosions while active) 
 //TODO add different weapons as collectables in the arena, with different primary (left click) and secondary (right click) fire modes, such as:
 // - spread shot with wider bullet angles and shorter range (left click: shoots, right click: explode)
 // - single large range missile with no rebounce but slighly controllable trajectory and bigger explosion radius (left click: shoots, right click: detonates mid-flight, left click+move mouse: applies a directional impulse to the missile)
