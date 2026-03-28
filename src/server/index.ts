@@ -1,8 +1,8 @@
 import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { TICK_RATE } from '../shared/constants';
-import { AuthoritativeSimulation } from '../shared/simulation';
-import type { ClientMessage, ServerMessage, TankInput } from '../shared/types';
+import { TICK_RATE } from '../shared/constants.js';
+import { AuthoritativeSimulation } from '../shared/simulation.js';
+import type { ClientMessage, ServerMessage, TankInput } from '../shared/types.js';
 
 interface ClientSession {
   socket: WebSocket;

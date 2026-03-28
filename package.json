@@ -1,15 +1,18 @@
 {
-  "name": "tank-prototype",
+  "name": "shellbounce",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:server": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.server.json --outDir dist/assets_server",
+    "preview": "vite preview",
+    "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
     "dev:client": "vite",
     "dev:server": "tsx watch src/server/index.ts",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "typecheck:server": "tsc -p tsconfig.server.json --noEmit"
+    "prod:client": "vite preview",
+    "prod:server": "node dist/assets_server/server/index.js"
   },
   "dependencies": {
     "phaser": "^3.90.0",

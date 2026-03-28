@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Wall } from './types';
+import type { Wall } from './types.js';
 
 interface HitResult {
   collisionX: number;

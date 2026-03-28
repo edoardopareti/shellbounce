@@ -1,6 +1,13 @@
 # shellbounce
 
-An authoritative client-server tank arena web game built with Phaser, TypeScript, Vite, and WebSocket transport.
+A tank arena web game built with:
+
+- Phaser
+- TypeScript
+- Vite
+- WebSocket
+
+..and Codex, of course.
 
 ## Prerequisites
 
@@ -21,7 +28,7 @@ git --version
 Clone and enter the project:
 
 ```bash
-git clone <your-repo-url>
+git clone <this-repo-url>
 cd shellbounce
 ```
 
@@ -64,11 +71,14 @@ VITE_SERVER_WS_URL=ws://localhost:8080/ws npm run dev:client
 ## Useful Scripts
 
 - `npm run dev`: Alias for Vite client dev server
+- `npm run build`: Type-check client and build production assets
+- `npm run build:server`: Type-check server and build production assets
+- `npm run preview`: Preview production client build locally
+- `npm run typecheck:server`: Type-check server and shared packages
 - `npm run dev:client`: Start browser client dev server
 - `npm run dev:server`: Start authoritative server in watch mode
-- `npm run build`: Type-check client and build production assets
-- `npm run typecheck:server`: Type-check server and shared packages
-- `npm run preview`: Preview production client build locally
+- `npm run prod:client`: Start browser client from production assets
+- `npm run prod:server`: Start authoritative server from production assets
 
 ## Development Notes
 

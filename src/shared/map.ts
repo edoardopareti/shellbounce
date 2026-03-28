@@ -1,5 +1,5 @@
-import { DEFAULT_WORLD_HEIGHT, DEFAULT_WORLD_WIDTH } from './constants';
-import type { MapName, Wall } from './types';
+import { DEFAULT_WORLD_HEIGHT, DEFAULT_WORLD_WIDTH } from './constants.js';
+import type { MapName, Wall } from './types.js';
 
 interface ArenaLayout {
   baseWidth: number;

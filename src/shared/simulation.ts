@@ -35,10 +35,10 @@ import {
   TANK_SHIELD_FORWARD_OFFSET,
   TANK_SHIELD_RADIUS,
   TANK_SHIELD_SECTOR_ANGLE_RADIANS,
-} from './constants';
-import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT, PLAYER_TANK_TYPE, SELECTED_MAP } from './config';
-import { getArenaWorld } from './map';
-import { circleIntersectsRect, clamp, distance, normalizeAngleRadians } from './math';
+} from './constants.js';
+import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT, PLAYER_TANK_TYPE, SELECTED_MAP } from './config.js';
+import { getArenaWorld } from './map.js';
+import { circleIntersectsRect, clamp, distance, normalizeAngleRadians } from './math.js';
 import {
   ALL_TANK_TYPES,
   EMPTY_INPUT,
@@ -46,7 +46,7 @@ import {
   type TankInput,
   type TankType,
   type WorldSnapshot,
-} from './types';
+} from './types.js';
 
 interface PlayerEntity {
   id: string;
