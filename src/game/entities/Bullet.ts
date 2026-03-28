@@ -134,6 +134,40 @@ export class Bullet {
     return this.velocity.length();
   }
 
+  public deflectByShieldSurfaceNormal(surfaceCenterX: number, surfaceCenterY: number, surfaceRadius: number): void {
+    if (!this.isAlive) {
+      return;
+    }
+    
+    // Calculate the normal vector from the shield surface to the bullet's position
+    const normal = new Phaser.Math.Vector2(this.position.x - surfaceCenterX, this.position.y - surfaceCenterY);
+    if (normal.lengthSq() <= Number.EPSILON) {
+      normal.copy(this.velocity).negate();
+      if (normal.lengthSq() <= Number.EPSILON) {
+        normal.set(1, 0);
+      }
+    }
+
+    normal.normalize();
+    
+    // Get the current speed of the bullet, ensuring it's not zero to avoid NaN issues when normalizing.
+    const currentSpeed = Math.max(this.velocity.length(), Number.EPSILON);
+    
+    // Reflect the velocity across the shield surface normal
+    this.velocity.set(normal.x * currentSpeed, normal.y * currentSpeed);
+    
+    // Move the bullet to the edge of the shield surface to prevent it from getting stuck inside the shield
+    const safeDistance = surfaceRadius + this.radius + 0.5;
+    this.position.set(
+      surfaceCenterX + normal.x * safeDistance,
+      surfaceCenterY + normal.y * safeDistance,
+    );
+    this.sprite.setPosition(this.position.x, this.position.y);
+    if (this.chargedAura !== undefined) {
+      this.chargedAura.setPosition(this.position.x, this.position.y);
+    }
+  }
+
   private reflect(axis: 'x' | 'y'): void {
     if (axis === 'x') {
       this.velocity.x *= -1;

@@ -34,6 +34,7 @@ interface DifficultyProfile {
   fireCooldownMs: { min: number; max: number }; // Delay range between consecutive AI shots.
   maxFireRange: number; // Maximum distance at which AI considers firing.
   detonationMargin: number; // Extra proximity tolerance for remote bullet detonation near target.
+  detonationTriggerChance: number; // Probability to trigger detonation once tactical and safety checks pass.
   selfPreservationMargin: number; // Additional self-safety margin to avoid self-damage on detonation.
   pathCellSize: number; // Grid cell size used for navigation/pathfinding.
   pathReplanMs: { min: number; max: number }; // Interval range for path recalculation frequency.
@@ -68,6 +69,7 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     fireCooldownMs: { min: 600, max: 980 },
     maxFireRange: 460,
     detonationMargin: 12,
+    detonationTriggerChance: 0.2,
     selfPreservationMargin: 14,
     pathCellSize: 56,
     pathReplanMs: { min: 500, max: 850 },
@@ -100,6 +102,7 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     fireCooldownMs: { min: 360, max: 620 },
     maxFireRange: 520,
     detonationMargin: 8,
+    detonationTriggerChance: 0.45,
     selfPreservationMargin: 10,
     pathCellSize: 44,
     pathReplanMs: { min: 320, max: 560 },
@@ -132,6 +135,7 @@ const DIFFICULTY_PROFILES: Record<EnemyAiDifficulty, DifficultyProfile> = {
     fireCooldownMs: { min: 300, max: 600 },
     maxFireRange: 640,
     detonationMargin: 4,
+    detonationTriggerChance: 0.75,
     selfPreservationMargin: 6,
     pathCellSize: 32,
     pathReplanMs: { min: 170, max: 300 },
@@ -191,6 +195,7 @@ export class EnemyAiController {
         moveBackward: false,
         turnLeft: false,
         turnRight: false,
+        shieldHeld: false,
         firePressed: false,
         fireHeld: false,
         fireReleased: false,
@@ -295,6 +300,7 @@ export class EnemyAiController {
       moveBackward,
       turnLeft,
       turnRight,
+      shieldHeld: false,
       firePressed,
       fireHeld,
       fireReleased,
@@ -359,7 +365,7 @@ export class EnemyAiController {
       return false;
     }
 
-    return true;
+    return Math.random() <= this.profile.detonationTriggerChance;
   }
 
   private computePathAwareHeading(

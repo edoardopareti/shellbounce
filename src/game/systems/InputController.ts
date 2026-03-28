@@ -13,6 +13,7 @@ export interface TankInput {
   moveBackward: boolean;
   turnLeft: boolean;
   turnRight: boolean;
+  shieldHeld: boolean;
   firePressed: boolean;
   fireHeld: boolean;
   fireReleased: boolean;
@@ -50,17 +51,20 @@ export class InputController {
     const leftDown = pointer.leftButtonDown();  // Check if the left mouse button is currently pressed.
     const rightDown = pointer.rightButtonDown(); // Check if the right mouse button is currently pressed.
     const middleDown = pointer.middleButtonDown(); // Check if the middle mouse button is currently pressed.
+    const shieldHeld = leftDown && rightDown;
+    const effectiveLeftDown = leftDown && !shieldHeld;
+    const effectiveRightDown = rightDown && !shieldHeld;
     
     // Determine if game actions were just triggered by checking if the corresponding mouse button was pressed this frame but not in the previous frame.
-    const firePressed = leftDown && !this.wasLeftDown;  // Determine if the fire action was just triggered (left mouse button pressed this frame, but not in the previous frame).
-    const fireReleased = !leftDown && this.wasLeftDown;
-    const detonatePressed = rightDown && !this.wasRightDown;  // Determine if the detonate action was just triggered (right mouse button pressed this frame, but not in the previous frame).
+    const firePressed = effectiveLeftDown && !this.wasLeftDown;  // Determine if the fire action was just triggered (left mouse button pressed this frame, but not in the previous frame).
+    const fireReleased = !effectiveLeftDown && this.wasLeftDown;
+    const detonatePressed = effectiveRightDown && !this.wasRightDown;  // Determine if the detonate action was just triggered (right mouse button pressed this frame, but not in the previous frame).
     const placeMinePressed = middleDown && !this.wasMiddleDown;  // Determine if the place mine action was just triggered (middle mouse button pressed this frame, but not in the previous frame).
     const boostPressed = Phaser.Input.Keyboard.JustDown(this.keys.boost);  // Determine if the boost action was just triggered (spacebar pressed this frame, but not in the previous frame).
     
     // Update the previous button states for the next frame's comparison.
-    this.wasLeftDown = leftDown;
-    this.wasRightDown = rightDown;
+    this.wasLeftDown = effectiveLeftDown;
+    this.wasRightDown = effectiveRightDown;
     this.wasMiddleDown = middleDown;
 
     return {
@@ -68,8 +72,9 @@ export class InputController {
       moveBackward: this.keys.down.isDown,
       turnLeft: this.keys.left.isDown,
       turnRight: this.keys.right.isDown,
+      shieldHeld,
       firePressed,
-      fireHeld: leftDown,
+      fireHeld: effectiveLeftDown,
       fireReleased,
       detonatePressed,
       placeMinePressed,

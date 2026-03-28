@@ -88,6 +88,7 @@ export class GameScene extends Phaser.Scene {
     moveBackward: false,
     turnLeft: false,
     turnRight: false,
+    shieldHeld: false,
     firePressed: false,
     fireHeld: false,
     fireReleased: false,
@@ -410,6 +411,11 @@ export class GameScene extends Phaser.Scene {
           continue;
         }
 
+        if (this.isBulletHittingShield(bullet, tank)) {
+          bullet.deflectByShieldSurfaceNormal(tank.shieldCenterX, tank.shieldCenterY, tank.shieldRadius);
+          break;
+        }
+
         if (!this.isBulletHittingTank(bullet, tank)) {
           continue;
         }
@@ -661,6 +667,10 @@ export class GameScene extends Phaser.Scene {
       if (tank === undefined) {
         continue;
       }
+
+      if (tank.isShieldActive) {
+        continue;
+      }
       
       // Effective explosion radius is increased by the tank's radius
       const damageDistance = radius + tank.radius;
@@ -800,6 +810,29 @@ export class GameScene extends Phaser.Scene {
     const hitDistance = bullet.radius + tank.radius;
     const distanceSquared = Phaser.Math.Distance.Squared(bullet.x, bullet.y, tank.x, tank.y);
     return distanceSquared <= hitDistance * hitDistance;
+  }
+
+  private isBulletHittingShield(bullet: Bullet, tank: Tank): boolean {
+    if (!tank.isShieldActive) {
+      return false;
+    }
+
+    const dx = bullet.x - tank.shieldCenterX;
+    const dy = bullet.y - tank.shieldCenterY;
+    const distanceSquared = dx * dx + dy * dy;
+    const maxDistance = bullet.radius + tank.shieldRadius;
+    if (distanceSquared > maxDistance * maxDistance) {
+      return false;
+    }
+
+    const minDistance = Math.max(0, tank.shieldRadius - bullet.radius);
+    if (distanceSquared < minDistance * minDistance) {
+      return false;
+    }
+
+    const angleToBullet = Math.atan2(dy, dx);
+    const angleDelta = Math.abs(Phaser.Math.Angle.Wrap(angleToBullet - tank.shieldFacingAngle));
+    return angleDelta <= tank.shieldHalfAngle;
   }
 
   private areBulletsColliding(first: Bullet, second: Bullet): boolean {

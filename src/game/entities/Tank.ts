@@ -10,11 +10,16 @@ import {
   CHARGED_SHOT_MIN_HOLD_MS,
   FIRE_COOLDOWN_MS,
   MUZZLE_OFFSET,
+  SHIELD_COOLDOWN_MS,
+  SHIELD_OVERCHARGE_MS,
   TANK_BOOST_COOLDOWN_MS,
   TANK_BOOST_DURATION_MS,
   TANK_BOOST_MULTIPLIER,
   TANK_MOVE_SPEED,
   TANK_RADIUS,
+  TANK_SHIELD_FORWARD_OFFSET,
+  TANK_SHIELD_RADIUS,
+  TANK_SHIELD_SECTOR_ANGLE_RADIANS,
   TANK_REVERSE_SPEED,
   TANK_ROTATION_SPEED,
 } from '../constants';
@@ -75,6 +80,7 @@ export abstract class Tank {
   private readonly bodySprite: Phaser.GameObjects.Image;
   private readonly turretSprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  private readonly shieldRing: Phaser.GameObjects.Arc;
   private readonly chargeGlowOuter: Phaser.GameObjects.Arc;
   private readonly chargeGlowInner: Phaser.GameObjects.Arc;
   private readonly position: Phaser.Math.Vector2;
@@ -87,6 +93,10 @@ export abstract class Tank {
   private isCharging = false;
   private fireChargeMs = 0;
   private chargePulseMs = 0;
+  private shieldPulseMs = 0;
+  private shieldHoldMs = 0;
+  private shieldCooldownMs = 0;
+  private shieldActive = false;
 
   public constructor(
     private readonly scene: Phaser.Scene,
@@ -108,6 +118,9 @@ export abstract class Tank {
     const glowInnerRadius = glowOuterRadius * 0.5;
 
     this.shadow = this.scene.add.ellipse(0, shadowOffsetY, shadowWidth, shadowHeight, 0x020617, 0.3);
+    this.shieldRing = this.scene.add.arc(0, 0, TANK_SHIELD_RADIUS, 0, 0, false, this.appearance.bulletColor, 0);
+    this.shieldRing.setStrokeStyle(2.5, this.appearance.bulletColor, 0);
+    this.shieldRing.setBlendMode(Phaser.BlendModes.ADD);
     this.chargeGlowOuter = this.scene.add.circle(0, 0, glowOuterRadius, this.appearance.bulletColor, 0);
     this.chargeGlowOuter.setStrokeStyle(2, this.appearance.bulletColor, 0);
     this.chargeGlowOuter.setBlendMode(Phaser.BlendModes.ADD);
@@ -119,6 +132,7 @@ export abstract class Tank {
 
     this.container = this.scene.add.container(this.position.x, this.position.y, [
       this.shadow,
+      this.shieldRing,
       this.chargeGlowOuter,
       this.chargeGlowInner,
       this.bodySprite,
@@ -134,6 +148,14 @@ export abstract class Tank {
     canFire = true,
   ): TankUpdateResult {
     this.updateBoost(deltaSeconds, input);
+    const shieldOvercharged = this.updateShieldState(deltaSeconds, input);
+    if (shieldOvercharged) {
+      this.syncGraphics();
+      return {
+        firedBullet: undefined,
+        selfDestructed: true,
+      };
+    }
     this.updateBodyRotation(deltaSeconds, input);
 
     this.updateMovement(deltaSeconds, input, walls);
@@ -185,6 +207,30 @@ export abstract class Tank {
     return this.appearance.bulletColor;
   }
 
+  public get isShieldActive(): boolean {
+    return this.shieldActive;
+  }
+
+  public get shieldRadius(): number {
+    return TANK_SHIELD_RADIUS;
+  }
+
+  public get shieldFacingAngle(): number {
+    return this.turretAngleRadians;
+  }
+
+  public get shieldHalfAngle(): number {
+    return TANK_SHIELD_SECTOR_ANGLE_RADIANS * 0.5;
+  }
+
+  public get shieldCenterX(): number {
+    return this.position.x + Math.cos(this.turretAngleRadians) * TANK_SHIELD_FORWARD_OFFSET;
+  }
+
+  public get shieldCenterY(): number {
+    return this.position.y + Math.sin(this.turretAngleRadians) * TANK_SHIELD_FORWARD_OFFSET;
+  }
+
   public getMuzzlePosition(): Phaser.Math.Vector2 {
     // Calculate and return the position of the tank's turret muzzle,
     // which is the point from which bullets are fired.
@@ -230,6 +276,38 @@ export abstract class Tank {
     if (input.boostPressed && this.boostRemainingMs === 0 && this.boostCooldownMs === 0) {
       this.boostRemainingMs = TANK_BOOST_DURATION_MS;
     }
+  }
+
+  private updateShieldState(deltaSeconds: number, input: TankInput): boolean {
+    const deltaMs = deltaSeconds * 1000;
+    const wasShieldActive = this.shieldActive;
+
+    this.shieldCooldownMs = Math.max(0, this.shieldCooldownMs - deltaMs);
+
+    if (!input.shieldHeld || this.shieldCooldownMs > 0) {
+      if (wasShieldActive) {
+        this.shieldCooldownMs = SHIELD_COOLDOWN_MS;
+      }
+
+      this.shieldActive = false;
+      this.shieldPulseMs = 0;
+      this.shieldHoldMs = 0;
+      return false;
+    }
+
+    this.shieldActive = true;
+    this.shieldPulseMs += deltaMs;
+    this.shieldHoldMs += deltaMs;
+
+    if (this.shieldHoldMs < SHIELD_OVERCHARGE_MS) {
+      return false;
+    }
+
+    this.shieldActive = false;
+    this.shieldPulseMs = 0;
+    this.shieldHoldMs = 0;
+    this.shieldCooldownMs = SHIELD_COOLDOWN_MS;
+    return true;
   }
 
   private updateBodyRotation(deltaSeconds: number, input: TankInput): void {
@@ -486,18 +564,38 @@ export abstract class Tank {
       this.chargeGlowOuter.setScale(1);
       this.chargeGlowInner.setAlpha(0);
       this.chargeGlowInner.setScale(1);
+    } else {
+      const pulse = 0.95 + Math.sin(this.chargePulseMs * 0.018) * 0.08;
+      const chargeScale = Phaser.Math.Linear(0.35, 1.45, chargeLevel) * pulse;
+
+      this.chargeGlowOuter.setAlpha(0.15 + chargeLevel * 0.4);
+      this.chargeGlowOuter.setScale(chargeScale);
+      this.chargeGlowOuter.setStrokeStyle(1.5 + chargeLevel * 2.5, this.appearance.bulletColor, 0.3 + chargeLevel * 0.5);
+
+      this.chargeGlowInner.setAlpha(0.2 + chargeLevel * 0.65);
+      this.chargeGlowInner.setScale(Phaser.Math.Linear(0.45, 1.2, chargeLevel) * pulse);
+    }
+
+    const shieldCenterLocalX = Math.cos(this.turretAngleRadians) * TANK_SHIELD_FORWARD_OFFSET;
+    const shieldCenterLocalY = Math.sin(this.turretAngleRadians) * TANK_SHIELD_FORWARD_OFFSET;
+    this.shieldRing.setPosition(shieldCenterLocalX, shieldCenterLocalY);
+
+    const shieldStartAngle = this.turretAngleRadians - TANK_SHIELD_SECTOR_ANGLE_RADIANS * 0.5;
+    const shieldEndAngle = this.turretAngleRadians + TANK_SHIELD_SECTOR_ANGLE_RADIANS * 0.5;
+    this.shieldRing.setStartAngle(Phaser.Math.RadToDeg(shieldStartAngle));
+    this.shieldRing.setEndAngle(Phaser.Math.RadToDeg(shieldEndAngle));
+
+    if (!this.shieldActive) {
+      this.shieldRing.setAlpha(0);
+      this.shieldRing.setScale(1);
       return;
     }
 
-    const pulse = 0.95 + Math.sin(this.chargePulseMs * 0.018) * 0.08;
-    const chargeScale = Phaser.Math.Linear(0.35, 1.45, chargeLevel) * pulse;
-
-    this.chargeGlowOuter.setAlpha(0.15 + chargeLevel * 0.4);
-    this.chargeGlowOuter.setScale(chargeScale);
-    this.chargeGlowOuter.setStrokeStyle(1.5 + chargeLevel * 2.5, this.appearance.bulletColor, 0.3 + chargeLevel * 0.5);
-
-    this.chargeGlowInner.setAlpha(0.2 + chargeLevel * 0.65);
-    this.chargeGlowInner.setScale(Phaser.Math.Linear(0.45, 1.2, chargeLevel) * pulse);
+    const shieldPulse = 0.97 + Math.sin(this.shieldPulseMs * 0.014) * 0.06;
+    this.shieldRing.setAlpha(0.45);
+    this.shieldRing.setFillStyle(this.appearance.bulletColor, 0.14);
+    this.shieldRing.setScale(shieldPulse);
+    this.shieldRing.setStrokeStyle(2.5, this.appearance.bulletColor, 0.7);
   }
 
   protected static createTankBodyTexture(
