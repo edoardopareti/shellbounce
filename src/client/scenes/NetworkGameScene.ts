@@ -372,15 +372,20 @@ export class NetworkGameScene extends Phaser.Scene {
       ]);
       return;
     }
-
+    
     this.hudText.setText([
-      `Connection: ${connection}`,
+      `Server Connection: ${connection}`,
       `Player: ${youId}`,
-      `Tick: ${snapshot.tick}`,
-      `Players: ${snapshot.players.filter((player) => player.isAlive).length}/${snapshot.players.length}`,
-      `Bullets: ${snapshot.bullets.length}`,
-      `Mines: ${snapshot.mines.length}`,
-      'Controls: WASD move, mouse aim, left click fire, right click detonate, middle click or E mine, SPACE boost',
+      `Tanks: ${snapshot.players.filter((player) => player.isAlive).length}/${snapshot.players.length}`,
+      'Controls: \n\
+        Move/Rotate: WASD\n\
+        Aim: Mouse\n\
+        Normal Shot: Left Click\n\
+        Charged Shot: Left Click (hold)\n\
+        Detonate Shot: Right Click\n\
+        Place Mine: Middle Click or E\n\
+        Shield: Left+Right Click (hold)\n\
+        Boost: SPACE',
     ]);
   }
 }
