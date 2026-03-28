@@ -1149,20 +1149,15 @@ export class GameScene extends Phaser.Scene {
 
     this.hudText.setText([
       'WASD: move / rotate',
-      'Mouse: aim turret / hold left click: charge shot / release: fire',
-      'Right click: detonate oldest player bullet',
+      'Mouse: aim turret',
+      'Left click: shoot bullets', 
+      'Right click: detonate bullets',
+      'Left click (hold): charge shot / release: fire  charged shot',
+      'Middle click: place mine',
       'Space: speed boost (limited duration + cooldown)',
-      '',
+      'Left + Right click: activate shield (limited duration + cooldown)',
       `Enemy AI: ${ENEMY_AI_DIFFICULTY}`,
-      `Enemy count: ${ENEMY_COUNT}`,
-      `Active tanks: ${aliveTankCount}`,
-      `Active bullets: ${this.bullets.length}`,
-      `Active mines: ${this.mines.length}`,
-      'Bullets destroy tanks (friendly fire on).',
-      'Middle click: place mine.',
-      'Charged shots: faster, bigger blast, no bounce (long cooldown).',
-      'Overcharge: hold too long and your tank explodes.',
-      'Normal bullets disappear after 3 bounces.',
+      `Alive tanks: ${aliveTankCount}`,
       respawning ? 'Respawn in progress...' : 'Tank ready.',
     ]);
   }
