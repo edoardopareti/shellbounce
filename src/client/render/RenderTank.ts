@@ -17,6 +17,7 @@ export class RenderTank {
   private readonly chargeGlowOuter: Phaser.GameObjects.Arc;
   private readonly chargeGlowInner: Phaser.GameObjects.Arc;
   private readonly chargeSpark: Phaser.GameObjects.Arc;
+  private readonly idLabel: Phaser.GameObjects.Text;
 
   public constructor(private readonly scene: Phaser.Scene, player: PlayerState) {
     const appearance = getTankAppearance(player.tankType);
@@ -46,6 +47,18 @@ export class RenderTank {
     this.turretSprite = this.scene.add.image(0, 0, appearance.turretTextureKey);
     this.turretSprite.setOrigin(turretShape.originX, turretShape.originY);
 
+    // Create the player ID label above the tank
+    this.idLabel = this.scene.add.text(0, 0, player.id, {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#e2e8f0',
+      align: 'center',
+      stroke: '#22223b',
+      strokeThickness: 3,
+    });
+    this.idLabel.setOrigin(0.5, 1.1); // Centered horizontally, above the tank
+    this.idLabel.setDepth(7);
+
     this.container = this.scene.add.container(player.x, player.y, [
       this.shadow,
       this.shieldRing,
@@ -54,6 +67,7 @@ export class RenderTank {
       this.chargeGlowOuter,
       this.chargeGlowInner,
       this.chargeSpark,
+      this.idLabel,
     ]);
     this.container.setDepth(6);
   }
@@ -61,16 +75,23 @@ export class RenderTank {
   public sync(player: PlayerState): void {
     this.container.setPosition(player.x, player.y);
 
+    // Update the label text and position (above the tank)
+    this.idLabel.setText(player.id);
+    this.idLabel.setX(0); // Centered on the tank
+    this.idLabel.setY(-player.radius - 8); // 8px above the tank's top
+
     if (!player.isAlive) {
       this.container.setAlpha(0);
       this.shieldRing.setAlpha(0);
       this.chargeGlowOuter.setAlpha(0);
       this.chargeGlowInner.setAlpha(0);
       this.chargeSpark.setAlpha(0);
+      this.idLabel.setAlpha(0);
       return;
     }
 
     this.container.setAlpha(1);
+    this.idLabel.setAlpha(1);
     this.bodySprite.setRotation(player.bodyAngle);
     this.turretSprite.setRotation(player.turretAngle);
 
