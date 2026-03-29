@@ -4,11 +4,11 @@ import { TICK_RATE } from '../shared/constants.js';
 import { AuthoritativeSimulation } from '../shared/simulation.js';
 import type { ClientMessage, ServerMessage, TankInput } from '../shared/types.js';
 
-// TODO: Currently, a single simulation instance is used for all clients
-// extend to support multiple game rooms or instances in the future.
-
 // TODO: Implement player ID selection by clients, instead of auto-assigning IDs on the server side.
 // TODO: Implement client authentication.
+
+// TODO: Currently, a single simulation instance is used for all clients
+// extend to support multiple game rooms or instances in the future.
 
 // ClientSession tracks the WebSocket connection and player information for each connected client.
 interface ClientSession {
@@ -109,6 +109,11 @@ setInterval(() => {
 }, Math.round(1000 / TICK_RATE));
 
 // Start the HTTP server and listen for incoming connections on the specified port.
+// Runs continuously and concurrently with the simulation loop,
+// allowing the server to handle client connections and game state updates simultaneously.
+// Request flow:
+//   HTTP Server --> WebSocketServer --> Handles corresponding events (connection, message, close)
+// Simulation loop runs independently and sends updates to clients.
 httpServer.listen(port, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
   console.log(`[server] listening on http://0.0.0.0:${port}`);
