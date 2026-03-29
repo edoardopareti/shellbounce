@@ -1,3 +1,5 @@
+// Wall represents a rectangular obstacle in the arena,
+// defined by its top-left corner (x, y) and its dimensions (width, height).
 export interface Wall {
   x: number;
   y: number;
@@ -5,6 +7,7 @@ export interface Wall {
   height: number;
 }
 
+// The MapName type represents the valid map identifiers that can be used to select different arena layouts.
 export type MapName = 'map1' | 'map2' | 'map3';
 
 export interface TankInput {
@@ -84,13 +87,17 @@ export interface WorldSnapshot {
   effects: EffectEvent[];
 }
 
+// ClientMessage represents the structure of messages sent from clients to the server,
+// which can be either a join request or player input commands.
 export interface ClientJoinMessage {
   type: 'join';
 }
 
+// ClientInputMessage represents the structure of player input messages sent from clients to the server,
+// containing the input state and a sequence number for ordering.
 export interface ClientInputMessage {
   type: 'input';
-  seq: number;
+  seq: number;  // This sequence number helps the server process inputs in the correct order and ignore outdated messages.
   input: TankInput;
 }
 

@@ -48,6 +48,8 @@ import {
   type WorldSnapshot,
 } from './types.js';
 
+// PlayerEntity represents the state of a player's tank in the simulation,
+// including its position, rotation, health, cooldowns, and other relevant properties.
 interface PlayerEntity {
   id: string;
   tankType: TankType;
@@ -70,6 +72,8 @@ interface PlayerEntity {
   chargeMs: number;
 }
 
+// BulletEntity represents the state of a bullet in the simulation,
+// including its position, velocity, radius, lifetime, and other relevant properties.
 interface BulletEntity {
   id: string;
   ownerPlayerId: string;
@@ -86,6 +90,8 @@ interface BulletEntity {
   isCharged: boolean;
 }
 
+// MineEntity represents the state of a mine in the simulation,
+// including its position, radius, lifetime, and ownership information.
 interface MineEntity {
   id: string;
   ownerPlayerId: string;
@@ -232,36 +238,55 @@ interface LineOfFireThreat {
   aimDirectionY: number;
 }
 
+// AuthoritativeSimulation manages the state and logic of the game,
+// including players, bullets, mines, and bots.
+// It provides methods to add/remove players, process player inputs,
+// advance the simulation state, and create snapshots of the world state for clients.
 export class AuthoritativeSimulation {
-  private readonly world = getArenaWorld(SELECTED_MAP);
-  private readonly bounds = this.computePlayableBounds();
-  private readonly players = new Map<string, PlayerEntity>();
-  private readonly latestInputs = new Map<string, TankInput>();
-  private readonly bullets: BulletEntity[] = [];
-  private readonly mines: MineEntity[] = [];
-  private readonly botFireHeld = new Map<string, boolean>();
-  private readonly botNextShotAtMs = new Map<string, number>();
-  private readonly botNextMineAtMs = new Map<string, number>();
-  private readonly botNextPathPlanAtMs = new Map<string, number>();
-  private readonly botPathWaypointIndex = new Map<string, number>();
-  private readonly botPathWaypoints = new Map<string, Array<{ x: number; y: number }>>();
-  private readonly pathGridCache = new Map<number, NavigationGrid>();
-  private readonly pendingEffects: EffectEvent[] = [];
-  private tick = 0;
-  private nowMs = 0;
-  private bulletCounter = 0;
-  private mineCounter = 0;
-  private playerJoinCounter = 0;
-  private effectCounter = 0;
+  private readonly world = getArenaWorld(SELECTED_MAP); // Game arena
+  private readonly bounds = this.computePlayableBounds(); // Playable boundaries
+  private readonly players = new Map<string, PlayerEntity>(); // Player ID : PlayerEntity
+  private readonly latestInputs = new Map<string, TankInput>(); // Player ID : Latest input
+  private readonly bullets: BulletEntity[] = []; // Active bullets in the simulation
+  private readonly mines: MineEntity[] = []; // Active mines in the simulation
+  private readonly botFireHeld = new Map<string, boolean>(); // Bot ID : Fire held state
+  private readonly botNextShotAtMs = new Map<string, number>(); // Bot ID : Next shot timestamp
+  private readonly botNextMineAtMs = new Map<string, number>(); // Bot ID : Next mine timestamp
+  private readonly botNextPathPlanAtMs = new Map<string, number>(); // Bot ID : Next path plan timestamp
+  private readonly botPathWaypointIndex = new Map<string, number>(); // Bot ID : Current path waypoint index
+  private readonly botPathWaypoints = new Map<string, Array<{ x: number; y: number }>>(); // Bot ID : Path waypoints
+  private readonly pathGridCache = new Map<number, NavigationGrid>(); // Cached navigation grids
+  private readonly pendingEffects: EffectEvent[] = []; // Pending effect events
+  private tick = 0; // Simulation tick counter
+  private nowMs = 0; // Current simulation time in milliseconds
+  private bulletCounter = 0; // Counter for bullet IDs
+  private mineCounter = 0; // Counter for mine IDs
+  private playerJoinCounter = 0; // Counter for player joins
+  private effectCounter = 0; // Counter for effect events
 
   public addPlayer(playerId: string, isBot: boolean): void {
+
+    // Add a new player to the simulation with the specified playerId and bot status.
+    // If the playerId already exists, the method returns early.
+    // Otherwise, it initializes a new PlayerEntity with default properties,
+    // assigns a tank type based on whether it's a bot or human player,
+    // and places the player at an available spawn point in the arena.
+    // The player's input state is also initialized to an empty input.
+    // For bots, additional state is set up to manage their behavior and decision-making in the simulation.
+
     if (this.players.has(playerId)) {
       return;
     }
-
+    
+    // Determine the tank type for the new player based on whether it's a bot or human player.
     const tankType = this.resolveTankTypeForNewPlayer(isBot);
-    const spawn = this.pickAvailableSpawnPoint(playerId) ?? this.getCornerSpawnPoints()[0];
 
+    // Pick an available spawn point for the new player.
+    // If no spawn points are available, default to a corner spawn point.
+    const spawn = this.pickAvailableSpawnPoint(playerId) ?? this.getCornerSpawnPoints()[0];
+    
+    // Initialize a new PlayerEntity with the assigned playerId, tank type,
+    // spawn position, and default properties.
     const player: PlayerEntity = {
       id: playerId,
       tankType,
@@ -283,10 +308,16 @@ export class AuthoritativeSimulation {
       isChargingShot: false,
       chargeMs: 0,
     };
-
+    
+    // Increment the player join counter to ensure unique player IDs for bots
     this.playerJoinCounter += 1;
+    
+    // Add the new player to the simulation's player map and initialize their input state.
     this.players.set(playerId, player);
+    
+    // Initialize the latest input for the player to an empty input state.
     this.latestInputs.set(playerId, EMPTY_INPUT);
+
     if (isBot) {
       this.botFireHeld.set(playerId, false);
       this.botNextShotAtMs.set(playerId, 0);
@@ -340,12 +371,15 @@ export class AuthoritativeSimulation {
   }
 
   public ensureDefaultBots(): void {
+    // Add default bots to the simulation based on the configured ENEMY_COUNT.
+    // This allows the game to have AI opponents even if no human players are connected.
     for (let index = 0; index < ENEMY_COUNT; index += 1) {
       this.addPlayer(`bot-${index + 1}`, true);
     }
   }
 
   public step(): void {
+    // Advance the simulation by one tick.
     this.tick += 1;
     this.nowMs += FIXED_TIMESTEP_SECONDS * 1000;
 
@@ -1567,6 +1601,8 @@ export class AuthoritativeSimulation {
   }
 
   private resolveTankTypeForNewPlayer(isBot: boolean): TankType {
+    // Return the default player tank type for human players,
+    // but cycle through all available types for bots to add variety to matches with multiple bots.
     if (!isBot) {
       return PLAYER_TANK_TYPE;
     }
@@ -1625,6 +1661,8 @@ export class AuthoritativeSimulation {
   }
 
   private computePlayableBounds(): PlayableBounds {
+    // This method computes insets from the world boundaries based on the presence of walls
+    // that are flush against the edges.
     const width = this.world.width;
     const height = this.world.height;
     const epsilon = 0.001;
@@ -1901,6 +1939,7 @@ function intersectsAnyWall(
 }
 
 function getTankBulletColor(tankType: TankType): number {
+  // Get the bullet color for a given tank type.
   switch (tankType) {
     case 'PolPot':
       return 0x22c55e;

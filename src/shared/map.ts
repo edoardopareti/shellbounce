@@ -9,12 +9,16 @@ interface ArenaLayout {
   walls: Wall[];
 }
 
+// The ArenaWorld represents the game world,
+// including its dimensions and the walls within it.
 export interface ArenaWorld {
   width: number;
   height: number;
   walls: Wall[];
 }
 
+// A predefined set of arena layouts that can be selected for the game.
+// Each layout defines the base dimensions, world dimensions, and wall placements.
 const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
   map1: {
     baseWidth: 960,
@@ -79,6 +83,7 @@ const MAP_LAYOUTS: Record<MapName, ArenaLayout> = {
 };
 
 export function getArenaWorld(mapName: MapName): ArenaWorld {
+  // Get the arena world configuration for a given map name, including dimensions and wall placements.
   const selectedMap = MAP_LAYOUTS[mapName];
   const scaleX = selectedMap.worldWidth / selectedMap.baseWidth;
   const scaleY = selectedMap.worldHeight / selectedMap.baseHeight;
