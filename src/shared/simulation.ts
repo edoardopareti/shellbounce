@@ -53,6 +53,8 @@ import {
 interface PlayerEntity {
   id: string;
   tankType: TankType;
+  kills: number;
+  deaths: number;
   bulletColor: number;
   x: number;
   y: number;
@@ -290,6 +292,8 @@ export class AuthoritativeSimulation {
     const player: PlayerEntity = {
       id: playerId,
       tankType,
+      kills: 0,
+      deaths: 0,
       bulletColor: getTankBulletColor(tankType),
       x: spawn.x,
       y: spawn.y,
@@ -404,6 +408,9 @@ export class AuthoritativeSimulation {
       players: Array.from(this.players.values()).map((player) => ({
         id: player.id,
         tankType: player.tankType,
+        kills: player.kills,
+        deaths: player.deaths,
+        score: player.kills - player.deaths,
         x: player.x,
         y: player.y,
         bodyAngle: player.bodyAngle,
@@ -467,7 +474,7 @@ export class AuthoritativeSimulation {
 
     const shieldOvercharged = this.updateShieldState(player, input);
     if (shieldOvercharged) {
-      this.destroyPlayer(player);
+      this.destroyPlayer(player, player.id);
       return;
     }
 
@@ -480,7 +487,7 @@ export class AuthoritativeSimulation {
     const canFire = this.getActiveBulletCountForPlayer(player.id) < MAX_ACTIVE_BULLETS_PER_TANK;
     const chargeResult = this.updateChargeState(player, input, canFire);
     if (chargeResult.selfDestructed) {
-      this.destroyPlayer(player);
+      this.destroyPlayer(player, player.id);
       return;
     }
 
@@ -821,7 +828,7 @@ export class AuthoritativeSimulation {
         }
 
         this.mines.splice(mineIndex, 1);
-        this.triggerMineExplosion(mine.x, mine.y);
+        this.triggerMineExplosion(mine.x, mine.y, mine.ownerPlayerId);
         this.bullets.splice(bulletIndex, 1);
         handled = true;
         break;
@@ -847,7 +854,7 @@ export class AuthoritativeSimulation {
         }
 
         this.triggerBulletExplosion(bulletIndex);
-        this.destroyPlayer(player);
+        this.destroyPlayer(player, bullet.ownerPlayerId);
         handled = true;
         break;
       }
@@ -892,7 +899,7 @@ export class AuthoritativeSimulation {
         }
 
         this.mines.splice(mineIndex, 1);
-        this.triggerMineExplosion(mine.x, mine.y);
+        this.triggerMineExplosion(mine.x, mine.y, mine.ownerPlayerId);
         break;
       }
     }
@@ -913,16 +920,16 @@ export class AuthoritativeSimulation {
       }
 
       this.mines.splice(index, 1);
-      this.triggerMineExplosion(mine.x, mine.y);
+      this.triggerMineExplosion(mine.x, mine.y, mine.ownerPlayerId);
     }
   }
 
-  private triggerMineExplosion(x: number, y: number): void {
+  private triggerMineExplosion(x: number, y: number, sourcePlayerId?: string): void {
     this.queueExplosionEffect('mine-explosion', x, y, MINE_EXPLOSION_RADIUS, 0xfb7185, MINE_EXPLOSION_VISUAL_DURATION_MS);
-    this.applyAreaExplosion(x, y, MINE_EXPLOSION_RADIUS);
+    this.applyAreaExplosion(x, y, MINE_EXPLOSION_RADIUS, sourcePlayerId);
   }
 
-  private applyAreaExplosion(centerX: number, centerY: number, radius: number): void {
+  private applyAreaExplosion(centerX: number, centerY: number, radius: number, sourcePlayerId?: string): void {
     for (const player of this.players.values()) {
       if (!player.isAlive || player.isShieldActive) {
         continue;
@@ -935,7 +942,7 @@ export class AuthoritativeSimulation {
 
       const blockedByWall = this.isExplosionBlockedByWall(centerX, centerY, player.x, player.y);
       if (!blockedByWall) {
-        this.destroyPlayer(player);
+        this.destroyPlayer(player, sourcePlayerId);
       }
     }
 
@@ -955,7 +962,7 @@ export class AuthoritativeSimulation {
       }
 
       this.mines.splice(mineIndex, 1);
-      this.triggerMineExplosion(mine.x, mine.y);
+      this.triggerMineExplosion(mine.x, mine.y, mine.ownerPlayerId);
     }
 
     for (let bulletIndex = this.bullets.length - 1; bulletIndex >= 0; bulletIndex -= 1) {
@@ -1024,7 +1031,7 @@ export class AuthoritativeSimulation {
       explosionColor,
       BULLET_EXPLOSION_VISUAL_DURATION_MS,
     );
-    this.applyAreaExplosion(bullet.x, bullet.y, bullet.explosionRadius);
+    this.applyAreaExplosion(bullet.x, bullet.y, bullet.explosionRadius, bullet.ownerPlayerId);
   }
 
   private isBulletHittingShield(bullet: BulletEntity, player: PlayerEntity): boolean {
@@ -1079,9 +1086,18 @@ export class AuthoritativeSimulation {
     };
   }
 
-  private destroyPlayer(player: PlayerEntity): void {
+  private destroyPlayer(player: PlayerEntity, killerPlayerId?: string): void {
     if (!player.isAlive) {
       return;
+    }
+
+    player.deaths += 1;
+
+    if (killerPlayerId !== undefined && killerPlayerId !== player.id) {
+      const killer = this.players.get(killerPlayerId);
+      if (killer !== undefined) {
+        killer.kills += 1;
+      }
     }
 
     player.isAlive = false;

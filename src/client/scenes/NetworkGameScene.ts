@@ -26,9 +26,13 @@ const TANK_PREVIEW_COLORS: Record<TankType, string> = {
 export class NetworkGameScene extends Phaser.Scene {
   private readonly client = new GameClient(buildWsUrl());
   private inputController: InputController | undefined;
+  private scoreboardToggleKey: Phaser.Input.Keyboard.Key | undefined;
   private wallGraphics: Phaser.GameObjects.Graphics | undefined;
   private dynamicGraphics: Phaser.GameObjects.Graphics | undefined;
   private shotPreviewGraphics: Phaser.GameObjects.Graphics | undefined;
+  private scoreboardBackground: Phaser.GameObjects.Rectangle | undefined;
+  private scoreboardText: Phaser.GameObjects.Text | undefined;
+  private scoreboardVisible = false;
   private sfx: SfxController | undefined;
   private lastRenderedTick = -1;
   private readonly tanks = new Map<string, RenderTank>();
@@ -51,6 +55,8 @@ export class NetworkGameScene extends Phaser.Scene {
     this.sfx = new SfxController();
     showJoinOverlay((joinProfile) => {
       this.inputController = new InputController(this);
+      this.scoreboardToggleKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.P, false);
+      this.initializeScoreboardUi();
       this.client.connect(joinProfile);
     });
   }
@@ -73,7 +79,77 @@ export class NetworkGameScene extends Phaser.Scene {
       this.lastRenderedTick = snapshot.tick;
     }
 
+    if (this.scoreboardToggleKey !== undefined && Phaser.Input.Keyboard.JustDown(this.scoreboardToggleKey)) {
+      this.scoreboardVisible = !this.scoreboardVisible;
+      this.setScoreboardVisibility(this.scoreboardVisible);
+    }
+
+    if (this.scoreboardVisible) {
+      this.updateScoreboard(snapshot);
+    }
+
     this.followOwnedPlayer(snapshot);
+  }
+
+  private initializeScoreboardUi(): void {
+    if (this.scoreboardBackground !== undefined && this.scoreboardText !== undefined) {
+      return;
+    }
+
+    this.scoreboardBackground = this.add.rectangle(16, 16, 360, 280, 0x020617, 0.5);
+    this.scoreboardBackground.setOrigin(0, 0);
+    this.scoreboardBackground.setScrollFactor(0);
+    this.scoreboardBackground.setDepth(30);
+
+    this.scoreboardText = this.add.text(28, 28, '', {
+      color: '#e2e8f0',
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      lineSpacing: 4,
+    });
+    this.scoreboardText.setScrollFactor(0);
+    this.scoreboardText.setDepth(31);
+
+    this.setScoreboardVisibility(false);
+  }
+
+  private setScoreboardVisibility(visible: boolean): void {
+    this.scoreboardBackground?.setVisible(visible);
+    this.scoreboardText?.setVisible(visible);
+  }
+
+  private updateScoreboard(snapshot: WorldSnapshot): void {
+    if (this.scoreboardBackground === undefined || this.scoreboardText === undefined) {
+      return;
+    }
+
+    const sortedPlayers = [...snapshot.players].sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      if (b.kills !== a.kills) {
+        return b.kills - a.kills;
+      }
+      if (a.deaths !== b.deaths) {
+        return a.deaths - b.deaths;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    const lines = ['SCOREBOARD (P)', 'Name            K   D   S'];
+
+    for (const player of sortedPlayers) {
+      const displayName = player.id.length > 14 ? `${player.id.slice(0, 13)}.` : player.id;
+      const nameCell = displayName.padEnd(14, ' ');
+      const killsCell = String(player.kills).padStart(2, ' ');
+      const deathsCell = String(player.deaths).padStart(2, ' ');
+      const scoreCell = String(player.score).padStart(3, ' ');
+      lines.push(`${nameCell} ${killsCell}  ${deathsCell}  ${scoreCell}`);
+    }
+
+    this.scoreboardText.setText(lines);
+    const requiredHeight = Math.max(120, 36 + sortedPlayers.length * 22);
+    this.scoreboardBackground.setSize(360, requiredHeight);
   }
 
   private ensureWorldRendered(snapshot: WorldSnapshot): void {
@@ -406,6 +482,7 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
     'Place Mine: Middle Click or E',
     'Shield: Left+Right Click (hold)',
     'Boost: SPACE',
+    'Scoreboard: P (toggle)',
   ].join('\n');
 
   const nameLabel = document.createElement('label');

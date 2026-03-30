@@ -33,6 +33,9 @@ export const ALL_TANK_TYPES: readonly TankType[] = ['PolPot', 'Hightillery', 'SS
 export interface PlayerState {
   id: string;
   tankType: TankType;
+  kills: number;
+  deaths: number;
+  score: number;
   x: number;
   y: number;
   bodyAngle: number;
