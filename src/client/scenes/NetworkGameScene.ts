@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { InputController } from '../network/InputController';
-import { GameClient } from '../network/GameClient';
-import type { EffectEvent, WorldSnapshot } from '../../shared/types';
+import { GameClient, type ClientJoinProfile } from '../network/GameClient';
+import { ALL_TANK_TYPES, type EffectEvent, type TankType, type WorldSnapshot } from '../../shared/types';
 import { RenderTank } from '../render/RenderTank';
 import { preloadTankTextures } from '../render/tankVisuals';
 import {
@@ -14,6 +14,14 @@ import { predictBulletTrajectory } from '../../shared/shotPrediction';
 import { SfxController } from '../audio/SfxController';
 
 const DEFAULT_BACKGROUND = 0x111827;
+const MAX_PLAYER_NAME_LENGTH = 24;
+
+const TANK_PREVIEW_COLORS: Record<TankType, string> = {
+  PolPot: '#22c55e',
+  Hightillery: '#dc2626',
+  SSugar: '#f8fafc',
+  Fantanyl: '#facc15',
+};
 
 export class NetworkGameScene extends Phaser.Scene {
   private readonly client = new GameClient(buildWsUrl());
@@ -41,7 +49,7 @@ export class NetworkGameScene extends Phaser.Scene {
     this.shotPreviewGraphics = this.add.graphics();
     this.shotPreviewGraphics.setDepth(5.4);
 
-    this.hudText = this.add.text(16, 16, 'Connecting...', {
+    this.hudText = this.add.text(16, 16, 'Waiting for player setup...', {
       color: '#e2e8f0',
       fontSize: '16px',
       fontFamily: 'monospace',
@@ -50,9 +58,11 @@ export class NetworkGameScene extends Phaser.Scene {
     this.hudText.setScrollFactor(0);
     this.hudText.setDepth(20);
 
-    this.inputController = new InputController(this);
     this.sfx = new SfxController();
-    this.client.connect();
+    showJoinOverlay((joinProfile) => {
+      this.inputController = new InputController(this);
+      this.client.connect(joinProfile);
+    });
   }
 
   public update(): void {
@@ -388,6 +398,168 @@ export class NetworkGameScene extends Phaser.Scene {
         Boost: SPACE',
     ]);
   }
+}
+
+function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): void {
+  const appHost = document.getElementById('app') ?? document.body;
+  const overlay = document.createElement('div');
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.display = 'grid';
+  overlay.style.placeItems = 'center';
+  overlay.style.background = 'rgba(2, 6, 23, 0.7)';
+  overlay.style.backdropFilter = 'blur(4px)';
+  overlay.style.zIndex = '9999';
+
+  const panel = document.createElement('form');
+  panel.style.width = 'min(92vw, 420px)';
+  panel.style.background = '#0f172a';
+  panel.style.border = '1px solid #334155';
+  panel.style.borderRadius = '14px';
+  panel.style.padding = '20px';
+  panel.style.display = 'grid';
+  panel.style.gap = '12px';
+  panel.style.color = '#e2e8f0';
+  panel.style.fontFamily = 'monospace';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Join Arena';
+  title.style.margin = '0';
+  title.style.fontSize = '20px';
+
+  const nameLabel = document.createElement('label');
+  nameLabel.textContent = 'Player Name';
+  nameLabel.htmlFor = 'join-player-name';
+  nameLabel.style.fontSize = '13px';
+
+  const nameInput = document.createElement('input');
+  nameInput.id = 'join-player-name';
+  nameInput.type = 'text';
+  nameInput.maxLength = MAX_PLAYER_NAME_LENGTH;
+  nameInput.placeholder = 'max 24 chars';
+  nameInput.autocomplete = 'off';
+  nameInput.style.height = '36px';
+  nameInput.style.borderRadius = '8px';
+  nameInput.style.border = '1px solid #475569';
+  nameInput.style.background = '#020617';
+  nameInput.style.color = '#e2e8f0';
+  nameInput.style.padding = '0 10px';
+
+  const tankLabel = document.createElement('label');
+  tankLabel.textContent = 'Tank Type';
+  tankLabel.htmlFor = 'join-tank-type';
+  tankLabel.style.fontSize = '13px';
+
+  const tankSelect = document.createElement('select');
+  tankSelect.id = 'join-tank-type';
+  tankSelect.style.height = '36px';
+  tankSelect.style.borderRadius = '8px';
+  tankSelect.style.border = '1px solid #475569';
+  tankSelect.style.background = '#020617';
+  tankSelect.style.color = '#e2e8f0';
+  tankSelect.style.padding = '0 10px';
+
+  for (const tankType of ALL_TANK_TYPES) {
+    const option = document.createElement('option');
+    option.value = tankType;
+    option.textContent = tankType;
+    tankSelect.appendChild(option);
+  }
+
+  const previewContainer = document.createElement('div');
+  previewContainer.style.display = 'flex';
+  previewContainer.style.alignItems = 'center';
+  previewContainer.style.gap = '10px';
+  previewContainer.style.padding = '8px 10px';
+  previewContainer.style.borderRadius = '10px';
+  previewContainer.style.background = '#111827';
+  previewContainer.style.border = '1px solid #334155';
+
+  const colorSwatch = document.createElement('span');
+  colorSwatch.style.width = '16px';
+  colorSwatch.style.height = '16px';
+  colorSwatch.style.borderRadius = '999px';
+  colorSwatch.style.border = '1px solid #94a3b8';
+
+  const previewText = document.createElement('span');
+  previewText.style.fontSize = '13px';
+
+  previewContainer.appendChild(colorSwatch);
+  previewContainer.appendChild(previewText);
+
+  const errorText = document.createElement('div');
+  errorText.style.minHeight = '18px';
+  errorText.style.color = '#fca5a5';
+  errorText.style.fontSize = '12px';
+
+  const confirmButton = document.createElement('button');
+  confirmButton.type = 'submit';
+  confirmButton.textContent = 'Join Battle';
+  confirmButton.style.height = '38px';
+  confirmButton.style.border = 'none';
+  confirmButton.style.borderRadius = '8px';
+  confirmButton.style.background = '#22c55e';
+  confirmButton.style.color = '#052e16';
+  confirmButton.style.fontWeight = '700';
+  confirmButton.style.cursor = 'pointer';
+
+  const updatePreview = (): void => {
+    const playerName = nameInput.value.trim();
+    const tankType = tankSelect.value as TankType;
+    const color = TANK_PREVIEW_COLORS[tankType] ?? '#94a3b8';
+
+    colorSwatch.style.backgroundColor = color;
+    previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType}`;
+  };
+
+  panel.appendChild(title);
+  panel.appendChild(nameLabel);
+  panel.appendChild(nameInput);
+  panel.appendChild(tankLabel);
+  panel.appendChild(tankSelect);
+  panel.appendChild(previewContainer);
+  panel.appendChild(errorText);
+  panel.appendChild(confirmButton);
+  overlay.appendChild(panel);
+  appHost.appendChild(overlay);
+
+  nameInput.addEventListener('input', updatePreview);
+  tankSelect.addEventListener('change', updatePreview);
+
+  panel.addEventListener('submit', (event) => {
+    event.preventDefault();
+
+    const playerId = nameInput.value.trim();
+    const selectedTankType = tankSelect.value;
+
+    if (playerId.length === 0) {
+      errorText.textContent = 'Player name cannot be empty.';
+      return;
+    }
+
+    if (playerId.length > MAX_PLAYER_NAME_LENGTH) {
+      errorText.textContent = `Player name must be ${MAX_PLAYER_NAME_LENGTH} characters or fewer.`;
+      return;
+    }
+
+    if (!isTankType(selectedTankType)) {
+      errorText.textContent = 'Please choose a valid tank type.';
+      return;
+    }
+
+    overlay.remove();
+    onSubmit({
+      playerId,
+      tankType: selectedTankType,
+    });
+  });
+
+  updatePreview();
+  nameInput.focus();
+}
+
+function isTankType(value: string): value is TankType {
+  return ALL_TANK_TYPES.some((tankType) => tankType === value);
 }
 
 function buildWsUrl(): string {

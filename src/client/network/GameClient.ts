@@ -4,9 +4,15 @@ import type {
   ServerMessage,
   ServerStateMessage,
   ServerWelcomeMessage,
+  TankType,
   TankInput,
   WorldSnapshot,
 } from '../../shared/types';
+
+export interface ClientJoinProfile {
+  playerId: string;
+  tankType: TankType;
+}
 
 export class GameClient {
   private socket: WebSocket | undefined;
@@ -17,7 +23,7 @@ export class GameClient {
 
   public constructor(private readonly wsUrl: string) {}
 
-  public connect(): void {
+  public connect(joinProfile: ClientJoinProfile): void {
     if (this.connectionState !== 'disconnected') {
       return;
     }
@@ -26,7 +32,11 @@ export class GameClient {
     this.socket = new WebSocket(this.wsUrl);
 
     this.socket.onopen = () => {
-      const joinMessage: ClientMessage = { type: 'join' };
+      const joinMessage: ClientMessage = {
+        type: 'join',
+        playerId: joinProfile.playerId,
+        tankType: joinProfile.tankType,
+      };
       this.socket?.send(JSON.stringify(joinMessage));
     };
 

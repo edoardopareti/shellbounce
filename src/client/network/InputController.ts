@@ -23,7 +23,7 @@ export class InputController {
       right: Phaser.Input.Keyboard.KeyCodes.D,
       boost: Phaser.Input.Keyboard.KeyCodes.SPACE,
       mine: Phaser.Input.Keyboard.KeyCodes.E,
-    }) as InputController['keys'];
+    }, false) as InputController['keys'];
   }
 
   public read(): TankInput {

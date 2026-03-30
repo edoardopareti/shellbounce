@@ -91,6 +91,8 @@ export interface WorldSnapshot {
 // which can be either a join request or player input commands.
 export interface ClientJoinMessage {
   type: 'join';
+  playerId: string;
+  tankType: TankType;
 }
 
 // ClientInputMessage represents the structure of player input messages sent from clients to the server,

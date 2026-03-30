@@ -2,9 +2,8 @@ import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { TICK_RATE } from '../shared/constants.js';
 import { AuthoritativeSimulation } from '../shared/simulation.js';
-import type { ClientMessage, ServerMessage, TankInput } from '../shared/types.js';
+import { ALL_TANK_TYPES, type ClientJoinMessage, type ClientMessage, type ServerMessage, type TankInput } from '../shared/types.js';
 
-// TODO: Implement player ID selection by clients, instead of auto-assigning IDs on the server side.
 // TODO: Implement client authentication.
 
 // TODO: Currently, a single simulation instance is used for all clients
@@ -50,7 +49,6 @@ const webSocketServer = new WebSocketServer({
 // This allows the server to manage multiple clients, track their state,
 // and send targeted messages back to them.
 const sessions = new Map<WebSocket, ClientSession>();
-let nextPlayerId = 1;
 
 // Handle new WebSocket connections from clients, set up message handlers, and manage disconnections.
 // When a client connects to the server via WebSocket, this event handler is triggered.
@@ -141,7 +139,7 @@ function handleClientMessage(socket: WebSocket, payload: string): void {
   
   // Handle join messages by creating a new player session and adding the player to the simulation.
   if (message.type === 'join') {
-    handleJoin(socket);
+    handleJoin(socket, message);
     return;
   }
   
@@ -167,7 +165,7 @@ function handleClientMessage(socket: WebSocket, payload: string): void {
   simulation.setPlayerInput(session.playerId, sanitizeInput(message.input));
 }
 
-function handleJoin(socket: WebSocket): void {
+function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
   // This function handles join requests from clients.
   // It checks if the client is already in a session, and if not,
   // it creates a new player ID, adds the player to the simulation,
@@ -177,14 +175,29 @@ function handleJoin(socket: WebSocket): void {
     return;
   }
   
-  // Generate a unique player ID for the new client session
-  const playerId = `player-${nextPlayerId}`;
-  
-  // Increment the player ID counter for the next new player that joins.
-  nextPlayerId += 1;
+  const playerId = sanitizePlayerId(message.playerId);
+  if (playerId.length === 0) {
+    sendError(socket, 'Player name cannot be empty.');
+    return;
+  }
+
+  if (playerId.length > 24) {
+    sendError(socket, 'Player name must be 24 characters or fewer.');
+    return;
+  }
+
+  if (!ALL_TANK_TYPES.includes(message.tankType)) {
+    sendError(socket, `Invalid tank type. Allowed: ${ALL_TANK_TYPES.join(', ')}`);
+    return;
+  }
+
+  if (isPlayerIdTaken(playerId)) {
+    sendError(socket, 'Player name already taken. Choose a different name.');
+    return;
+  }
   
   // Add the new player to the simulation with the generated player ID.
-  simulation.addPlayer(playerId, false);
+  simulation.addPlayer(playerId, false, message.tankType);
   
   // Create a new client session and store it in the sessions map, keyed by the WebSocket connection.
   sessions.set(socket, {
@@ -223,10 +236,24 @@ function isClientMessage(value: unknown): value is ClientMessage {
 
   const candidate = value as Partial<ClientMessage>;
   if (candidate.type === 'join') {
-    return true;
+    return typeof candidate.playerId === 'string' && typeof candidate.tankType === 'string';
   }
 
   return candidate.type === 'input' && typeof candidate.seq === 'number' && typeof candidate.input === 'object';
+}
+
+function sanitizePlayerId(playerId: string): string {
+  return playerId.trim();
+}
+
+function isPlayerIdTaken(playerId: string): boolean {
+  for (const session of sessions.values()) {
+    if (session.playerId === playerId) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function sanitizeInput(input: TankInput): TankInput {

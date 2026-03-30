@@ -264,7 +264,7 @@ export class AuthoritativeSimulation {
   private playerJoinCounter = 0; // Counter for player joins
   private effectCounter = 0; // Counter for effect events
 
-  public addPlayer(playerId: string, isBot: boolean): void {
+  public addPlayer(playerId: string, isBot: boolean, preferredTankType?: TankType): void {
 
     // Add a new player to the simulation with the specified playerId and bot status.
     // If the playerId already exists, the method returns early.
@@ -279,7 +279,7 @@ export class AuthoritativeSimulation {
     }
     
     // Determine the tank type for the new player based on whether it's a bot or human player.
-    const tankType = this.resolveTankTypeForNewPlayer(isBot);
+    const tankType = this.resolveTankTypeForNewPlayer(isBot, preferredTankType);
 
     // Pick an available spawn point for the new player.
     // If no spawn points are available, default to a corner spawn point.
@@ -1600,10 +1600,14 @@ export class AuthoritativeSimulation {
     return best;
   }
 
-  private resolveTankTypeForNewPlayer(isBot: boolean): TankType {
+  private resolveTankTypeForNewPlayer(isBot: boolean, preferredTankType?: TankType): TankType {
     // Return the default player tank type for human players,
     // but cycle through all available types for bots to add variety to matches with multiple bots.
     if (!isBot) {
+      if (preferredTankType !== undefined && ALL_TANK_TYPES.includes(preferredTankType)) {
+        return preferredTankType;
+      }
+
       return PLAYER_TANK_TYPE;
     }
 
