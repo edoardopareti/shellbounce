@@ -136,7 +136,18 @@ export class NetworkGameScene extends Phaser.Scene {
       return a.id.localeCompare(b.id);
     });
 
-    const lines = ['SCOREBOARD (P)', 'Name            K   D   S'];
+    // Format elapsed time as MM:SS
+    let elapsed = '';
+    if (typeof snapshot.elapsedMs === 'number') {
+      const totalSeconds = Math.floor(snapshot.elapsedMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      elapsed = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    const lines = [
+      `SCOREBOARD (P)   Time: ${elapsed}`,
+      'Name            K   D   S'
+    ];
 
     for (const player of sortedPlayers) {
       const displayName = player.id.length > 14 ? `${player.id.slice(0, 13)}.` : player.id;

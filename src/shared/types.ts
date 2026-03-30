@@ -84,6 +84,7 @@ export interface WorldSnapshot {
   width: number;
   height: number;
   walls: Wall[];
+  elapsedMs: number; // Elapsed time in ms since game start
   players: PlayerState[];
   bullets: BulletState[];
   mines: MineState[];
