@@ -91,19 +91,29 @@ VITE_SERVER_WS_URL=ws://localhost:8080/ws npm run dev:client
     - WebSocket Server
     ```
         server {
-            listen       3000;
-            server_name  localhost;
+            listen 3000;
+            server_name _;
 
-            # Proxy static files (client)
             location / {
-                proxy_pass http://localhost:5173;
+                proxy_pass http://127.0.0.1:5173;
+                proxy_http_version 1.1;
                 proxy_set_header Host $host;
                 proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
             }
 
-            # Proxy WebSocket
+            location /api/ {
+                proxy_pass http://127.0.0.1:8080/api/;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
             location /ws {
-                proxy_pass http://localhost:8080/ws;
+                proxy_pass http://127.0.0.1:8080/ws;
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "upgrade";
@@ -111,6 +121,7 @@ VITE_SERVER_WS_URL=ws://localhost:8080/ws npm run dev:client
             }
         }
     ```
+- start your NGINX proxy server with `start nginx` ran from shell with admin. privileges, from NGINX folder.
 - Get your public IP at https://whatismyipaddress.com/
 - Access the game at http://<my_public_IP>:3000
 

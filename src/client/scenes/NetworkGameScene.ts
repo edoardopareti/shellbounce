@@ -146,20 +146,21 @@ export class NetworkGameScene extends Phaser.Scene {
     }
     const lines = [
       `SCOREBOARD (P)   Time: ${elapsed}`,
-      'Name            K   D   S'
+      'Name           | Kills | Deaths | Score',
+      '---------------+-------+--------+------'
     ];
 
     for (const player of sortedPlayers) {
-      const displayName = player.id.length > 14 ? `${player.id.slice(0, 13)}.` : player.id;
-      const nameCell = displayName.padEnd(14, ' ');
-      const killsCell = String(player.kills).padStart(2, ' ');
-      const deathsCell = String(player.deaths).padStart(2, ' ');
-      const scoreCell = String(player.score).padStart(3, ' ');
-      lines.push(`${nameCell} ${killsCell}  ${deathsCell}  ${scoreCell}`);
+      const displayName = player.id.length > 13 ? `${player.id.slice(0, 12)}.` : player.id;
+      const nameCell = displayName.padEnd(13, ' ');
+      const killsCell = String(player.kills).padStart(5, ' ');
+      const deathsCell = String(player.deaths).padStart(6, ' ');
+      const scoreCell = String(player.score).padStart(5, ' ');
+      lines.push(`${nameCell} |${killsCell} |${deathsCell} |${scoreCell}`);
     }
 
     this.scoreboardText.setText(lines);
-    const requiredHeight = Math.max(120, 36 + sortedPlayers.length * 22);
+    const requiredHeight = Math.max(120, 48 + sortedPlayers.length * 22);
     this.scoreboardBackground.setSize(360, requiredHeight);
   }
 
@@ -416,6 +417,25 @@ export class NetworkGameScene extends Phaser.Scene {
       this.tanks.delete(playerId);
     }
 
+    let highestScore = -Infinity;
+    let lowestScore = Infinity;
+    for (const player of snapshot.players) {
+      if (player.score > highestScore) {
+        highestScore = player.score;
+      }
+      if (player.score < lowestScore) {
+        lowestScore = player.score;
+      }
+    }
+
+    const allScoresEqual = highestScore === lowestScore;
+    const highestScorerIds = new Set<string>(
+      allScoresEqual ? [] : snapshot.players.filter((player) => player.score === highestScore).map((player) => player.id),
+    );
+    const lowestScorerIds = new Set<string>(
+      allScoresEqual ? [] : snapshot.players.filter((player) => player.score === lowestScore).map((player) => player.id),
+    );
+
     for (const player of snapshot.players) {
       let renderTank = this.tanks.get(player.id);
       if (renderTank === undefined) {
@@ -423,7 +443,7 @@ export class NetworkGameScene extends Phaser.Scene {
         this.tanks.set(player.id, renderTank);
       }
 
-      renderTank.sync(player);
+      renderTank.sync(player, highestScorerIds.has(player.id), lowestScorerIds.has(player.id));
     }
   }
 

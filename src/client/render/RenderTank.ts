@@ -18,6 +18,8 @@ export class RenderTank {
   private readonly chargeGlowInner: Phaser.GameObjects.Arc;
   private readonly chargeSpark: Phaser.GameObjects.Arc;
   private readonly idLabel: Phaser.GameObjects.Text;
+  private readonly crown: Phaser.GameObjects.Graphics;
+  private readonly donkeyEars: Phaser.GameObjects.Graphics;
 
   public constructor(private readonly scene: Phaser.Scene, player: PlayerState) {
     const appearance = getTankAppearance(player.tankType);
@@ -59,6 +61,14 @@ export class RenderTank {
     this.idLabel.setOrigin(0.5, 1.1); // Centered horizontally, above the tank
     this.idLabel.setDepth(7);
 
+    this.crown = this.scene.add.graphics();
+    this.crown.setVisible(false);
+    this.crown.setDepth(7.2);
+
+    this.donkeyEars = this.scene.add.graphics();
+    this.donkeyEars.setVisible(false);
+    this.donkeyEars.setDepth(7.1);
+
     this.container = this.scene.add.container(player.x, player.y, [
       this.shadow,
       this.shieldRing,
@@ -67,12 +77,14 @@ export class RenderTank {
       this.chargeGlowOuter,
       this.chargeGlowInner,
       this.chargeSpark,
+      this.crown,
+      this.donkeyEars,
       this.idLabel,
     ]);
     this.container.setDepth(6);
   }
 
-  public sync(player: PlayerState): void {
+  public sync(player: PlayerState, showCrown = false, showDonkeyEars = false): void {
     this.container.setPosition(player.x, player.y);
 
     // Update the label text and position (above the tank)
@@ -80,12 +92,17 @@ export class RenderTank {
     this.idLabel.setX(0); // Centered on the tank
     this.idLabel.setY(-player.radius - 8); // 8px above the tank's top
 
+    this.drawCrown(player.radius, showCrown);
+    this.drawDonkeyEars(player.radius, showDonkeyEars);
+
     if (!player.isAlive) {
       this.container.setAlpha(0);
       this.shieldRing.setAlpha(0);
       this.chargeGlowOuter.setAlpha(0);
       this.chargeGlowInner.setAlpha(0);
       this.chargeSpark.setAlpha(0);
+      this.crown.setVisible(false);
+      this.donkeyEars.setVisible(false);
       this.idLabel.setAlpha(0);
       return;
     }
@@ -143,6 +160,79 @@ export class RenderTank {
     this.shieldRing.setFillStyle(player.bulletColor, 0.14);
     this.shieldRing.setScale(shieldPulse);
     this.shieldRing.setStrokeStyle(2.5, player.bulletColor, 0.7);
+  }
+
+  private drawCrown(radius: number, visible: boolean): void {
+    this.crown.clear();
+    if (!visible) {
+      this.crown.setVisible(false);
+      return;
+    }
+
+    const yBase = -radius - 24;
+    this.crown.fillStyle(0xfacc15, 1);
+    this.crown.beginPath();
+    this.crown.moveTo(-13, yBase);
+    this.crown.lineTo(-9, yBase - 14);
+    this.crown.lineTo(0, yBase - 5);
+    this.crown.lineTo(9, yBase - 14);
+    this.crown.lineTo(13, yBase);
+    this.crown.closePath();
+    this.crown.fillPath();
+
+    this.crown.lineStyle(2, 0xeab308, 1);
+    this.crown.strokePath();
+
+    this.crown.fillStyle(0xfffbeb, 0.95);
+    this.crown.fillCircle(-9, yBase - 13, 2);
+    this.crown.fillCircle(0, yBase - 5, 2);
+    this.crown.fillCircle(9, yBase - 13, 2);
+    this.crown.setVisible(true);
+  }
+
+  private drawDonkeyEars(radius: number, visible: boolean): void {
+    this.donkeyEars.clear();
+    if (!visible) {
+      this.donkeyEars.setVisible(false);
+      return;
+    }
+
+    const yTop = -radius - 28; // Move base up, make ears longer
+    this.donkeyEars.fillStyle(0x8b5a2b, 1);
+    // Left ear (longer)
+    this.donkeyEars.beginPath();
+    this.donkeyEars.moveTo(-10, yTop + 20);
+    this.donkeyEars.lineTo(-16, yTop - 18);
+    this.donkeyEars.lineTo(-4, yTop + 20);
+    this.donkeyEars.closePath();
+    this.donkeyEars.fillPath();
+
+    // Right ear (longer)
+    this.donkeyEars.beginPath();
+    this.donkeyEars.moveTo(10, yTop + 20);
+    this.donkeyEars.lineTo(16, yTop - 18);
+    this.donkeyEars.lineTo(4, yTop + 20);
+    this.donkeyEars.closePath();
+    this.donkeyEars.fillPath();
+
+    // Inner left
+    this.donkeyEars.fillStyle(0xf5cba7, 0.95);
+    this.donkeyEars.beginPath();
+    this.donkeyEars.moveTo(-10, yTop + 15);
+    this.donkeyEars.lineTo(-14, yTop - 7);
+    this.donkeyEars.lineTo(-6, yTop + 15);
+    this.donkeyEars.closePath();
+    this.donkeyEars.fillPath();
+
+    // Inner right
+    this.donkeyEars.beginPath();
+    this.donkeyEars.moveTo(10, yTop + 15);
+    this.donkeyEars.lineTo(14, yTop - 7);
+    this.donkeyEars.lineTo(6, yTop + 15);
+    this.donkeyEars.closePath();
+    this.donkeyEars.fillPath();
+
+    this.donkeyEars.setVisible(true);
   }
 
   public destroy(): void {

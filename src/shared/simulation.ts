@@ -246,7 +246,6 @@ interface LineOfFireThreat {
 // advance the simulation state, and create snapshots of the world state for clients.
 export class AuthoritativeSimulation {
   private readonly world = getArenaWorld(SELECTED_MAP); // Game arena
-  private readonly gameStartMs: number;
   private readonly bounds = this.computePlayableBounds(); // Playable boundaries
   private readonly players = new Map<string, PlayerEntity>(); // Player ID : PlayerEntity
   private readonly latestInputs = new Map<string, TankInput>(); // Player ID : Latest input
@@ -266,10 +265,6 @@ export class AuthoritativeSimulation {
   private mineCounter = 0; // Counter for mine IDs
   private playerJoinCounter = 0; // Counter for player joins
   private effectCounter = 0; // Counter for effect events
-
-  public constructor() {
-    this.gameStartMs = Date.now();
-  }
 
   public addPlayer(playerId: string, isBot: boolean, preferredTankType?: TankType): void {
 
