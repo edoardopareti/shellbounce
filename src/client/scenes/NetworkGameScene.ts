@@ -29,7 +29,6 @@ export class NetworkGameScene extends Phaser.Scene {
   private wallGraphics: Phaser.GameObjects.Graphics | undefined;
   private dynamicGraphics: Phaser.GameObjects.Graphics | undefined;
   private shotPreviewGraphics: Phaser.GameObjects.Graphics | undefined;
-  private hudText: Phaser.GameObjects.Text | undefined;
   private sfx: SfxController | undefined;
   private lastRenderedTick = -1;
   private readonly tanks = new Map<string, RenderTank>();
@@ -49,15 +48,6 @@ export class NetworkGameScene extends Phaser.Scene {
     this.shotPreviewGraphics = this.add.graphics();
     this.shotPreviewGraphics.setDepth(5.4);
 
-    this.hudText = this.add.text(16, 16, 'Waiting for player setup...', {
-      color: '#e2e8f0',
-      fontSize: '16px',
-      fontFamily: 'monospace',
-      lineSpacing: 6,
-    });
-    this.hudText.setScrollFactor(0);
-    this.hudText.setDepth(20);
-
     this.sfx = new SfxController();
     showJoinOverlay((joinProfile) => {
       this.inputController = new InputController(this);
@@ -72,7 +62,6 @@ export class NetworkGameScene extends Phaser.Scene {
 
     const snapshot = this.client.getLatestSnapshot();
     if (snapshot === undefined) {
-      this.updateHud(undefined);
       return;
     }
 
@@ -85,7 +74,6 @@ export class NetworkGameScene extends Phaser.Scene {
     }
 
     this.followOwnedPlayer(snapshot);
-    this.updateHud(snapshot);
   }
 
   private ensureWorldRendered(snapshot: WorldSnapshot): void {
@@ -366,38 +354,6 @@ export class NetworkGameScene extends Phaser.Scene {
     this.cameras.main.centerOn(ownPlayer.x, ownPlayer.y);
   }
 
-  private updateHud(snapshot: WorldSnapshot | undefined): void {
-    if (this.hudText === undefined) {
-      return;
-    }
-
-    const connection = this.client.getConnectionState();
-    const youId = this.client.getPlayerId() ?? 'pending';
-
-    if (snapshot === undefined) {
-      this.hudText.setText([
-        `Connection: ${connection}`,
-        `Player: ${youId}`,
-        'Waiting for server state...',
-      ]);
-      return;
-    }
-    
-    this.hudText.setText([
-      `Server Connection: ${connection}`,
-      `Player: ${youId}`,
-      `Tanks: ${snapshot.players.filter((player) => player.isAlive).length}/${snapshot.players.length}`,
-      'Controls: \n\
-        Move/Rotate: WASD\n\
-        Aim: Mouse\n\
-        Normal Shot: Left Click\n\
-        Charged Shot: Left Click (hold)\n\
-        Detonate Shot: Right Click\n\
-        Place Mine: Middle Click or E\n\
-        Shield: Left+Right Click (hold)\n\
-        Boost: SPACE',
-    ]);
-  }
 }
 
 function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): void {
@@ -426,6 +382,31 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
   title.textContent = 'Join Arena';
   title.style.margin = '0';
   title.style.fontSize = '20px';
+
+  const controlsTitle = document.createElement('div');
+  controlsTitle.textContent = 'Controls';
+  controlsTitle.style.fontSize = '13px';
+  controlsTitle.style.fontWeight = '700';
+  controlsTitle.style.marginTop = '2px';
+
+  const controlsList = document.createElement('div');
+  controlsList.style.fontSize = '12px';
+  controlsList.style.lineHeight = '1.45';
+  controlsList.style.border = '1px solid #334155';
+  controlsList.style.borderRadius = '10px';
+  controlsList.style.padding = '8px 10px';
+  controlsList.style.background = '#111827';
+  controlsList.style.whiteSpace = 'pre-line';
+  controlsList.textContent = [
+    'Move/Rotate: WASD',
+    'Aim: Mouse',
+    'Normal Shot: Left Click',
+    'Charged Shot: Left Click (hold)',
+    'Detonate Shot: Right Click',
+    'Place Mine: Middle Click or E',
+    'Shield: Left+Right Click (hold)',
+    'Boost: SPACE',
+  ].join('\n');
 
   const nameLabel = document.createElement('label');
   nameLabel.textContent = 'Player Name';
@@ -513,6 +494,8 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
   };
 
   panel.appendChild(title);
+  panel.appendChild(controlsTitle);
+  panel.appendChild(controlsList);
   panel.appendChild(nameLabel);
   panel.appendChild(nameInput);
   panel.appendChild(tankLabel);
