@@ -4,11 +4,11 @@ export const FIXED_TIMESTEP_SECONDS = 1 / TICK_RATE;
 export const TANK_RADIUS = 18;
 export const TANK_MOVE_SPEED = 200;
 export const TANK_REVERSE_SPEED = 150;
-export const TANK_ROTATION_SPEED = Math.PI * 1.8;
+export const TANK_ROTATION_SPEED = Math.PI * 2.5;
 
-export const TANK_BOOST_MULTIPLIER = 1.75;
-export const TANK_BOOST_DURATION_MS = 1400;
-export const TANK_BOOST_COOLDOWN_MS = 2600;
+export const TANK_BOOST_MULTIPLIER = 2;
+export const TANK_BOOST_DURATION_MS = 1700;
+export const TANK_BOOST_COOLDOWN_MS = 2200;
 
 export const BULLET_RADIUS = 5;
 export const BULLET_SPEED = 420;

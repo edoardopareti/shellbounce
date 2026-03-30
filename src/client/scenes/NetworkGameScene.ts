@@ -397,6 +397,6 @@ function buildWsUrl(): string {
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const host = window.location.hostname;
-  return `${protocol}://${host}:8080/ws`;
+  const host = window.location.host; // includes hostname and port
+  return `${protocol}://${host}/ws`;
 }

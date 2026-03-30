@@ -80,6 +80,41 @@ VITE_SERVER_WS_URL=ws://localhost:8080/ws npm run dev:client
 - `npm run prod:client`: Start browser client from production assets
 - `npm run prod:server`: Start authoritative server from production assets
 
+## Game deployment
+
+- VM has been put under macvtap networking mode (requires ethernet cable connection)
+- Check VM Firewall inbound rules allow incoming connections on port 3000
+- Port forwarding of port 3000 of VM (via router port forwarding settings)
+- NGINX used as proxy server to :
+  - redirect client external requests (port 3000) to:
+    - Vite
+    - WebSocket Server
+    ```
+        server {
+            listen       3000;
+            server_name  localhost;
+
+            # Proxy static files (client)
+            location / {
+                proxy_pass http://localhost:5173;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            # Proxy WebSocket
+            location /ws {
+                proxy_pass http://localhost:8080/ws;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+            }
+        }
+    ```
+- Get your public IP at https://whatismyipaddress.com/
+- Access the game at http://<my_public_IP>:3000
+
+
 ## Development Notes
 
 - Main browser entry point is `src/main.ts` -> `src/client/main.ts`
