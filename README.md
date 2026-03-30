@@ -9,6 +9,8 @@ A tank arena web game built with:
 
 ..and Codex, of course.
 
+![alt text](docs/images/game.png)
+
 ## Prerequisites
 
 - Node.js 20+ (LTS recommended)
