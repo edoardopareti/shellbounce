@@ -1,3 +1,9 @@
+// src/client/main.ts
+
+// This file serves as the entry point for the client-side application.
+// It initializes the Phaser game instance and sets up the main game scene.
+// This logic is executed in the client browser as an ES module.
+
 import Phaser from 'phaser';
 import { NetworkGameScene } from './scenes/NetworkGameScene';
 import { GAME_WIDTH, GAME_HEIGHT, BACKGROUND_COLOR } from '../shared/config';

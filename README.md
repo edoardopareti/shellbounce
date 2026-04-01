@@ -1,9 +1,9 @@
-# shellbounce
+# ShellBounce
 
-A tank arena web game built with:
+A (hopefully competitive) multiplayer tank arena web game built with:
 
-- Phaser
 - TypeScript
+- Phaser
 - Vite
 - WebSocket
 
@@ -11,11 +11,16 @@ A tank arena web game built with:
 
 ![alt text](docs/images/game.png)
 
+
 ## Prerequisites
 
 - Node.js 20+ (LTS recommended)
 - npm 10+ (comes with modern Node.js)
 - Git
+
+Additional dependencies for self-serving of the game to the outside world:
+
+- A proxy server like NGINX
 
 Check your versions:
 
@@ -40,17 +45,29 @@ Install dependencies:
 npm install
 ```
 
+
 ## Architecture
 
-- Client app: browser rendering + input capture only (`src/client`)
-- Server app: authoritative fixed-timestep simulation (`src/server`)
-- Shared domain package: simulation types and rules (`src/shared`)
+### Overview
 
-The browser does not drive core mechanics. The server is the source of truth and streams snapshots to all connected clients.
+Shellbounce uses a classic client-server architecture:
+
+- **Client (Browser, `src/client`)**: Responsible for rendering the game, capturing user input, and sending player actions to the server. The client does not simulate game logic or physics; it only displays the current state and relays user commands.
+
+- **Server (Node.js, `src/server`)**: Runs the authoritative simulation of the game world using a fixed-timestep loop. It processes all player actions, updates the game state, and resolves all game logic, ensuring fairness and preventing cheating.
+
+- **Shared Code (`src/shared`)**: Contains domain logic, simulation rules, and type definitions used by both client and server to ensure consistency.
+
+### Communication
+
+The client and server communicate via WebSockets. The client sends user input (such as movement or firing commands) to the server. The server processes these inputs, updates the game state, and periodically streams authoritative state snapshots back to all connected clients. This ensures all players see a consistent and up-to-date view of the game world.
+
+The browser never drives core mechanics; the server is always the source of truth.
+
 
 ## Quickstart (Development)
 
-1. Start the authoritative server first:
+1. Start the authoritative server:
 
 ```bash
 npm run dev:server
@@ -64,25 +81,77 @@ npm run dev:client
 
 3. Open the client URL printed by Vite (usually `http://localhost:5173`).
 
-If needed, override the WebSocket URL for the client:
-
-```bash
-VITE_SERVER_WS_URL=ws://localhost:8080/ws npm run dev:client
-```
 
 ## Useful Scripts
 
-- `npm run dev`: Alias for Vite client dev server
+- `npm run dev`: Alias for "vite" command (analogous to npm run dev:client)
 - `npm run build`: Type-check client and build production assets
 - `npm run build:server`: Type-check server and build production assets
 - `npm run preview`: Preview production client build locally
 - `npm run typecheck:server`: Type-check server and shared packages
-- `npm run dev:client`: Start browser client dev server
-- `npm run dev:server`: Start authoritative server in watch mode
-- `npm run prod:client`: Start browser client from production assets
-- `npm run prod:server`: Start authoritative server from production assets
+- `npm run dev:client`: Start Vite development server for client serving
+- `npm run dev:server`: Start authoritative server in watch mode (to reload live changes)
+- `npm run prod:client`: Start Vite production server for client serving (static assets in dist/)
+- `npm run prod:server`: Start authoritative server from production assets with Node
 
-## Game deployment
+
+## Project Structure and Files Explanation
+
+**Note: Section subjected to continuous changes.**
+
+```text
+shellbounce/
+├── docs/
+│   └── images/
+├── src/
+│   ├── client/
+│   │   ├── audio/
+│   │   │   └── SfxController.ts
+│   │   ├── icons/
+│   │   ├── network/
+│   │   │   ├── GameClient.ts
+│   │   │   └── InputController.ts
+│   │   ├── render/
+│   │   │   ├── RenderTank.ts
+│   │   │   └── tankVisuals.ts
+│   │   ├── scenes/
+│   │   |   └── NetworkGameScene.ts
+|   |   └── main.ts
+│   ├── server/
+│   │   └── index.ts
+│   ├── shared/
+│   │   ├── config.ts
+│   │   ├── constants.ts
+│   │   ├── map.ts
+│   │   ├── math.ts
+│   │   ├── shotPrediction.ts
+│   │   ├── simulation.ts
+│   │   └── types.ts
+│   └── main.ts
+├── index.html
+├── LICENSE
+├── package-lock.json
+├── package.json
+├── README.md
+├── tsconfig.json
+├── tsconfig.server.json
+└── vite.config.ts
+```
+
+- *index.html*: Entry HTML file for the client application. This is the main HTML page loaded by the browser. It tells the browser to run and execute the client logic in 'app' container treating it an ES  module (after Vite transpiling from Typescript to Javascript)
+- *package.json*: Project manifest. Defines dependencies, scripts, and project metadata for npm.
+- *tsconfig.json*: TypeScript configuration for the client and shared code. Specifies compiler options and file inclusions (read when running commands like "npm run build" and "npm run dev:client")
+- *tsconfig.server.json*: TypeScript configuration for the server code. Allows for separate server-specific compiler options (read when running commands like "npm run build:server" and "npm run dev:server")
+- *vite.config.ts*: Vite configuration file. Sets up the build and development server for the client application.
+
+
+## Game Deployment
+
+**Note: Section subjected to continuous changes.**
+
+If you wanna try this game with your friends, you'll have to expose it to the external world.
+
+Here are some tips:
 
 - VM has been put under macvtap networking mode (requires ethernet cable connection)
 - Check VM Firewall inbound rules allow incoming connections on port 3000
@@ -126,10 +195,3 @@ VITE_SERVER_WS_URL=ws://localhost:8080/ws npm run dev:client
 - start your NGINX proxy server with `start nginx` ran from shell with admin. privileges, from NGINX folder.
 - Get your public IP at https://whatismyipaddress.com/
 - Access the game at http://<my_public_IP>:3000
-
-
-## Development Notes
-
-- Main browser entry point is `src/main.ts` -> `src/client/main.ts`
-- Authoritative server entry point is `src/server/index.ts`
-- Shared simulation code is under `src/shared`
