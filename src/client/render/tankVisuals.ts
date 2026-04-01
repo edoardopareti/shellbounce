@@ -165,6 +165,21 @@ export function preloadTankTextures(scene: Phaser.Scene): void {
   createTankTextures(scene, 'Fantanyl', 0xfacc15, 0xa16207, 0xfde047);
 }
 
+function blendColor(baseColor: number, mixColor: number, amount: number): number {
+  const clampedAmount = Phaser.Math.Clamp(amount, 0, 1);
+  const baseR = (baseColor >> 16) & 0xff;
+  const baseG = (baseColor >> 8) & 0xff;
+  const baseB = baseColor & 0xff;
+  const mixR = (mixColor >> 16) & 0xff;
+  const mixG = (mixColor >> 8) & 0xff;
+  const mixB = mixColor & 0xff;
+
+  const r = Math.round(baseR + (mixR - baseR) * clampedAmount);
+  const g = Math.round(baseG + (mixG - baseG) * clampedAmount);
+  const b = Math.round(baseB + (mixB - baseB) * clampedAmount);
+  return (r << 16) | (g << 8) | b;
+}
+
 function createTankTextures(
   scene: Phaser.Scene,
   tankType: TankType,
@@ -176,8 +191,35 @@ function createTankTextures(
 
   if (!scene.textures.exists(appearance.bodyTextureKey)) {
     const graphics = scene.add.graphics();
+
+    const trackColor = blendColor(outerColor, 0x000000, 0.42);
+    const frontPanelColor = blendColor(outerColor, 0xffffff, 0.25);
+    const rearDetailColor = blendColor(innerColor, 0x000000, 0.25);
+    const arrowColor = blendColor(innerColor, 0xffffff, 0.4);
+    const treadInsetY = Math.max(2, Math.round(appearance.bodyShape.height * 0.08));
+    const treadWidth = Math.max(3, Math.round(appearance.bodyShape.width * 0.12));
+    const rearVentX = Math.max(3, Math.round(appearance.bodyShape.width * 0.14));
+    const rearVentWidth = Math.max(6, Math.round(appearance.bodyShape.width * 0.16));
+
     graphics.fillStyle(outerColor, 1);
     graphics.fillRoundedRect(0, 0, appearance.bodyShape.width, appearance.bodyShape.height, appearance.bodyShape.cornerRadius);
+
+    graphics.fillStyle(trackColor, 0.95);
+    graphics.fillRoundedRect(
+      1,
+      treadInsetY,
+      treadWidth,
+      appearance.bodyShape.height - treadInsetY * 2,
+      Math.max(2, Math.round(treadWidth * 0.45)),
+    );
+    graphics.fillRoundedRect(
+      appearance.bodyShape.width - treadWidth - 1,
+      treadInsetY,
+      treadWidth,
+      appearance.bodyShape.height - treadInsetY * 2,
+      Math.max(2, Math.round(treadWidth * 0.45)),
+    );
+
     graphics.fillStyle(innerColor, 1);
     graphics.fillRoundedRect(
       appearance.bodyShape.innerOffsetX,
@@ -186,12 +228,44 @@ function createTankTextures(
       appearance.bodyShape.innerHeight,
       appearance.bodyShape.innerCornerRadius,
     );
+
+    // Front glacis plate and lights make the hull orientation obvious (forward is +X).
+    const frontX = appearance.bodyShape.width - Math.max(4, Math.round(appearance.bodyShape.width * 0.2));
+    graphics.fillStyle(frontPanelColor, 0.95);
+    graphics.beginPath();
+    graphics.moveTo(frontX, 3);
+    graphics.lineTo(appearance.bodyShape.width - 1, appearance.bodyShape.height * 0.5);
+    graphics.lineTo(frontX, appearance.bodyShape.height - 3);
+    graphics.closePath();
+    graphics.fillPath();
+
+    graphics.fillStyle(0xfef08a, 0.95);
+    graphics.fillCircle(appearance.bodyShape.width - 3, 5, 1.6);
+    graphics.fillCircle(appearance.bodyShape.width - 3, appearance.bodyShape.height - 5, 1.6);
+
+    graphics.fillStyle(arrowColor, 0.95);
+    graphics.beginPath();
+    graphics.moveTo(appearance.bodyShape.width * 0.67, appearance.bodyShape.height * 0.5);
+    graphics.lineTo(appearance.bodyShape.width * 0.48, appearance.bodyShape.height * 0.36);
+    graphics.lineTo(appearance.bodyShape.width * 0.48, appearance.bodyShape.height * 0.64);
+    graphics.closePath();
+    graphics.fillPath();
+
+    graphics.fillStyle(rearDetailColor, 0.95);
+    const ventBaseY = appearance.bodyShape.height * 0.32;
+    for (let i = 0; i < 3; i += 1) {
+      graphics.fillRect(rearVentX, ventBaseY + i * 4, rearVentWidth, 2);
+    }
+
     graphics.generateTexture(appearance.bodyTextureKey, appearance.bodyShape.width, appearance.bodyShape.height);
     graphics.destroy();
   }
 
   if (!scene.textures.exists(appearance.turretTextureKey)) {
     const graphics = scene.add.graphics();
+    const turretShadow = blendColor(turretColor, 0x000000, 0.3);
+    const turretHighlight = blendColor(turretColor, 0xffffff, 0.22);
+
     graphics.fillStyle(turretColor, 1);
     graphics.fillRoundedRect(
       appearance.turretShape.barrelX,
@@ -201,6 +275,30 @@ function createTankTextures(
       appearance.turretShape.barrelCornerRadius,
     );
     graphics.fillCircle(appearance.turretShape.baseX, appearance.turretShape.baseY, appearance.turretShape.baseRadius);
+
+    graphics.fillStyle(turretHighlight, 0.9);
+    graphics.fillCircle(
+      appearance.turretShape.baseX + appearance.turretShape.baseRadius * 0.3,
+      appearance.turretShape.baseY - appearance.turretShape.baseRadius * 0.25,
+      Math.max(2, appearance.turretShape.baseRadius * 0.33),
+    );
+
+    graphics.fillStyle(turretShadow, 0.95);
+    graphics.fillCircle(
+      appearance.turretShape.baseX - appearance.turretShape.baseRadius * 0.55,
+      appearance.turretShape.baseY,
+      Math.max(1.5, appearance.turretShape.baseRadius * 0.2),
+    );
+
+    const muzzleBrakeWidth = Math.max(3, Math.round(appearance.turretShape.barrelHeight * 0.7));
+    graphics.fillRoundedRect(
+      appearance.turretShape.barrelX + appearance.turretShape.barrelWidth - muzzleBrakeWidth,
+      appearance.turretShape.barrelY - 1,
+      muzzleBrakeWidth,
+      appearance.turretShape.barrelHeight + 2,
+      2,
+    );
+
     graphics.generateTexture(
       appearance.turretTextureKey,
       appearance.turretShape.textureWidth,
