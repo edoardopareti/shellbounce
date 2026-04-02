@@ -71,6 +71,7 @@ interface PlayerEntity {
   shieldCooldownMs: number;
   isShieldActive: boolean;
   shieldCooldownBlocked: boolean;
+  fireCooldownBlocked: boolean;
   isChargingShot: boolean;
   chargeMs: number;
 }
@@ -311,6 +312,7 @@ export class AuthoritativeSimulation {
       shieldCooldownMs: 0,
       isShieldActive: false,
       shieldCooldownBlocked: false,
+      fireCooldownBlocked: false,
       isChargingShot: false,
       chargeMs: 0,
     };
@@ -409,24 +411,25 @@ export class AuthoritativeSimulation {
       walls: this.world.walls,
       elapsedMs: this.nowMs,
       players: Array.from(this.players.values()).map((player) => ({
-        id: player.id,
-        tankType: player.tankType,
-        kills: player.kills,
-        deaths: player.deaths,
-        score: player.kills - player.deaths,
-        x: player.x,
-        y: player.y,
-        bodyAngle: player.bodyAngle,
-        turretAngle: player.turretAngle,
-        radius: player.radius,
-        isAlive: player.isAlive,
-        isBot: player.isBot,
-        bulletColor: player.bulletColor,
-        isShieldActive: player.isShieldActive,
-        shieldCooldownBlocked: player.shieldCooldownBlocked,
-        isChargingShot: player.isChargingShot,
-        chargeLevel: this.getChargeRatio(player),
-      })),
+          id: player.id,
+          tankType: player.tankType,
+          kills: player.kills,
+          deaths: player.deaths,
+          score: player.kills - player.deaths,
+          x: player.x,
+          y: player.y,
+          bodyAngle: player.bodyAngle,
+          turretAngle: player.turretAngle,
+          radius: player.radius,
+          isAlive: player.isAlive,
+          isBot: player.isBot,
+          bulletColor: player.bulletColor,
+          isShieldActive: player.isShieldActive,
+          shieldCooldownBlocked: player.shieldCooldownBlocked,
+          isChargingShot: player.isChargingShot,
+          chargeLevel: this.getChargeRatio(player),
+          fireCooldownBlocked: player.fireCooldownBlocked,
+        })),
       bullets: this.bullets.map((bullet) => ({
         id: bullet.id,
         ownerPlayerId: bullet.ownerPlayerId,
@@ -483,6 +486,10 @@ export class AuthoritativeSimulation {
 
     player.fireCooldownMs = Math.max(0, player.fireCooldownMs - FIXED_TIMESTEP_SECONDS * 1000);
 
+    player.fireCooldownBlocked = false;
+    if ((input.firePressed || input.fireHeld) && player.fireCooldownMs > 0) {
+      player.fireCooldownBlocked = true;
+    }
     const canFire = this.getActiveBulletCountForPlayer(player.id) < MAX_ACTIVE_BULLETS_PER_TANK;
     const chargeResult = this.updateChargeState(player, input, canFire);
     if (chargeResult.selfDestructed) {

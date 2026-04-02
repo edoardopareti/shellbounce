@@ -82,9 +82,9 @@ export class RenderTank {
       this.chargeGlowOuter,
       this.chargeGlowInner,
       this.chargeSpark,
-      this.shieldBlockedSign,
       this.crown,
       this.donkeyEars,
+      this.shieldBlockedSign,
       this.idLabel,
     ]);
     this.container.setDepth(6);
@@ -118,7 +118,7 @@ export class RenderTank {
     this.idLabel.setAlpha(1);
     this.bodySprite.setRotation(player.bodyAngle);
     this.turretSprite.setRotation(player.turretAngle);
-    this.drawShieldBlockedIndicator(player.radius, player.shieldCooldownBlocked);
+    this.drawShieldBlockedIndicator(player.radius, player.shieldCooldownBlocked || player.fireCooldownBlocked);
 
     const muzzleX = Math.cos(player.turretAngle) * MUZZLE_OFFSET;
     const muzzleY = Math.sin(player.turretAngle) * MUZZLE_OFFSET;
