@@ -70,6 +70,7 @@ interface PlayerEntity {
   shieldHoldMs: number;
   shieldCooldownMs: number;
   isShieldActive: boolean;
+  shieldCooldownBlocked: boolean;
   isChargingShot: boolean;
   chargeMs: number;
 }
@@ -309,6 +310,7 @@ export class AuthoritativeSimulation {
       shieldHoldMs: 0,
       shieldCooldownMs: 0,
       isShieldActive: false,
+      shieldCooldownBlocked: false,
       isChargingShot: false,
       chargeMs: 0,
     };
@@ -421,6 +423,7 @@ export class AuthoritativeSimulation {
         isBot: player.isBot,
         bulletColor: player.bulletColor,
         isShieldActive: player.isShieldActive,
+        shieldCooldownBlocked: player.shieldCooldownBlocked,
         isChargingShot: player.isChargingShot,
         chargeLevel: this.getChargeRatio(player),
       })),
@@ -472,12 +475,7 @@ export class AuthoritativeSimulation {
 
   private applyPlayerInput(player: PlayerEntity, input: TankInput): void {
     this.updateBoost(player, input);
-
-    const shieldOvercharged = this.updateShieldState(player, input);
-    if (shieldOvercharged) {
-      this.destroyPlayer(player, player.id);
-      return;
-    }
+    this.updateShieldState(player, input);
 
     this.updateBodyRotation(player, input);
     this.updateMovement(player, input);
@@ -523,11 +521,12 @@ export class AuthoritativeSimulation {
     }
   }
 
-  private updateShieldState(player: PlayerEntity, input: TankInput): boolean {
+  private updateShieldState(player: PlayerEntity, input: TankInput): void {
     const deltaMs = FIXED_TIMESTEP_SECONDS * 1000;
     const wasShieldActive = player.isShieldActive;
 
     player.shieldCooldownMs = Math.max(0, player.shieldCooldownMs - deltaMs);
+    player.shieldCooldownBlocked = input.shieldHeld && player.shieldCooldownMs > 0;
 
     if (!input.shieldHeld || player.shieldCooldownMs > 0) {
       if (wasShieldActive) {
@@ -536,20 +535,20 @@ export class AuthoritativeSimulation {
 
       player.isShieldActive = false;
       player.shieldHoldMs = 0;
-      return false;
+      return;
     }
 
     player.isShieldActive = true;
     player.shieldHoldMs += deltaMs;
 
     if (player.shieldHoldMs < SHIELD_OVERCHARGE_MS) {
-      return false;
+      return;
     }
 
     player.isShieldActive = false;
     player.shieldHoldMs = 0;
     player.shieldCooldownMs = SHIELD_COOLDOWN_MS;
-    return true;
+    player.shieldCooldownBlocked = false;
   }
 
   private updateBodyRotation(player: PlayerEntity, input: TankInput): void {
@@ -1105,6 +1104,7 @@ export class AuthoritativeSimulation {
     this.queueTankDestructionEffect(player.x, player.y, player.bulletColor);
     player.respawnAtMs = this.nowMs + TANK_RESPAWN_DELAY_MS;
     player.isShieldActive = false;
+    player.shieldCooldownBlocked = false;
     player.shieldHoldMs = 0;
     player.isChargingShot = false;
     player.chargeMs = 0;
@@ -1187,6 +1187,7 @@ export class AuthoritativeSimulation {
       player.shieldHoldMs = 0;
       player.shieldCooldownMs = 0;
       player.isShieldActive = false;
+      player.shieldCooldownBlocked = false;
       player.isChargingShot = false;
       player.chargeMs = 0;
     }

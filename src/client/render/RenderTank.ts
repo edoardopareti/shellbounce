@@ -18,6 +18,7 @@ export class RenderTank {
   private readonly chargeGlowInner: Phaser.GameObjects.Arc;
   private readonly chargeSpark: Phaser.GameObjects.Arc;
   private readonly idLabel: Phaser.GameObjects.Text;
+  private readonly shieldBlockedSign: Phaser.GameObjects.Graphics;
   private readonly crown: Phaser.GameObjects.Graphics;
   private readonly donkeyEars: Phaser.GameObjects.Graphics;
 
@@ -61,6 +62,10 @@ export class RenderTank {
     this.idLabel.setOrigin(0.5, 1.1); // Centered horizontally, above the tank
     this.idLabel.setDepth(7);
 
+    this.shieldBlockedSign = this.scene.add.graphics();
+    this.shieldBlockedSign.setVisible(false);
+    this.shieldBlockedSign.setDepth(7.15);
+
     this.crown = this.scene.add.graphics();
     this.crown.setVisible(false);
     this.crown.setDepth(7.2);
@@ -77,6 +82,7 @@ export class RenderTank {
       this.chargeGlowOuter,
       this.chargeGlowInner,
       this.chargeSpark,
+      this.shieldBlockedSign,
       this.crown,
       this.donkeyEars,
       this.idLabel,
@@ -101,6 +107,7 @@ export class RenderTank {
       this.chargeGlowOuter.setAlpha(0);
       this.chargeGlowInner.setAlpha(0);
       this.chargeSpark.setAlpha(0);
+      this.shieldBlockedSign.setVisible(false);
       this.crown.setVisible(false);
       this.donkeyEars.setVisible(false);
       this.idLabel.setAlpha(0);
@@ -111,6 +118,7 @@ export class RenderTank {
     this.idLabel.setAlpha(1);
     this.bodySprite.setRotation(player.bodyAngle);
     this.turretSprite.setRotation(player.turretAngle);
+    this.drawShieldBlockedIndicator(player.radius, player.shieldCooldownBlocked);
 
     const muzzleX = Math.cos(player.turretAngle) * MUZZLE_OFFSET;
     const muzzleY = Math.sin(player.turretAngle) * MUZZLE_OFFSET;
@@ -160,6 +168,28 @@ export class RenderTank {
     this.shieldRing.setFillStyle(player.bulletColor, 0.14);
     this.shieldRing.setScale(shieldPulse);
     this.shieldRing.setStrokeStyle(2.5, player.bulletColor, 0.7);
+  }
+
+  private drawShieldBlockedIndicator(radius: number, visible: boolean): void {
+    this.shieldBlockedSign.clear();
+    if (!visible) {
+      this.shieldBlockedSign.setVisible(false);
+      return;
+    }
+
+    const pulse = 0.9 + Math.sin(this.scene.time.now * 0.022) * 0.12;
+    const signRadius = 10 * pulse;
+    const y = -radius - 26;
+
+    this.shieldBlockedSign.fillStyle(0xef4444, 0.16);
+    this.shieldBlockedSign.fillCircle(0, y, signRadius);
+    this.shieldBlockedSign.lineStyle(2, 0xef4444, 0.72);
+    this.shieldBlockedSign.strokeCircle(0, y, signRadius);
+    this.shieldBlockedSign.beginPath();
+    this.shieldBlockedSign.moveTo(-signRadius * 0.72, y + signRadius * 0.72);
+    this.shieldBlockedSign.lineTo(signRadius * 0.72, y - signRadius * 0.72);
+    this.shieldBlockedSign.strokePath();
+    this.shieldBlockedSign.setVisible(true);
   }
 
   private drawCrown(radius: number, visible: boolean): void {
