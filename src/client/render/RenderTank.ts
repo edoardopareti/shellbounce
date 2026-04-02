@@ -148,6 +148,18 @@ export class RenderTank {
       this.chargeSpark.setScale(Phaser.Math.Linear(0.7, 1.5, player.chargeLevel) * sparklePulse);
     }
 
+    if (player.isSpawnProtected) {
+      const shieldPulse = 0.97 + Math.sin(this.scene.time.now * 0.014) * 0.06;
+      this.shieldRing.setPosition(0, 0);
+      this.shieldRing.setStartAngle(0);
+      this.shieldRing.setEndAngle(360);
+      this.shieldRing.setAlpha(0.58);
+      this.shieldRing.setFillStyle(0x60a5fa, 0.2);
+      this.shieldRing.setScale(shieldPulse);
+      this.shieldRing.setStrokeStyle(2.8, 0x60a5fa, 0.9);
+      return;
+    }
+
     const shieldCenterLocalX = Math.cos(player.turretAngle) * TANK_SHIELD_FORWARD_OFFSET;
     const shieldCenterLocalY = Math.sin(player.turretAngle) * TANK_SHIELD_FORWARD_OFFSET;
     this.shieldRing.setPosition(shieldCenterLocalX, shieldCenterLocalY);

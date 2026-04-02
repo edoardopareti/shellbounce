@@ -45,6 +45,7 @@ export interface PlayerState {
   isBot: boolean;
   bulletColor: number;
   isShieldActive: boolean;
+  isSpawnProtected: boolean;
   shieldCooldownBlocked: boolean;
   fireCooldownBlocked: boolean;
   isChargingShot: boolean;

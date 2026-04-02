@@ -30,6 +30,7 @@ import {
   TANK_MOVE_SPEED,
   TANK_RADIUS,
   TANK_RESPAWN_DELAY_MS,
+  TANK_RESPAWN_PROTECTION_MS,
   TANK_REVERSE_SPEED,
   TANK_ROTATION_SPEED,
   TANK_SHIELD_FORWARD_OFFSET,
@@ -67,6 +68,7 @@ interface PlayerEntity {
   boostRemainingMs: number;
   boostCooldownMs: number;
   respawnAtMs: number;
+  spawnProtectionMs: number;
   shieldHoldMs: number;
   shieldCooldownMs: number;
   isShieldActive: boolean;
@@ -308,6 +310,7 @@ export class AuthoritativeSimulation {
       boostRemainingMs: 0,
       boostCooldownMs: 0,
       respawnAtMs: 0,
+      spawnProtectionMs: 0,
       shieldHoldMs: 0,
       shieldCooldownMs: 0,
       isShieldActive: false,
@@ -425,6 +428,7 @@ export class AuthoritativeSimulation {
           isBot: player.isBot,
           bulletColor: player.bulletColor,
           isShieldActive: player.isShieldActive,
+          isSpawnProtected: player.spawnProtectionMs > 0,
           shieldCooldownBlocked: player.shieldCooldownBlocked,
           isChargingShot: player.isChargingShot,
           chargeLevel: this.getChargeRatio(player),
@@ -478,6 +482,10 @@ export class AuthoritativeSimulation {
 
   private applyPlayerInput(player: PlayerEntity, input: TankInput): void {
     this.updateBoost(player, input);
+    player.spawnProtectionMs = Math.max(0, player.spawnProtectionMs - FIXED_TIMESTEP_SECONDS * 1000);
+
+    const offensiveLocked = player.spawnProtectionMs > 0;
+
     this.updateShieldState(player, input);
 
     this.updateBodyRotation(player, input);
@@ -490,6 +498,14 @@ export class AuthoritativeSimulation {
     if ((input.firePressed || input.fireHeld) && player.fireCooldownMs > 0) {
       player.fireCooldownBlocked = true;
     }
+
+    if (offensiveLocked) {
+      player.fireCooldownBlocked = input.firePressed || input.fireHeld;
+      player.isChargingShot = false;
+      player.chargeMs = 0;
+      return;
+    }
+
     const canFire = this.getActiveBulletCountForPlayer(player.id) < MAX_ACTIVE_BULLETS_PER_TANK;
     const chargeResult = this.updateChargeState(player, input, canFire);
     if (chargeResult.selfDestructed) {
@@ -1042,8 +1058,12 @@ export class AuthoritativeSimulation {
   }
 
   private isBulletHittingShield(bullet: BulletEntity, player: PlayerEntity): boolean {
-    if (!player.isShieldActive) {
+    if (!player.isShieldActive && player.spawnProtectionMs <= 0) {
       return false;
+    }
+
+    if (player.spawnProtectionMs > 0) {
+      return distance(bullet.x, bullet.y, player.x, player.y) <= bullet.radius + TANK_SHIELD_RADIUS;
     }
 
     const shieldCenter = this.getShieldCenter(player);
@@ -1058,7 +1078,7 @@ export class AuthoritativeSimulation {
   }
 
   private deflectBulletByShieldSurfaceNormal(bullet: BulletEntity, player: PlayerEntity): void {
-    const shieldCenter = this.getShieldCenter(player);
+    const shieldCenter = player.spawnProtectionMs > 0 ? { x: player.x, y: player.y } : this.getShieldCenter(player);
     let nx = bullet.x - shieldCenter.x;
     let ny = bullet.y - shieldCenter.y;
 
@@ -1098,6 +1118,10 @@ export class AuthoritativeSimulation {
       return;
     }
 
+    if (player.spawnProtectionMs > 0) {
+      return;
+    }
+
     player.deaths += 1;
 
     if (killerPlayerId !== undefined && killerPlayerId !== player.id) {
@@ -1110,8 +1134,10 @@ export class AuthoritativeSimulation {
     player.isAlive = false;
     this.queueTankDestructionEffect(player.x, player.y, player.bulletColor);
     player.respawnAtMs = this.nowMs + TANK_RESPAWN_DELAY_MS;
+    player.spawnProtectionMs = 0;
     player.isShieldActive = false;
     player.shieldCooldownBlocked = false;
+    player.fireCooldownBlocked = false;
     player.shieldHoldMs = 0;
     player.isChargingShot = false;
     player.chargeMs = 0;
@@ -1188,6 +1214,7 @@ export class AuthoritativeSimulation {
       player.bodyAngle = -Math.PI / 2;
       player.turretAngle = -Math.PI / 2;
       player.respawnAtMs = 0;
+      player.spawnProtectionMs = TANK_RESPAWN_PROTECTION_MS;
       player.fireCooldownMs = 0;
       player.boostRemainingMs = 0;
       player.boostCooldownMs = 0;
@@ -1195,6 +1222,7 @@ export class AuthoritativeSimulation {
       player.shieldCooldownMs = 0;
       player.isShieldActive = false;
       player.shieldCooldownBlocked = false;
+      player.fireCooldownBlocked = false;
       player.isChargingShot = false;
       player.chargeMs = 0;
     }
