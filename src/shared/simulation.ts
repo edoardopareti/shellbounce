@@ -541,6 +541,8 @@ export class AuthoritativeSimulation {
 
     if (input.boostPressed && player.boostRemainingMs === 0 && player.boostCooldownMs === 0) {
       player.boostRemainingMs = TANK_BOOST_DURATION_MS;
+      this.queueTransientEffect('boost', player.x, player.y, player.radius, player.bulletColor, 260, player.bodyAngle);
+
     }
   }
 
@@ -1177,12 +1179,13 @@ export class AuthoritativeSimulation {
   }
 
   private queueTransientEffect(
-    kind: 'bullet-shot' | 'mine-place',
+    kind: 'bullet-shot' | 'mine-place' | 'boost',
     x: number,
     y: number,
     radius: number,
     color: number,
     durationMs: number,
+    angle?: number,
   ): void {
     this.pendingEffects.push({
       id: `fx-${this.effectCounter}`,
@@ -1192,6 +1195,7 @@ export class AuthoritativeSimulation {
       radius,
       color,
       durationMs,
+      angle,
     });
     this.effectCounter += 1;
   }

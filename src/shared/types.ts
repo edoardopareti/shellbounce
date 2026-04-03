@@ -98,12 +98,13 @@ export interface MineState {
 
 export interface EffectEvent {
   id: string;
-  kind: 'explosion' | 'tank-destruction' | 'bullet-shot' | 'mine-place' | 'bullet-explosion' | 'mine-explosion';
+  kind: 'explosion' | 'tank-destruction' | 'bullet-shot' | 'mine-place' | 'bullet-explosion' | 'mine-explosion' | 'boost';
   x: number;
   y: number;
   radius: number;
   color: number;
   durationMs: number;
+  angle?: number;
 }
 
 export interface WorldSnapshot {

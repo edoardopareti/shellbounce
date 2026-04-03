@@ -9,6 +9,7 @@ import { RenderBullet } from '../render/RenderBullet';
 import { RenderShotPreview } from '../render/RenderShotPreview';
 import { ExplosionEffect } from '../render/ExplosionEffect';
 import { TankDestructionEffect } from '../render/TankDestructionEffect';
+import { BoostEffect } from '../render/BoostEffect';
 import { ScoreBoard } from '../render/ScoreBoard';
 import { preloadTankTextures } from '../render/tankVisuals';
 import {
@@ -216,6 +217,8 @@ export class NetworkGameScene extends Phaser.Scene {
         this.sfx?.playBulletShot();
       } else if (effect.kind === 'mine-place') {
         this.sfx?.playMinePlace();
+      } else if (effect.kind === 'boost') {
+        this.playBoostEffect(effect);
       } else if (effect.kind === 'bullet-explosion') {
         this.sfx?.playBulletExplosion();
         this.playExplosionEffect(effect);
@@ -315,6 +318,20 @@ export class NetworkGameScene extends Phaser.Scene {
     }
 
     this.cameras.main.centerOn(ownPlayer.x, ownPlayer.y);
+  }
+  
+  private playBoostEffect(effect: EffectEvent): void {
+    // Use the new BoostEffect class for boost visuals
+    const boost = new BoostEffect(this);
+    boost.play({
+      x: effect.x,
+      y: effect.y,
+      color: effect.color,
+      radius: effect.radius,
+      durationMs: effect.durationMs,
+      angle: effect.angle,
+      scene: this,
+    });
   }
 
   private playExplosionEffect(effect: EffectEvent): void {
