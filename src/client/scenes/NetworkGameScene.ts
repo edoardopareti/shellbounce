@@ -4,6 +4,11 @@ import { GameCommands } from '../network/GameCommands';
 import { GameClient } from '../network/GameClient';
 import { type EffectEvent, type WorldSnapshot } from '../../shared/types';
 import { RenderTank } from '../render/RenderTank';
+import { RenderMine } from '../render/RenderMine';
+import { RenderBullet } from '../render/RenderBullet';
+import { RenderShotPreview } from '../render/RenderShotPreview';
+import { ExplosionEffect } from '../render/ExplosionEffect';
+import { TankDestructionEffect } from '../render/TankDestructionEffect';
 import { ScoreBoard } from '../render/ScoreBoard';
 import { preloadTankTextures } from '../render/tankVisuals';
 import {
@@ -114,41 +119,38 @@ export class NetworkGameScene extends Phaser.Scene {
     // then proceed to render the world, play any effects,
     // and update the scoreboard if it's visible.
     if (snapshot.tick !== this.lastRenderedTick) {
-      
       // Ensure that the static world elements (like walls) are rendered first
       // before rendering dynamic elements (like tanks and bullets).
       this.ensureWorldRendered(snapshot);
-      
+
       // Play any effects (like explosions) that are part of the current game state snapshot.
       this.playEffects(snapshot.effects);
-      
-      // Render dynamic elements such as tanks, bullets, and mines based on the current game state snapshot.
+
+      // Render dynamic elements such as tanks, bullets, mines,
+      // and shot previews based on the current game state snapshot.
       this.drawDynamic(snapshot);
+
+      if (this.gameCommands?.read().toggleScoreboardPressed === true) {
+        // If the player has pressed the key to toggle the scoreboard,
+        // update the visibility of the scoreboard accordingly.
+        this.scoreboardVisible = !this.scoreboardVisible;
+        this.scoreBoard?.setScoreboardVisibility(this.scoreboardVisible);
+    }
+
+      if (this.scoreboardVisible) {
+        // If the scoreboard is visible,
+        // update its contents based on the current game state snapshot.
+        this.scoreBoard?.updateScoreboard(snapshot);
+      }
       
-      // Render shot previews based on the current game state snapshot.
-      this.renderShotPreviews(snapshot);
-      
+      // Center the camera on the player's own tank
+      // to keep it in view as they move around the game world.
+      this.followOwnedPlayer(snapshot);
+
       // Update the last rendered tick to the current snapshot's tick
       // to avoid re-rendering the same state multiple times.
       this.lastRenderedTick = snapshot.tick;
     }
-    
-    if (this.gameCommands?.read().toggleScoreboardPressed === true) {
-      // If the player has pressed the key to toggle the scoreboard,
-      // update the visibility of the scoreboard accordingly.
-      this.scoreboardVisible = !this.scoreboardVisible;
-      this.scoreBoard?.setScoreboardVisibility(this.scoreboardVisible);
-    }
-
-    if (this.scoreboardVisible) {
-      // If the scoreboard is visible,
-      // update its contents based on the current game state snapshot.
-      this.scoreBoard?.updateScoreboard(snapshot);
-    }
-    
-    // Center the camera on the player's own tank
-    // to keep it in view as they move around the game world.
-    this.followOwnedPlayer(snapshot);
   }
   
   private ensureWorldRendered(snapshot: WorldSnapshot): void {
@@ -230,248 +232,122 @@ export class NetworkGameScene extends Phaser.Scene {
   }
 
   private drawDynamic(snapshot: WorldSnapshot): void {
+    // Render dynamic elements such as tanks, bullets, mines, and shot previews based on the current game state snapshot.
     
-    // This method renders dynamic elements of the game world such as tanks,
-    // bullets, and mines based on the current game state snapshot.
-    
-    // If the dynamic graphics object is not initialized,
-    // we cannot render the dynamic elements, so we return early.
     if (this.dynamicGraphics === undefined) {
       return;
     }
-
     this.dynamicGraphics.clear();
 
+    // Render mines
+    const mineRenderer = new RenderMine(this);
     for (const mine of snapshot.mines) {
-      this.dynamicGraphics.fillStyle(mine.color, mine.armed ? 1 : 0.95);
-      this.dynamicGraphics.fillCircle(mine.x, mine.y, mine.radius);
-      this.dynamicGraphics.lineStyle(2, 0x111827, mine.armed ? 1 : 0.8);
-      this.dynamicGraphics.strokeCircle(mine.x, mine.y, mine.radius);
+      mineRenderer.sync({
+        x: mine.x,
+        y: mine.y,
+        radius: mine.radius,
+        color: mine.color,
+        armed: mine.armed,
+        graphics: this.dynamicGraphics,
+      });
     }
 
+    // Render bullets
+    const bulletRenderer = new RenderBullet(this);
     for (const bullet of snapshot.bullets) {
-      this.dynamicGraphics.fillStyle(bullet.color, 1);
-      this.dynamicGraphics.fillCircle(bullet.x, bullet.y, bullet.radius);
-      if (bullet.isCharged) {
-        const pulse = 1 + Math.sin(this.time.now * 0.02) * 0.22;
-        this.dynamicGraphics.lineStyle(2, 0xfef08a, 0.75);
-        this.dynamicGraphics.strokeCircle(bullet.x, bullet.y, (bullet.radius + 3) * pulse);
+      bulletRenderer.sync({
+        x: bullet.x,
+        y: bullet.y,
+        radius: bullet.radius,
+        color: bullet.color,
+        isCharged: bullet.isCharged,
+        time: this.time.now,
+        graphics: this.dynamicGraphics,
+      });
+    }
+
+    // Render shot previews
+    if (this.shotPreviewGraphics !== undefined) {
+      this.shotPreviewGraphics.clear();
+      const shotPreviewRenderer = new RenderShotPreview(this);
+      for (const player of snapshot.players) {
+        if (!player.isAlive) continue;
+        const origin = new Phaser.Math.Vector2(
+          player.x + Math.cos(player.turretAngle) * MUZZLE_OFFSET,
+          player.y + Math.sin(player.turretAngle) * MUZZLE_OFFSET,
+        );
+        const trajectory = predictBulletTrajectory(
+          origin,
+          player.turretAngle,
+          snapshot.walls,
+          BULLET_RADIUS,
+          player.isChargingShot ? 0 : SHOT_PREVIEW_REFLECTIONS,
+          SHOT_PREVIEW_MAX_DISTANCE,
+        );
+        // Prepare segments for renderer
+        const segments = trajectory.segments.map(segment => ({
+          start: segment.start,
+          end: segment.end,
+          color: player.bulletColor,
+        }));
+        shotPreviewRenderer.sync({
+          segments,
+          graphics: this.shotPreviewGraphics,
+        });
       }
     }
 
     this.syncTanks(snapshot);
   }
 
-  private renderShotPreviews(snapshot: WorldSnapshot): void {
-    if (this.shotPreviewGraphics === undefined) {
+  private followOwnedPlayer(snapshot: WorldSnapshot): void {
+    // This method centers the camera on the player's own tank
+    // to keep it in view as they move around the game world.
+
+    const youId = this.client.getPlayerId();
+    if (youId === undefined) {
       return;
     }
 
-    this.shotPreviewGraphics.clear();
-
-    for (const player of snapshot.players) {
-      if (!player.isAlive) {
-        continue;
-      }
-
-      const origin = new Phaser.Math.Vector2(
-        player.x + Math.cos(player.turretAngle) * MUZZLE_OFFSET,
-        player.y + Math.sin(player.turretAngle) * MUZZLE_OFFSET,
-      );
-
-      const trajectory = predictBulletTrajectory(
-        origin,
-        player.turretAngle,
-        snapshot.walls,
-        BULLET_RADIUS,
-        player.isChargingShot ? 0 : SHOT_PREVIEW_REFLECTIONS,
-        SHOT_PREVIEW_MAX_DISTANCE,
-      );
-
-      for (const segment of trajectory.segments) {
-        this.drawDashedLine(segment.start, segment.end, player.bulletColor, 10, 8, 0.8);
-      }
-    }
-  }
-
-  private drawDashedLine(
-    start: Phaser.Math.Vector2,
-    end: Phaser.Math.Vector2,
-    color: number,
-    dashLength: number,
-    gapLength: number,
-    alpha: number,
-  ): void {
-    if (this.shotPreviewGraphics === undefined) {
+    const ownPlayer = snapshot.players.find((player) => player.id === youId);
+    if (ownPlayer === undefined) {
       return;
     }
 
-    const totalLength = Phaser.Math.Distance.Between(start.x, start.y, end.x, end.y);
-    if (totalLength <= 0.001) {
-      return;
-    }
-
-    const directionX = (end.x - start.x) / totalLength;
-    const directionY = (end.y - start.y) / totalLength;
-
-    let traveled = 0;
-    while (traveled < totalLength) {
-      const dashStart = traveled;
-      const dashEnd = Math.min(traveled + dashLength, totalLength);
-
-      const x1 = start.x + directionX * dashStart;
-      const y1 = start.y + directionY * dashStart;
-      const x2 = start.x + directionX * dashEnd;
-      const y2 = start.y + directionY * dashEnd;
-
-      this.shotPreviewGraphics.lineStyle(2, color, alpha);
-      this.shotPreviewGraphics.beginPath();
-      this.shotPreviewGraphics.moveTo(x1, y1);
-      this.shotPreviewGraphics.lineTo(x2, y2);
-      this.shotPreviewGraphics.strokePath();
-
-      traveled += dashLength + gapLength;
-    }
+    this.cameras.main.centerOn(ownPlayer.x, ownPlayer.y);
   }
 
   private playExplosionEffect(effect: EffectEvent): void {
-    // This method plays a visual explosion effect at the location specified in the EffectEvent.
-
-    // Configurable constants for explosion effect
-    const INITIAL_RADIUS = 8; // The initial radius of the explosion effect when it first appears
-    const INITIAL_ALPHA = 0.45; // The initial transparency of the explosion effect when it first appears (0 = fully transparent, 1 = fully opaque)
-    const DEPTH = 6; // The rendering depth of the explosion effect (higher values are rendered above lower values)
-
-    const wave = this.add.circle(effect.x, effect.y, INITIAL_RADIUS, effect.color, INITIAL_ALPHA);
-    wave.setDepth(DEPTH);
-
-    this.tweens.add({
-      targets: wave,
+    // Use the new ExplosionEffect class for explosion visuals
+    const explosion = new ExplosionEffect(this);
+    explosion.play({
+      x: effect.x,
+      y: effect.y,
+      color: effect.color,
       radius: effect.radius,
-      alpha: 0, // The final transparency of the explosion effect when it disappears (0 = fully transparent, 1 = fully opaque)
-      duration: effect.durationMs, // The duration of the explosion effect in milliseconds
-      ease: 'Cubic.Out', // The easing function for the explosion effect animation
-      onComplete: () => wave.destroy(), // Callback function to destroy the explosion effect when the animation is complete
+      durationMs: effect.durationMs,
+      scene: this,
     });
   }
 
   private playTankDestructionEffect(effect: EffectEvent): void {
-    // This method plays a visual tank destruction effect at the location specified in the EffectEvent.
-
-    // Configurable constants for tank destruction effect
-
-    const FLASH_RADIUS = 14; // The initial radius of the flash effect when it first appears
-    const FLASH_ALPHA = 0.95; // The initial transparency of the flash effect when it first appears (0 = fully transparent, 1 = fully opaque)
-    const FLASH_DEPTH = 7; // The rendering depth of the flash effect (higher values are rendered above lower values)
-    const FLASH_SCALE = 2.8; // The scale factor for the flash effect
-    const FLASH_DURATION = 220; // The duration of the flash effect in milliseconds
-
-    const SHOCKWAVE_RADIUS = 18; // The initial radius of the shockwave effect when it first appears
-    const SHOCKWAVE_DEPTH = 6.8; // The rendering depth of the shockwave effect (higher values are rendered above lower values)
-    const SHOCKWAVE_STROKE = 4; // The stroke width of the shockwave effect
-    const SHOCKWAVE_STROKE_ALPHA = 0.7; // The transparency of the shockwave stroke (0 = fully transparent, 1 = fully opaque)
-    const SHOCKWAVE_SCALE = 2.6; // The scale factor for the shockwave effect
-    const SHOCKWAVE_DURATION = 300; // The duration of the shockwave effect in milliseconds
-
-    const SHARD_COUNT = 200; // The number of shards to generate for the tank destruction effect
-    const SHARD_MIN_DISTANCE = 36;  // The minimum distance that shards will travel from the explosion center
-    const SHARD_MAX_DISTANCE = 112; // The maximum distance that shards will travel from the explosion center
-    const SHARD_MIN_SIZE = 3; // The minimum size of the shards in the tank destruction effect
-    const SHARD_MAX_SIZE = 7; // The maximum size of the shards in the tank destruction effect
-    const SHARD_DEPTH = 6.9; // The rendering depth of the shards (higher values are rendered above lower values)
-    const SHARD_ALPHA = 0.95; // The initial transparency of the shards when they first appear (0 = fully transparent, 1 = fully opaque)
-    const SHARD_SCALE = 0.3; // The scale factor for the shards as they move away from the explosion center
-    const SHARD_MIN_DURATION = 240; // The minimum duration of the shard animation in milliseconds
-    const SHARD_MAX_DURATION = 430; // The maximum duration of the shard animation in milliseconds
-    const SHARD_MIN_ANGLE = -270; // The minimum rotation angle of the shards during the animation
-    const SHARD_MAX_ANGLE = 270; // The maximum rotation angle of the shards during the animation
-
-    const SCORCH_OFFSET_Y = 10; // The vertical offset for the scorch mark effect to position it slightly below the explosion center
-    const SCORCH_WIDTH = 30; // The initial width of the scorch mark effect when it first appears
-    const SCORCH_HEIGHT = 16;  // The initial height of the scorch mark effect when it first appears
-    const SCORCH_COLOR = 0x020617;  // The color of the scorch mark effect (in hexadecimal RGB format)
-    const SCORCH_ALPHA = 0.5; // The initial transparency of the scorch mark effect when it first appears (0 = fully transparent, 1 = fully opaque)
-    const SCORCH_DEPTH = 1.5;  // The rendering depth of the scorch mark effect (higher values are rendered above lower values)
-    const SCORCH_SCALE_X = 1.5;  // The scale factor for the scorch mark effect in the horizontal direction as it expands and fades out
-    const SCORCH_SCALE_Y = 1.15;  // The scale factor for the scorch mark effect in the vertical direction as it expands and fades out
-    const SCORCH_DURATION = 650; // The duration of the scorch mark effect in milliseconds
-
-    const SHAKE_DURATION = 90; // The duration of the camera shake effect in milliseconds
-    const SHAKE_INTENSITY = 0.005; // The intensity of the camera shake effect (higher values result in a more intense shake)
-
-    const flash = this.add.circle(effect.x, effect.y, FLASH_RADIUS, effect.color, FLASH_ALPHA);
-    flash.setDepth(FLASH_DEPTH);
-    flash.setBlendMode(Phaser.BlendModes.ADD);
-
-    this.tweens.add({
-      targets: flash,
-      scaleX: FLASH_SCALE,
-      scaleY: FLASH_SCALE,
-      alpha: 0,
-      duration: FLASH_DURATION,
-      ease: 'Cubic.Out',
-      onComplete: () => flash.destroy(),
+    // Use the new TankDestructionEffect class for tank destruction visuals
+    const tankDestruction = new TankDestructionEffect(this);
+    tankDestruction.play({
+      x: effect.x,
+      y: effect.y,
+      color: effect.color,
+      radius: effect.radius,
+      durationMs: effect.durationMs,
+      scene: this,
     });
-
-    const shockwave = this.add.circle(effect.x, effect.y, SHOCKWAVE_RADIUS, effect.color, 0);
-    shockwave.setDepth(SHOCKWAVE_DEPTH);
-    shockwave.setStrokeStyle(SHOCKWAVE_STROKE, effect.color, SHOCKWAVE_STROKE_ALPHA);
-
-    this.tweens.add({
-      targets: shockwave,
-      scaleX: SHOCKWAVE_SCALE,
-      scaleY: SHOCKWAVE_SCALE,
-      alpha: 0,
-      duration: SHOCKWAVE_DURATION,
-      ease: 'Quad.Out',
-      onComplete: () => shockwave.destroy(),
-    });
-
-    for (let i = 0; i < SHARD_COUNT; i += 1) {
-      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const distance = Phaser.Math.Between(SHARD_MIN_DISTANCE, SHARD_MAX_DISTANCE);
-      const size = Phaser.Math.Between(SHARD_MIN_SIZE, SHARD_MAX_SIZE);
-      const shard = this.add.rectangle(effect.x, effect.y, size, size * 1.8, effect.color, SHARD_ALPHA);
-      shard.setDepth(SHARD_DEPTH);
-      shard.setRotation(angle);
-
-      this.tweens.add({
-        targets: shard,
-        x: effect.x + Math.cos(angle) * distance,
-        y: effect.y + Math.sin(angle) * distance,
-        angle: Phaser.Math.Between(SHARD_MIN_ANGLE, SHARD_MAX_ANGLE),
-        alpha: 0,
-        scaleX: SHARD_SCALE,
-        scaleY: SHARD_SCALE,
-        duration: Phaser.Math.Between(SHARD_MIN_DURATION, SHARD_MAX_DURATION),
-        ease: 'Cubic.Out',
-        onComplete: () => shard.destroy(),
-      });
-    }
-
-    const scorch = this.add.ellipse(
-      effect.x,
-      effect.y + SCORCH_OFFSET_Y,
-      SCORCH_WIDTH,
-      SCORCH_HEIGHT,
-      SCORCH_COLOR,
-      SCORCH_ALPHA,
-    );
-    scorch.setDepth(SCORCH_DEPTH);
-    this.tweens.add({
-      targets: scorch,
-      alpha: 0,
-      scaleX: SCORCH_SCALE_X,
-      scaleY: SCORCH_SCALE_Y,
-      duration: SCORCH_DURATION,
-      ease: 'Quad.Out',
-      onComplete: () => scorch.destroy(),
-    });
-
-    this.cameras.main.shake(SHAKE_DURATION, SHAKE_INTENSITY, true);
   }
 
   private syncTanks(snapshot: WorldSnapshot): void {
+
+    // This method synchronizes the RenderTank objects
+    // with the current state of the tanks in the game world
+
     const aliveIds = new Set(snapshot.players.map((player) => player.id));
 
     for (const [playerId, tank] of this.tanks.entries()) {
@@ -512,19 +388,4 @@ export class NetworkGameScene extends Phaser.Scene {
       renderTank.sync(player, highestScorerIds.has(player.id), lowestScorerIds.has(player.id));
     }
   }
-
-  private followOwnedPlayer(snapshot: WorldSnapshot): void {
-    const youId = this.client.getPlayerId();
-    if (youId === undefined) {
-      return;
-    }
-
-    const ownPlayer = snapshot.players.find((player) => player.id === youId);
-    if (ownPlayer === undefined) {
-      return;
-    }
-
-    this.cameras.main.centerOn(ownPlayer.x, ownPlayer.y);
-  }
-
 }
