@@ -8,6 +8,7 @@ import type {
   TankInput,
   WorldSnapshot,
 } from '../../shared/types';
+import { ConnectionState } from '../../shared/types';
 
 export interface ClientJoinProfile {
   playerId: string;  // The player's chosen name or identifier to be used in the game.
@@ -23,7 +24,7 @@ export class GameClient {
   private seq = 0;
   private snapshot: WorldSnapshot | undefined;
   private youId: string | undefined;
-  private connectionState: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
+  private connectionState: string = ConnectionState.Disconnected;
 
   public constructor(private readonly wsUrl: string) {}
 
@@ -32,15 +33,19 @@ export class GameClient {
     // and sends a join message with the player's profile information.
     
     // If the client is already connected or in the process of connecting, we do not attempt to connect again.
-    if (this.connectionState !== 'disconnected') {
+    if (this.connectionState !== ConnectionState.Disconnected) {
       return;
     }
-    
-    this.connectionState = 'connecting';
+    this.connectionState = ConnectionState.Connecting;
 
     // Create a new WebSocket connection to the server using the provided URL.
     this.socket = new WebSocket(this.wsUrl);
+    
+    // Set up event handlers for the WebSocket connection
+    // to handle open, message, close, and error events.
 
+    // When the connection is successfully opened, send a join message
+    // to the server with the player's ID and chosen tank type.
     this.socket.onopen = () => {
       const joinMessage: ClientMessage = {
         type: 'join',
@@ -49,22 +54,23 @@ export class GameClient {
       };
       this.socket?.send(JSON.stringify(joinMessage));
     };
-
+    
+    // When a message is received from the server, handle it using the handleServerMessage method.
     this.socket.onmessage = (event) => {
       this.handleServerMessage(event.data);
     };
-
+    
+    // If the connection is closed or an error occurs, update the connection state to 'disconnected'.
     this.socket.onclose = () => {
-      this.connectionState = 'disconnected';
+      this.connectionState = ConnectionState.Disconnected;
     };
-
     this.socket.onerror = () => {
-      this.connectionState = 'disconnected';
+      this.connectionState = ConnectionState.Disconnected;
     };
   }
 
   public sendInput(input: TankInput): void {
-    if (this.connectionState !== 'connected' || this.socket === undefined || this.socket.readyState !== WebSocket.OPEN) {
+    if (this.connectionState !== ConnectionState.Connected || this.socket === undefined || this.socket.readyState !== WebSocket.OPEN) {
       return;
     }
 
@@ -86,52 +92,65 @@ export class GameClient {
     return this.youId;
   }
 
-  public getConnectionState(): 'disconnected' | 'connecting' | 'connected' {
+  public getConnectionState(): string {
     return this.connectionState;
   }
-
+  
   private handleServerMessage(payload: string): void {
+
+    // This method processes incoming messages from the server.
+
     let message: unknown;
 
     try {
+      // Attempt to parse the incoming message as JSON. If parsing fails, we ignore the message.
       message = JSON.parse(payload);
     } catch {
       return;
     }
-
+    
+    // Check if the parsed message conforms to the expected ServerMessage structure.
     if (!isServerMessage(message)) {
       return;
     }
-
+    
+    // Handle a 'welcome' message by updating the player's ID and connection state.
     if (message.type === 'welcome') {
       this.handleWelcome(message);
       return;
     }
-
+    
+    // Handle a 'state' message by updating the latest game snapshot and the player's ID.
     if (message.type === 'state') {
       this.handleState(message);
       return;
     }
-
+    
+    // Handle an 'error' message by updating the connection state to 'disconnected'.
     this.handleError(message);
   }
 
   private handleWelcome(message: ServerWelcomeMessage): void {
+    // Handle a welcome message from the server
     this.youId = message.playerId;
-    this.connectionState = 'connected';
+    this.connectionState = ConnectionState.Connected;
   }
 
   private handleState(message: ServerStateMessage): void {
+    // Handle a state update message from the server
     this.snapshot = message.snapshot;
     this.youId = message.youId;
   }
 
   private handleError(_message: ServerErrorMessage): void {
-    this.connectionState = 'disconnected';
+    // Handle an error message from the server
+    this.connectionState = ConnectionState.Disconnected;
   }
 }
 
 function isServerMessage(value: unknown): value is ServerMessage {
+  // This function checks if a given value conforms to the ServerMessage type.
+
   if (typeof value !== 'object' || value === null) {
     return false;
   }

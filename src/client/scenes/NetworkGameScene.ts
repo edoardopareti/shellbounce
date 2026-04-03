@@ -79,9 +79,10 @@ export class NetworkGameScene extends Phaser.Scene {
       // Initialize the input controller to start reading player input after they have joined the game
       // (so that game input is not read before the player has entered their name and selected a tank type).
       this.inputController = new InputController(this);
+
       this.gameCommands = new GameCommands(this);
+
       this.scoreBoard = new ScoreBoard(this);
-      
       // Initialize the scoreboard UI elements but keep them hidden until the player toggles the scoreboard on.
       this.scoreBoard.initializeScoreboardUi();
       
