@@ -110,13 +110,28 @@ shellbounce/
 │   │   ├── icons/
 │   │   ├── network/
 │   │   │   ├── GameClient.ts
-│   │   │   └── InputController.ts
+│   │   │   ├── GameCommands.ts
+│   │   │   ├── InputController.ts
+│   │   │   └── utils.ts
 │   │   ├── render/
+│   │   │   ├── BoostEffect.ts
+│   │   │   ├── DynamicElements.ts
+│   │   │   ├── Effects.ts
+│   │   │   ├── ExplosionEffect.ts
+│   │   │   ├── RenderBullet.ts
+│   │   │   ├── RenderMine.ts
+│   │   │   ├── RenderShotPreview.ts
 │   │   │   ├── RenderTank.ts
+│   │   │   ├── ScoreBoard.ts
+│   │   │   ├── TankDestructionEffect.ts
 │   │   │   └── tankVisuals.ts
 │   │   ├── scenes/
-│   │   |   └── NetworkGameScene.ts
-|   |   └── main.ts
+│   │   │   └── NetworkGameScene.ts
+│   │   ├── ui/
+│   │   │   └── showJoinOverlay.ts
+│   │   ├── utils/
+│   │   │   └── utils.ts
+│   │   └── main.ts
 │   ├── server/
 │   │   └── index.ts
 │   ├── shared/
@@ -192,6 +207,6 @@ Here are some tips:
             }
         }
     ```
-- start your NGINX proxy server with `start nginx` ran from shell with admin. privileges, from NGINX folder.
+- Start your NGINX proxy server with `start nginx` ran from shell with admin. privileges, from NGINX folder.
 - Get your public IP at https://whatismyipaddress.com/
 - Access the game at http://<my_public_IP>:3000
