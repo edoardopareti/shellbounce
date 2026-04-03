@@ -27,6 +27,10 @@ export class InputController {
   }
 
   public read(): TankInput {
+    
+    // This method reads the current state of player input, including keyboard keys and mouse buttons,
+    // and returns a TankInput object that represents the player's intended actions for the current game tick.
+
     const pointer = this.scene.input.activePointer;
     const leftDown = pointer.leftButtonDown();
     const rightDown = pointer.rightButtonDown();

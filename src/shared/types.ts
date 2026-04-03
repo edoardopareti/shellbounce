@@ -22,6 +22,8 @@ export type MapName = 'map1' | 'map2' | 'map3';
 export type TankType = 'PolPot' | 'Hightillery' | 'SSugar' | 'Fantanyl';
 export const ALL_TANK_TYPES: readonly TankType[] = ['PolPot', 'Hightillery', 'SSugar', 'Fantanyl'];
 
+// TankInput represents the player's input state for a single game tick,
+// including movement commands, firing actions, and pointer position.
 export interface TankInput {
   moveForward: boolean;
   moveBackward: boolean;
