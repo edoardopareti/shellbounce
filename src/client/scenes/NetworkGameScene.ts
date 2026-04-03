@@ -14,7 +14,7 @@ import { predictBulletTrajectory } from '../../shared/shotPrediction';
 import { SfxController } from '../audio/SfxController';
 
 const DEFAULT_BACKGROUND = 0x111827;
-const MAX_PLAYER_NAME_LENGTH = 24;
+const MAX_PLAYER_NAME_LENGTH = 24; // TODO move with overlay
 
 const TANK_PREVIEW_COLORS: Record<TankType, string> = {
   PolPot: '#22c55e',
@@ -24,8 +24,14 @@ const TANK_PREVIEW_COLORS: Record<TankType, string> = {
 };
 
 export class NetworkGameScene extends Phaser.Scene {
-  private readonly client = new GameClient(buildWsUrl());
-  private inputController: InputController | undefined;
+  
+  // NetworkGameScene is the main client scene for the multiplayer game.
+  // It handles rendering the game world, processing player input,and managing network communication with the game server.
+  // It extends Phaser.Scene, which provides the core functionality for a game scene in Phaser.
+
+  private readonly client = new GameClient(buildWsUrl()); // Initialize the GameClient with the WebSocket URL to connect to the game server.
+  private inputController: InputController | undefined; // The InputController is responsible for reading player input (keyboard and mouse) and translating it into game commands to be sent to the server.
+  private sfx: SfxController | undefined; // The SfxController manages the sound effects for the game, allowing the scene to play sounds in response to game events (e.g., shooting, explosions, etc.).
   private scoreboardToggleKey: Phaser.Input.Keyboard.Key | undefined;
   private wallGraphics: Phaser.GameObjects.Graphics | undefined;
   private dynamicGraphics: Phaser.GameObjects.Graphics | undefined;
@@ -33,35 +39,66 @@ export class NetworkGameScene extends Phaser.Scene {
   private scoreboardBackground: Phaser.GameObjects.Rectangle | undefined;
   private scoreboardText: Phaser.GameObjects.Text | undefined;
   private scoreboardVisible = false;
-  private sfx: SfxController | undefined;
   private lastRenderedTick = -1;
   private readonly tanks = new Map<string, RenderTank>();
 
   public constructor() {
-    super('network-game');
+    super('network-game');  // construct the Phaser.Scene with a unique key 'network-game' to identify this scene within the game instance
   }
 
   public create(): void {
+    // create is called once when the scene starts.
+    // Used to set up the initial state of the scene, load assets, and configure game objects.
+    
+    // Set the background color of the main camera to the default background color defined in the configuration.
     this.cameras.main.setBackgroundColor(DEFAULT_BACKGROUND);
+  
+    // Disable the context menu on right-click to allow using right-click for game controls without interference from the browser's default context menu.
     this.input.mouse?.disableContextMenu();
+  
+    // Preload tank textures so that they are ready to be used when rendering tanks in the game.
     preloadTankTextures(this);
+    
+    // Create graphics objects for rendering the game world.
+    
+    this.wallGraphics = this.add.graphics(); // static elements like walls
 
-    this.wallGraphics = this.add.graphics();
-    this.dynamicGraphics = this.add.graphics();
-    this.dynamicGraphics.setDepth(5);
-    this.shotPreviewGraphics = this.add.graphics();
-    this.shotPreviewGraphics.setDepth(5.4);
+    this.dynamicGraphics = this.add.graphics(); // dynamic elements like tanks, bullets, and mines
+    this.dynamicGraphics.setDepth(5); // Ensure dynamic elements are rendered above the walls
 
+    this.shotPreviewGraphics = this.add.graphics(); // shot trajectory previews
+    this.shotPreviewGraphics.setDepth(5.4); // Ensure shot previews are rendered above tanks and bullets but below effects like explosions
+
+    // Initialize the sound effects controller to manage game audio.
     this.sfx = new SfxController();
+    
+    // Display the join overlay to allow the player to enter their name
+    // and select a tank type before connecting to the game server.
     showJoinOverlay((joinProfile) => {
+      // Callback function that is called when the player submits the join form
+      // ( see addEventListener('submit',.. in showJoinOverlay function below ).
+      // This function expects a ClientJoinProfile object containing the player's name and selected tank type,
+      // and it will handle connecting to the game server and initializing the input controller.
+
+      // Initialize the input controller to start reading player input after they have joined the game
+      // (so that game input is not read before the player has entered their name and selected a tank type).
       this.inputController = new InputController(this);
+      
+      // Set up a keyboard key (P) to toggle the visibility of the scoreboard during gameplay.
+      // TODO - Game command binding should be handled separately, with a new GameCommandController class that manages key bindings and game commands in a more flexible way.
       this.scoreboardToggleKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.P, false);
+      
+      // Initialize the scoreboard UI elements but keep them hidden until the player toggles the scoreboard on.
       this.initializeScoreboardUi();
+      
+      // Connect to the game server using the GameClient instance and the collected join profile information
+      // (player name and tank type).
       this.client.connect(joinProfile);
     });
   }
 
   public update(): void {
+
     if (this.inputController !== undefined) {
       this.client.sendInput(this.inputController.read());
     }
@@ -90,12 +127,19 @@ export class NetworkGameScene extends Phaser.Scene {
 
     this.followOwnedPlayer(snapshot);
   }
-
+  
+  // TODO move scoreboard logic to a separate class/file as well.
   private initializeScoreboardUi(): void {
+
+    // This function initializes the UI elements for the in-game scoreboard,
+    // which displays player scores, kills, deaths, and elapsed time.
+
     if (this.scoreboardBackground !== undefined && this.scoreboardText !== undefined) {
       return;
     }
-
+    
+    // Scoreboard consists of a semi-transparent background rectangle
+    // and a text object on top of it to display the scoreboard information.
     this.scoreboardBackground = this.add.rectangle(16, 16, 360, 280, 0x020617, 0.5);
     this.scoreboardBackground.setOrigin(0, 0);
     this.scoreboardBackground.setScrollFactor(0);
@@ -109,11 +153,14 @@ export class NetworkGameScene extends Phaser.Scene {
     });
     this.scoreboardText.setScrollFactor(0);
     this.scoreboardText.setDepth(31);
-
+    
+    // Initially hide the scoreboard until the player toggles it on during gameplay.
     this.setScoreboardVisibility(false);
   }
 
   private setScoreboardVisibility(visible: boolean): void {
+    // This function sets the visibility of the scoreboard UI elements
+    // (background and text) based on the provided boolean value.
     this.scoreboardBackground?.setVisible(visible);
     this.scoreboardText?.setVisible(visible);
   }
@@ -463,8 +510,18 @@ export class NetworkGameScene extends Phaser.Scene {
 
 }
 
+// TODO move overlay logic to a separate class/file to keep this scene focused on game rendering and logic.
 function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): void {
+  
+  // Create a modal overlay with a form to collect
+  // the player's name and tank type selection before joining the game.
+  // This function dynamically creates DOM elements for the overlay and form,
+  // and appends them to the document body.
+  // When the form is submitted, it calls the onSubmit callback with the collected join profile information.
+
   const appHost = document.getElementById('app') ?? document.body;
+  
+  // overlay is a full-screen div that darkens the background and centers the join form.
   const overlay = document.createElement('div');
   overlay.style.position = 'fixed';
   overlay.style.inset = '0';
@@ -474,6 +531,8 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
   overlay.style.backdropFilter = 'blur(4px)';
   overlay.style.zIndex = '9999';
 
+  // The panel is the form container
+  // that holds all the input fields and buttons for joining the game.
   const panel = document.createElement('form');
   panel.style.width = 'min(92vw, 420px)';
   panel.style.background = '#0f172a';
@@ -484,12 +543,12 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
   panel.style.gap = '12px';
   panel.style.color = '#e2e8f0';
   panel.style.fontFamily = 'monospace';
-
+  
   const title = document.createElement('h2');
   title.textContent = 'Join Arena';
   title.style.margin = '0';
   title.style.fontSize = '20px';
-
+  
   const controlsTitle = document.createElement('div');
   controlsTitle.textContent = 'Controls';
   controlsTitle.style.fontSize = '13px';
@@ -547,14 +606,16 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
   tankSelect.style.background = '#020617';
   tankSelect.style.color = '#e2e8f0';
   tankSelect.style.padding = '0 10px';
-
+  // Populate the tank type dropdown with options for each available tank type defined in the game.
   for (const tankType of ALL_TANK_TYPES) {
     const option = document.createElement('option');
     option.value = tankType;
     option.textContent = tankType;
     tankSelect.appendChild(option);
   }
-
+  
+  // The preview container shows a live preview of the player's name
+  // and selected tank type, along with a color swatch representing the tank color.
   const previewContainer = document.createElement('div');
   previewContainer.style.display = 'flex';
   previewContainer.style.alignItems = 'center';
@@ -591,16 +652,8 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
   confirmButton.style.color = '#052e16';
   confirmButton.style.fontWeight = '700';
   confirmButton.style.cursor = 'pointer';
-
-  const updatePreview = (): void => {
-    const playerName = nameInput.value.trim();
-    const tankType = tankSelect.value as TankType;
-    const color = TANK_PREVIEW_COLORS[tankType] ?? '#94a3b8';
-
-    colorSwatch.style.backgroundColor = color;
-    previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType}`;
-  };
-
+  
+  // Append all the created elements to the panel
   panel.appendChild(title);
   panel.appendChild(controlsTitle);
   panel.appendChild(controlsList);
@@ -611,55 +664,82 @@ function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => void): vo
   panel.appendChild(previewContainer);
   panel.appendChild(errorText);
   panel.appendChild(confirmButton);
+  // Append the panel to the overlay
   overlay.appendChild(panel);
+  // Append the overlay to the app host element in the DOM
   appHost.appendChild(overlay);
 
+  const updatePreview = (): void => {
+    // Update the preview text and color swatch based on the current input values
+    // for player name and selected tank type.
+    const playerName = nameInput.value.trim();
+    const tankType = tankSelect.value as TankType;
+    const color = TANK_PREVIEW_COLORS[tankType] ?? '#94a3b8';
+
+    colorSwatch.style.backgroundColor = color;
+    previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType}`;
+  };
+  
+  // Add event listeners to update the preview whenever the player changes their name or tank type selection.
   nameInput.addEventListener('input', updatePreview);
   tankSelect.addEventListener('change', updatePreview);
-
+  
+  // Add a submit event listener to the form to handle when the player clicks the "Join Battle" button.
   panel.addEventListener('submit', (event) => {
-    event.preventDefault();
+    event.preventDefault(); // Prevent the default form submission behavior which would cause a page reload.
 
     const playerId = nameInput.value.trim();
     const selectedTankType = tankSelect.value;
+    
+    // Input  validation
 
+    // Validate the player's name and selected tank type before allowing them to join the game.
     if (playerId.length === 0) {
       errorText.textContent = 'Player name cannot be empty.';
       return;
     }
-
     if (playerId.length > MAX_PLAYER_NAME_LENGTH) {
       errorText.textContent = `Player name must be ${MAX_PLAYER_NAME_LENGTH} characters or fewer.`;
       return;
     }
-
     if (!isTankType(selectedTankType)) {
       errorText.textContent = 'Please choose a valid tank type.';
       return;
     }
-
+    
+    // If validation passes, remove the overlay and call the onSubmit callback with the collected join profile information.
     overlay.remove();
     onSubmit({
       playerId,
       tankType: selectedTankType,
     });
   });
-
+  
+  // Initial call to set the preview to the default values when the overlay is first shown.
   updatePreview();
+
+  // Automatically focus the name input field when the overlay is shown to improve user experience.
   nameInput.focus();
 }
 
+// TODO This is a tank  util - move it
 function isTankType(value: string): value is TankType {
+  // Type guard function to check if a given string value is a valid TankType defined in the game.
   return ALL_TANK_TYPES.some((tankType) => tankType === value);
 }
 
+// TODO Move to network util - move it
 function buildWsUrl(): string {
+  // This function constructs the WebSocket URL for connecting to the game server.
+  
+  // Check if a WebSocket URL is configured in the environment variables
   const configuredUrl = import.meta.env.VITE_SERVER_WS_URL as string | undefined;
   if (configuredUrl !== undefined && configuredUrl.length > 0) {
     return configuredUrl;
   }
-
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  
+  // If no configured URL is found, build the WebSocket URL based on the current window location.
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'; // Use 'wss' for secure connections and 'ws' for non-secure connections
   const host = window.location.host; // includes hostname and port
   return `${protocol}://${host}/ws`;
 }

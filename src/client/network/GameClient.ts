@@ -10,11 +10,15 @@ import type {
 } from '../../shared/types';
 
 export interface ClientJoinProfile {
-  playerId: string;
-  tankType: TankType;
+  playerId: string;  // The player's chosen name or identifier to be used in the game.
+  tankType: TankType;  // The type of tank the player wants to use.
 }
 
 export class GameClient {
+
+  // GameClient is responsible for managing the WebSocket connection to the game server,
+  // sending player input, and maintaining the latest game state snapshot received from the server.
+
   private socket: WebSocket | undefined;
   private seq = 0;
   private snapshot: WorldSnapshot | undefined;
@@ -24,11 +28,17 @@ export class GameClient {
   public constructor(private readonly wsUrl: string) {}
 
   public connect(joinProfile: ClientJoinProfile): void {
+    // This method establishes a WebSocket connection to the game server
+    // and sends a join message with the player's profile information.
+    
+    // If the client is already connected or in the process of connecting, we do not attempt to connect again.
     if (this.connectionState !== 'disconnected') {
       return;
     }
-
+    
     this.connectionState = 'connecting';
+
+    // Create a new WebSocket connection to the server using the provided URL.
     this.socket = new WebSocket(this.wsUrl);
 
     this.socket.onopen = () => {

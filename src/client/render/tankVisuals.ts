@@ -159,6 +159,9 @@ export function getTankAppearance(tankType: TankType): TankAppearance {
 }
 
 export function preloadTankTextures(scene: Phaser.Scene): void {
+  // Generate textures for each tank type if they don't already exist in the texture manager.
+  
+  // TODO - Refactor to make it easier to add new tank types without needing to modify this function.
   createTankTextures(scene, 'PolPot', 0x22c55e, 0x14532d, 0x4ade80);
   createTankTextures(scene, 'Hightillery', 0xdc2626, 0x7f1d1d, 0xfca5a5);
   createTankTextures(scene, 'SSugar', 0xf8fafc, 0xcbd5e1, 0xe2e8f0);
