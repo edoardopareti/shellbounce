@@ -70,6 +70,9 @@ export class GameClient {
   }
 
   public sendInput(input: TankInput): void {
+    
+    // This method sends player input to the server as a ClientInputMessage.
+
     if (this.connectionState !== ConnectionState.Connected || this.socket === undefined || this.socket.readyState !== WebSocket.OPEN) {
       return;
     }
