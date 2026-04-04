@@ -7,7 +7,10 @@ import { ALL_TANK_TYPES, type ClientJoinMessage, type ClientMessage, type Server
 // TODO: Implement client authentication.
 
 // TODO: Currently, a single simulation instance is used for all clients
-// extend to support multiple game rooms or instances in the future.
+// extend to support multiple game rooms or instances in the future, with rate limiting and logout 
+// of inactive clients to prevent abuse and resource exhaustion.
+
+// TODO: Implement in-game chat
 
 // ClientSession tracks the WebSocket connection and player information for each connected client.
 interface ClientSession {
@@ -97,6 +100,9 @@ setInterval(() => {
     
     // Construct a state message containing the client's player ID and the current world snapshot,
     // and send it to the client over the WebSocket connection.
+    
+    // TODO Send also to different clients
+
     const stateMessage: ServerMessage = {
       type: 'state',
       youId: session.playerId,
