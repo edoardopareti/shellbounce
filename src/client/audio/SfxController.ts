@@ -1,6 +1,17 @@
+// src/client/audio/SfxController.ts
+
+// This file defines the SfxController class, which manages sound effects for the game.
+// It uses the Web Audio API to generate procedural sound effects for various in-game events,
+// such as shooting, explosions, and tank destruction.
+
 type WebAudioContext = AudioContext;
 
 export class SfxController {
+
+  // The SfxController class is responsible for managing sound effects in the game.
+  // It uses the Web Audio API to generate procedural sound effects for various in-game events,
+  // such as shooting, explosions, and tank destruction.
+
   private readonly context: WebAudioContext | undefined;
 
   public constructor() {
@@ -8,6 +19,10 @@ export class SfxController {
   }
 
   public playBulletShot(): void {
+    
+    // This method plays the sound effect for shooting a bullet, which consists of a noise burst
+    // followed by a frequency sweep to create a satisfying shooting sound.
+
     this.playSweep({
       startFrequency: 760,
       endFrequency: 420,
@@ -25,7 +40,7 @@ export class SfxController {
       durationSec: 0.18,
       volume: 0.06,
       type: 'triangle',
-    });
+    }); 
   }
 
   public playMinePlace(): void {
