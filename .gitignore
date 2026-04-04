@@ -35,3 +35,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# AI (python)
+src/ai/.venv/
+__pycache__/
+*.pyc
+*.egg-info

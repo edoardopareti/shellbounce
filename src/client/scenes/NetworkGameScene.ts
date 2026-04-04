@@ -123,7 +123,6 @@ export class NetworkGameScene extends Phaser.Scene {
     if (input !== undefined) {
       this.client.sendInput(input);
     }
-    // TODO Predispose the code to also receive TankInput from external sources 
     
     // Get the latest game state snapshot from the server
     // to update the game world rendering.
