@@ -8,7 +8,7 @@
 import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { TICK_RATE } from '../shared/constants.js';
-import { AuthoritativeSimulation } from '../shared/simulation.js';
+import { AuthoritativeSimulation } from './simulation.js';
 import { ALL_TANK_TYPES, type ClientJoinMessage, type ClientMessage, type ServerMessage, type TankInput } from '../shared/types.js';
 
 

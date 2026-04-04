@@ -109,6 +109,18 @@ export interface EffectEvent {
   angle?: number;
 }
 
+export interface ShotPreviewSegmentState {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
+export interface ShotPreviewState {
+  playerId: string;
+  segments: ShotPreviewSegmentState[];
+}
+
 export interface WorldSnapshot {
   tick: number;
   width: number;
@@ -119,6 +131,7 @@ export interface WorldSnapshot {
   bullets: BulletState[];
   mines: MineState[];
   effects: EffectEvent[];
+  shotPreviews?: ShotPreviewState[];
 }
 
 // ConnectionState class to avoid magic strings for connection state
