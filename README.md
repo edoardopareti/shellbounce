@@ -102,46 +102,24 @@ npm run dev:client
 ```text
 shellbounce/
 ├── docs/
-│   └── images/
 ├── src/
+│   ├── ai/
 │   ├── client/
 │   │   ├── audio/
-│   │   │   └── SfxController.ts
 │   │   ├── icons/
 │   │   ├── network/
-│   │   │   ├── GameClient.ts
-│   │   │   ├── GameCommands.ts
-│   │   │   ├── InputController.ts
-│   │   │   └── utils.ts
 │   │   ├── render/
-│   │   │   ├── BoostEffect.ts
-│   │   │   ├── DynamicElements.ts
-│   │   │   ├── Effects.ts
-│   │   │   ├── ExplosionEffect.ts
-│   │   │   ├── RenderBullet.ts
-│   │   │   ├── RenderMine.ts
-│   │   │   ├── RenderShotPreview.ts
-│   │   │   ├── RenderTank.ts
-│   │   │   ├── ScoreBoard.ts
-│   │   │   ├── TankDestructionEffect.ts
-│   │   │   └── tankVisuals.ts
 │   │   ├── scenes/
-│   │   │   └── NetworkGameScene.ts
 │   │   ├── ui/
-│   │   │   └── showJoinOverlay.ts
 │   │   ├── utils/
-│   │   │   └── utils.ts
 │   │   └── main.ts
 │   ├── server/
-│   │   └── index.ts
+│   │   ├── entities/
+│   │   ├── systems/
+│   │   ├── utils/
+│   │   ├── index.ts
+│   │   └── simulation.ts
 │   ├── shared/
-│   │   ├── config.ts
-│   │   ├── constants.ts
-│   │   ├── map.ts
-│   │   ├── math.ts
-│   │   ├── shotPrediction.ts
-│   │   ├── simulation.ts
-│   │   └── types.ts
 │   └── main.ts
 ├── index.html
 ├── LICENSE
