@@ -1,31 +1,50 @@
+// server/index.ts
+
+// This file implements the authoritative server for Shellbounce game,
+// which manages the game state, processes player inputs, and sends updates to clients.
+// The server uses WebSockets for real-time communication with clients,
+// allowing for low-latency interactions and a responsive gaming experience.
+
 import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { TICK_RATE } from '../shared/constants.js';
 import { AuthoritativeSimulation } from '../shared/simulation.js';
 import { ALL_TANK_TYPES, type ClientJoinMessage, type ClientMessage, type ServerMessage, type TankInput } from '../shared/types.js';
 
-// TODO: Implement client authentication.
 
-// TODO: Currently, a single simulation instance is used for all clients
-// extend to support multiple game rooms or instances in the future, with rate limiting and logout 
-// of inactive clients to prevent abuse and resource exhaustion.
+// TODO: Currently, a single AuthoritativeSimulation instance is used for all N clients,
+// in an N to 1 relationship.
+// Extend to support multiple game rooms or instances in the future (N to M relationship),
+// as fixed number of M servers with:
+// - "join" requests rate limiting
+// - logout of inactive clients
+// - client authentication
 
-// TODO: Implement in-game chat
+// TODO: Implement multiplayer game modes, such as:
+// - free-for-all deathmatch
+// - team-based play
+// - capture the flag
+// - campaign/co-op against bots
 
-// ClientSession tracks the WebSocket connection and player information for each connected client.
+// TODO: Implement in-game chat bind to button C.
+
+
+// ClientSession tracks the WebSocket connection 
+// and player information for each connected client.
 interface ClientSession {
   socket: WebSocket;
   playerId: string;
   latestSeq: number;
 }
 
-// network port that the server listens on for incoming connections
+// Network port that the server listens on for incoming connections
 const port = Number(process.env.PORT ?? 8080);
 
 // Create the authoritative simulation instance that will manage game state and logic.
 const simulation = new AuthoritativeSimulation();
 
-// Ensure that default bots are added to the simulation before accepting client connections.
+// Ensure that default bots are added to the simulation
+// before accepting client connections.
 simulation.ensureDefaultBots();
 
 // Create an HTTP server to handle basic requests
@@ -55,7 +74,8 @@ const sessions = new Map<WebSocket, ClientSession>();
 
 // Handle new WebSocket connections from clients, set up message handlers, and manage disconnections.
 // When a client connects to the server via WebSocket, this event handler is triggered.
-// The socket parameter represents the connection to the client, which can be used to send and receive messages.
+// The socket parameter represents the connection to the client, which can be used to send
+// and receive messages.
 webSocketServer.on('connection', (socket) => {
 
   // Set up a message handler for incoming messages from the client,
