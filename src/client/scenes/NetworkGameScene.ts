@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { InputController } from '../network/InputController';
+import { AIInputController } from '../network/AIInputController';
 import { GameCommands } from '../network/GameCommands';
 import { GameClient } from '../network/GameClient';
-import { type EffectEvent, type WorldSnapshot } from '../../shared/types';
+import { type EffectEvent, type TankInput, type WorldSnapshot } from '../../shared/types';
 import { RenderTank } from '../render/RenderTank';
 import { RenderMine } from '../render/RenderMine';
 import { RenderBullet } from '../render/RenderBullet';
@@ -22,6 +23,7 @@ import { predictBulletTrajectory } from '../../shared/shotPrediction';
 import { SfxController } from '../audio/SfxController';
 import { showJoinOverlay } from '../ui/showJoinOverlay';
 import { buildWsUrl } from '../network/utils';
+import { AI_INPUT_STREAM_URL, PLAYER_INPUT_SOURCE } from '../../shared/config';
 
 const DEFAULT_BACKGROUND = 0x111827;
 
@@ -34,6 +36,7 @@ export class NetworkGameScene extends Phaser.Scene {
 
   private readonly client = new GameClient(buildWsUrl()); // Initialize the GameClient with the WebSocket URL to connect to the game server.
   private inputController: InputController | undefined; // The InputController is responsible for reading player input (keyboard and mouse) and translating it into game commands to be sent to the server.
+  private aiInputController: AIInputController | undefined; // The AIInputController reads TankInput messages streamed from the local Python AI process.
   private gameCommands: GameCommands | undefined; // The GameCommands object manages the commands that can be sent to the server based on player input.
   private sfx: SfxController | undefined; // The SfxController manages the sound effects for the game, allowing the scene to play sounds in response to game events (e.g., shooting, explosions, etc.).
   private scoreBoard: ScoreBoard | undefined; // The scoreboard displays the current scores of all players
@@ -73,6 +76,13 @@ export class NetworkGameScene extends Phaser.Scene {
 
     // Initialize the sound effects controller to manage game audio.
     this.sfx = new SfxController();
+
+    // Set up an event listener for when the scene is shut down
+    // (e.g., when the player leaves the game or navigates away).
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.aiInputController?.destroy();
+      this.aiInputController = undefined;
+    });
     
     // Display the join overlay to allow the player to enter their name
     // and select a tank type before connecting to the game server.
@@ -84,7 +94,11 @@ export class NetworkGameScene extends Phaser.Scene {
 
       // Initialize the input controller to start reading player input after they have joined the game
       // (so that game input is not read before the player has entered their name and selected a tank type).
-      this.inputController = new InputController(this);
+      if (PLAYER_INPUT_SOURCE === 'human') {
+        this.inputController = new InputController(this);
+      } else {
+        this.aiInputController = new AIInputController(AI_INPUT_STREAM_URL);
+      }
 
       this.gameCommands = new GameCommands(this);
 
@@ -105,8 +119,9 @@ export class NetworkGameScene extends Phaser.Scene {
     // based on the latest state received from the server.
     
     // Read the current player input and send it to the server.
-    if (this.inputController !== undefined) {
-      this.client.sendInput(this.inputController.read());
+    const input = this.getCurrentInput();
+    if (input !== undefined) {
+      this.client.sendInput(input);
     }
     // TODO Predispose the code to also receive TankInput from external sources 
     
@@ -154,7 +169,7 @@ export class NetworkGameScene extends Phaser.Scene {
       this.lastRenderedTick = snapshot.tick;
     }
   }
-  
+
   private ensureWorldRendered(snapshot: WorldSnapshot): void {
 
     // This method ensures that the static elements of the game world (like walls) are rendered.
@@ -208,6 +223,14 @@ export class NetworkGameScene extends Phaser.Scene {
     // Store a flag in the wall graphics data to indicate that the walls have been rendered
     // for the current snapshot.
     this.wallGraphics.setData('rendered', true);
+  }
+
+  private getCurrentInput(): TankInput | undefined {
+    if (PLAYER_INPUT_SOURCE === 'human') {
+      return this.inputController?.read();
+    }
+
+    return this.aiInputController?.read();
   }
 
   private playEffects(effects: EffectEvent[]): void {

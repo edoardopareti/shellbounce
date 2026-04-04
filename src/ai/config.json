@@ -1,0 +1,8 @@
+{
+	"server_ws_url": "ws://127.0.0.1:8080/ws",
+	"input_stream": {
+		"host": "127.0.0.1",
+		"port": 8766,
+		"tick_hz": 20
+	}
+}

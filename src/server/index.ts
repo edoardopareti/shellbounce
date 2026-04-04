@@ -71,6 +71,9 @@ const webSocketServer = new WebSocketServer({
 // This allows the server to manage multiple clients, track their state,
 // and send targeted messages back to them.
 const sessions = new Map<WebSocket, ClientSession>();
+// Set to track observer WebSocket connections that receive game state updates
+// without participating as players.
+const observers = new Set<WebSocket>();
 
 // Handle new WebSocket connections from clients, set up message handlers, and manage disconnections.
 // When a client connects to the server via WebSocket, this event handler is triggered.
@@ -94,6 +97,8 @@ webSocketServer.on('connection', (socket) => {
       simulation.removePlayer(session.playerId);
       sessions.delete(socket);
     }
+
+    observers.delete(socket);
   });
 });
 
@@ -130,6 +135,19 @@ setInterval(() => {
     };
     session.socket.send(JSON.stringify(stateMessage));
   }
+  
+  // Send the current world snapshot to all observer clients,
+  // which receive updates without participating as players.
+  for (const observerSocket of observers.values()) {
+    if (observerSocket.readyState !== observerSocket.OPEN) {
+      continue;
+    }
+
+    observerSocket.send(JSON.stringify({
+      type: 'state',
+      snapshot,
+    }));
+  }
 }, Math.round(1000 / TICK_RATE));
 
 // Start the HTTP server and listen for incoming connections on the specified port.
@@ -157,6 +175,12 @@ function handleClientMessage(socket: WebSocket, payload: string): void {
     sendError(socket, 'Malformed JSON payload.');
     return;
   }
+
+  if (isObserveMessage(message)) {
+    handleObserve(socket);
+    return;
+  }
+
   // Validate that the parsed message conforms to the expected ClientMessage structure.
   if (!isClientMessage(message)) {
     sendError(socket, 'Unsupported message payload.');
@@ -189,6 +213,17 @@ function handleClientMessage(socket: WebSocket, payload: string): void {
   // Sanitize the incoming player input to ensure it is valid and safe,
   // then update the simulation with the new input for the corresponding player.
   simulation.setPlayerInput(session.playerId, sanitizeInput(message.input));
+}
+
+function handleObserve(socket: WebSocket): void {
+  // This function handles requests from clients to become observers,
+  // which allows them to receive game state updates without participating as players.
+  if (sessions.has(socket)) {
+    sendError(socket, 'Already joined as player. Open a new socket to observe.');
+    return;
+  }
+
+  observers.add(socket);
 }
 
 function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
@@ -266,6 +301,18 @@ function isClientMessage(value: unknown): value is ClientMessage {
   }
 
   return candidate.type === 'input' && typeof candidate.seq === 'number' && typeof candidate.input === 'object';
+}
+
+function isObserveMessage(value: unknown): value is { type: 'observe' } {
+  // This type guard checks if the incoming message from the client is an observe message,
+  // which indicates that the client wants to receive game state updates
+  // without participating as a player.
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as { type?: string };
+  return candidate.type === 'observe';
 }
 
 function sanitizePlayerId(playerId: string): string {
