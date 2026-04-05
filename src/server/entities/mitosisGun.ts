@@ -21,7 +21,7 @@ export class MitosisGun extends Weapon {
   }
 
   public getMaxActiveBullets(): number {
-    return 1;
+    return 2;
   }
 
   protected createNormalShot(player: PlayerEntity): BulletEntity {
