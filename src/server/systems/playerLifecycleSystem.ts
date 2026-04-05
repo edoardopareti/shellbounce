@@ -22,6 +22,10 @@ export class PlayerLifecycleSystem {
     excludedPlayerId: string,
     tick: number,
   ): { x: number; y: number } | undefined {
+    
+    // Attempt to find an available spawn point for a player
+    // by iterating through predefined spawn points in a deterministic order.
+    
     const points = getCornerSpawnPoints(this.bounds);
 
     const startIndex = tick % points.length;
@@ -44,17 +48,23 @@ export class PlayerLifecycleSystem {
     nowMs: number,
     tick: number,
   ): void {
+    // Iterate through all players to check if any are due for respawn based on their respawn timers.
     for (const player of players.values()) {
       if (player.isAlive || nowMs < player.respawnAtMs) {
         continue;
       }
-
+      
+      // Attempt to find an available spawn point for the player. If no spawn point is currently available,
+      // reschedule the respawn check for a short time later to try again.
       const spawn = this.pickAvailableSpawnPoint(players, walls, player.id, tick);
+
       if (spawn === undefined) {
         player.respawnAtMs = nowMs + RESPAWN_RETRY_DELAY_MS;
         continue;
       }
-
+      
+      // If a spawn point is available, reset the player's state
+      // for respawn and place them at the spawn location.
       resetPlayerForRespawn(player, spawn);
     }
   }

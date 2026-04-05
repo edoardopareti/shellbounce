@@ -44,6 +44,9 @@ export class EffectBuffer {
     durationMs: number,
     angle?: number,
   ): void {
+    // Push a transient effect (like a bullet shot, mine placement, or boost activation) to the buffer.
+    // This effect will be rendered briefly on the client side to provide visual feedback
+    // for the corresponding action.
     this.effects.push({
       id: `fx-${this.nextEffectId++}`,
       kind,

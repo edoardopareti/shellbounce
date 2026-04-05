@@ -61,12 +61,12 @@ import { WeaponRegistry } from './entities/weaponRegistry.js';
 export class AuthoritativeSimulation {
   private readonly world = getArenaWorld(SELECTED_MAP); // Game arena
   private readonly players = new Map<string, PlayerEntity>(); // Player ID : PlayerEntity
-  private readonly playerWeapons = new Map<string, Weapon>(); // Player ID : Weapon
   private readonly latestInputs = new Map<string, TankInput>(); // Player ID : Latest input
   private readonly bullets: BulletEntity[] = []; // Active bullets in the simulation
   private readonly mines: MineEntity[] = []; // Active mines in the simulation
   private readonly botController = new BotController(); // Bot controller to manage AI player behavior
   private readonly weaponRegistry = new WeaponRegistry(); // Registry for creating weapons based on tank types
+  private readonly playerWeapons = new Map<string, Weapon>(); // Player ID : Weapon instance
   private readonly effectBuffer = new EffectBuffer();  // Buffer for visual effects to be sent to clients
   private readonly explosionService = new ExplosionService();  // Service to handle explosion logic and its effects on players, bullets, and mines
   private readonly mineSystem = new MineSystem();  // System to handle mine placement, arming, and explosion logic
@@ -79,21 +79,41 @@ export class AuthoritativeSimulation {
   private playerJoinCounter = 0; // Counter for player joins
 
   public constructor() {
+    // Register default weapons for each tank type in the weapon registry.
     this.weaponRegistry.registerDefault((runtime) => new SimpleGun(runtime));
     for (const tankType of ALL_TANK_TYPES) {
+      // For each tank type, register a factory function
+      // that creates a new SimpleGun instance when requested.
       this.weaponRegistry.register(tankType, (runtime) => new SimpleGun(runtime));
     }
   }
 
   public step(): void {
+
     // Advance the simulation by one tick.
+
     this.tick += 1;
     this.nowMs += FIXED_TIMESTEP_SECONDS * 1000;
+    
+    // Update the state of the simulation
 
+    // Process player respawns based on their respawn timers
+    // and the current world state.
     this.processRespawns();
+
+    // Update player states based on their inputs, movement, firing actions,
+    // and interactions with the world.
     this.updatePlayers();
+
+    // Update the state of bullets and mines, 
+    // including their movement, arming, and explosion logic.
     this.updateBullets();
     this.updateMines();
+
+    // Resolve interactions between bullets, including
+    // collisions with other bullets,
+    // impacts with players and mines,
+    // and any resulting explosions or player deaths.
     this.resolveBulletBulletCollisions();
     this.resolveBulletImpacts();
     this.resolveMineTriggers();
@@ -102,12 +122,6 @@ export class AuthoritativeSimulation {
   public addPlayer(playerId: string, isBot: boolean, preferredTankType?: TankType): void {
 
     // Add a new player to the simulation with the specified playerId and bot status.
-    // If the playerId already exists, the method returns early.
-    // Otherwise, it initializes a new PlayerEntity with default properties,
-    // assigns a tank type based on whether it's a bot or human player,
-    // and places the player at an available spawn point in the arena.
-    // The player's input state is also initialized to an empty input.
-    // For bots, additional state is set up to manage their behavior and decision-making in the simulation.
 
     if (this.players.has(playerId)) {
       return;
@@ -128,6 +142,9 @@ export class AuthoritativeSimulation {
     
     // Add the new player to the simulation's player map and initialize their input state.
     this.players.set(playerId, player);
+
+    // Create a weapon instance for the new player based on their tank type
+    // and register it in the playerWeapons map.
     this.playerWeapons.set(
       playerId,
       this.weaponRegistry.createForTankType(tankType, {
@@ -145,6 +162,9 @@ export class AuthoritativeSimulation {
   }
 
   public removePlayer(playerId: string): void {
+
+    // Remove a player from the simulation based on their playerId.
+
     this.players.delete(playerId);
     this.playerWeapons.delete(playerId);
     this.latestInputs.delete(playerId);
@@ -163,8 +183,42 @@ export class AuthoritativeSimulation {
     }
   }
 
+  public setPlayerInput(playerId: string, input: TankInput): void {
+    
+    // Set the input for a specific player, ensuring that edge-triggered actions are preserved.
+    
+    if (!this.players.has(playerId)) {
+      return;
+    }
+
+    const sanitized = sanitizeInput(input);
+    const previous = this.latestInputs.get(playerId) ?? EMPTY_INPUT;
+
+    // Preserve edge-triggered actions until consumed during the next simulation tick.
+    // Override values for actions like
+    // firePressed, fireReleased, detonatePressed, placeMinePressed, and boostPressed
+    // to ensure they remain true until the simulation processes them,
+    // even if the client input changes quickly.
+    this.latestInputs.set(playerId, {
+      ...sanitized,
+      firePressed: previous.firePressed || sanitized.firePressed,
+      fireReleased: previous.fireReleased || sanitized.fireReleased,
+      detonatePressed: previous.detonatePressed || sanitized.detonatePressed,
+      placeMinePressed: previous.placeMinePressed || sanitized.placeMinePressed,
+      boostPressed: previous.boostPressed || sanitized.boostPressed,
+    });
+  }
+
   private updatePlayers(): void {
+    
+    // Update the state of each player based on their latest inputs, interactions with the world,
+    // and the behavior of bots for AI-controlled players.
+    
+    // Gather a list of human players to provide context for bot decision-making.
     const humans = Array.from(this.players.values()).filter((player) => !player.isBot && player.isAlive);
+
+    // Create a simulation context object that provides necessary information and functions
+    // for weapon instances and bot controllers to interact with the simulation state.
     const context: SimulationContext = {
       world: this.world,
       bullets: this.bullets,
@@ -173,17 +227,28 @@ export class AuthoritativeSimulation {
       intersectsAnyWall: (x, y, radius) => this.intersectsAnyWall(x, y, radius),
       isExplosionBlockedByWall: (startX, startY, endX, endY) => this.isExplosionBlockedByWall(startX, startY, endX, endY),
     };
-
+    
+    // Iterate through each player in the simulation
+    // and update their state based on their input and interactions.
     for (const player of this.players.values()) {
       if (!player.isAlive) {
         continue;
       }
-
+      
+      // Determine the input for the player.
+      // If it's a bot, compute the input using the bot controller.
+      // If it's a human player, use the latest input received from the client.
+      // If no input is available, default to an empty input state.
       const input = player.isBot
         ? this.botController.computeInput(player, humans, this.getBotDifficultyProfile(), context)
         : (this.latestInputs.get(player.id) ?? EMPTY_INPUT);
-      this.applyPlayerInput(player, input);
 
+      // Apply the player's input to update their state,
+      // including movement, firing actions, and interactions with the world.
+      this.applyPlayerInput(player, input);
+      
+      // For human players, reset edge-triggered input actions after processing
+      // to ensure they are only triggered once per press.
       if (!player.isBot) {
         this.latestInputs.set(player.id, {
           ...input,
@@ -197,68 +262,76 @@ export class AuthoritativeSimulation {
     }
   }
 
-  public setPlayerInput(playerId: string, input: TankInput): void {
-    if (!this.players.has(playerId)) {
-      return;
-    }
-
-    const sanitized = sanitizeInput(input);
-    const previous = this.latestInputs.get(playerId) ?? EMPTY_INPUT;
-
-    // Preserve edge-triggered actions until consumed during the next simulation tick.
-    this.latestInputs.set(playerId, {
-      ...sanitized,
-      firePressed: previous.firePressed || sanitized.firePressed,
-      fireReleased: previous.fireReleased || sanitized.fireReleased,
-      detonatePressed: previous.detonatePressed || sanitized.detonatePressed,
-      placeMinePressed: previous.placeMinePressed || sanitized.placeMinePressed,
-      boostPressed: previous.boostPressed || sanitized.boostPressed,
-    });
-  }
-
   private applyPlayerInput(player: PlayerEntity, input: TankInput): void {
+    // Update the player's state based on their input, including movement, firing actions,
+    // and interactions with the world such as boosting and shielding.
+    
+    // Update the player's boost state based on their input and apply any resulting effects.
     this.updateBoost(player, input);
+    
+    // Evaluate how much time the player has left of spawn protection, if any.
     player.spawnProtectionMs = Math.max(0, player.spawnProtectionMs - FIXED_TIMESTEP_SECONDS * 1000);
-
+    // If the player still has spawn protection time remaining, consider them offensively locked.
     const offensiveLocked = player.spawnProtectionMs > 0;
-
+    
+    // Update the player's shield state based on their input
+    // and apply any resulting effects or cooldowns.
     this.updateShieldState(player, input);
-
+    
+    // Update the player's body rotation, movement, and turret angle based on their input.
     this.updateBodyRotation(player, input);
     this.updateMovement(player, input);
     this.updateTurret(player, input);
+    
+    // Handle the player's firing actions based on their input and weapon state,
+    // including checking for cooldowns, firing bullets, and placing mines.
 
+    // Decrement the player's fire cooldown timer by the fixed time step of the simulation.
     player.fireCooldownMs = Math.max(0, player.fireCooldownMs - FIXED_TIMESTEP_SECONDS * 1000);
-
+    
+    // If player is still in fire cooldown, set fireCooldownBlocked to true
+    // to inform client to display a blocked firing action
     player.fireCooldownBlocked = false;
     if ((input.firePressed || input.fireHeld) && player.fireCooldownMs > 0) {
       player.fireCooldownBlocked = true;
     }
-
+    
+    // If the player is offensively locked (e.g., due to spawn protection), 
+    // set fireCooldownBlocked to true
+    // when they attempt to fire to inform client to display a blocked firing action,
     if (offensiveLocked) {
       player.fireCooldownBlocked = input.firePressed || input.fireHeld;
       player.isChargingShot = false;
       player.chargeMs = 0;
       return;
     }
-
+    
+    // Get the weapon instance for the player based on their tank type from the playerWeapons map.
     const weapon = this.playerWeapons.get(player.id);
     if (weapon === undefined) {
       return;
     }
-
+    
+    // Determine if the player can fire based on the number of active bullets 
+    // they currently have in the simulation
     const canFire = this.getActiveBulletCountForPlayer(player.id) < MAX_ACTIVE_BULLETS_PER_TANK;
+
+    // Handle the player's firing input through their weapon instance, which will manage firing logic,
+    // including checking for cooldowns, firing bullets, and placing mines.
     const weaponAction = weapon.handleInput(player, input, canFire);
     if (weaponAction.selfDestructed) {
       this.destroyPlayer(player, player.id);
       return;
     }
-
+    
+    // If the weapon action resulted in a fired bullet, add it to the simulation's bullet list
     if (weaponAction.firedBullet !== undefined) {
       this.bullets.push(weaponAction.firedBullet);
-      this.effectBuffer.pushTransient('bullet-shot', player.x, player.y, 0, player.bulletColor, 0);
+      this.effectBuffer.pushTransient(
+        'bullet-shot', player.x, player.y, 0, player.bulletColor, 0);
     }
-
+    
+    // Try to place a mine if the corresponding input action is triggered.
     if (input.placeMinePressed) {
       this.tryPlaceMine(player);
     }
@@ -273,6 +346,10 @@ export class AuthoritativeSimulation {
   }
 
   public createSnapshot(): WorldSnapshot {
+    
+    // Create a snapshot of the current world state to be sent to clients,
+    // including player states, bullet and mine states, active effects, and shot previews.
+
     const effects = this.effectBuffer.drain();
     const shotPreviews = this.createShotPreviews();
 
@@ -354,17 +431,24 @@ export class AuthoritativeSimulation {
   }
 
   private updateBoost(player: PlayerEntity, input: TankInput): void {
+    // Update the player's boost state based on their input and apply any resulting visual effects.
     const boosted = updateBoostState(player, input.boostPressed);
     if (boosted) {
-      this.effectBuffer.pushTransient('boost', player.x, player.y, player.radius, player.bulletColor, 260, player.bodyAngle);
+      // If the player has just activated their boost, push a boost effect to the effect buffer
+      // to provide visual feedback for the boost activation on the client side.
+      this.effectBuffer.pushTransient(
+        'boost', player.x, player.y, player.radius, player.bulletColor, 260, player.bodyAngle);
     }
   }
 
   private updateShieldState(player: PlayerEntity, input: TankInput): void {
+    // Update the player's shield state
+    // based on their input and apply any resulting effects or cooldowns.
     updateShieldEntityState(player, input.shieldHeld);
   }
 
   private updateBodyRotation(player: PlayerEntity, input: TankInput): void {
+    // Update the player's body rotation based on their input for turning left or right.
     let rotationDirection = 0;
     if (input.turnLeft) {
       rotationDirection -= 1;
@@ -377,10 +461,13 @@ export class AuthoritativeSimulation {
       return;
     }
 
-    player.bodyAngle = normalizeAngleRadians(player.bodyAngle + rotationDirection * TANK_ROTATION_SPEED * FIXED_TIMESTEP_SECONDS);
+    player.bodyAngle = normalizeAngleRadians(
+      player.bodyAngle + rotationDirection * TANK_ROTATION_SPEED * FIXED_TIMESTEP_SECONDS);
   }
 
   private updateMovement(player: PlayerEntity, input: TankInput): void {
+    // Update the player's movement based on their input for moving forward or backward,
+    // while also checking for collisions with walls to prevent moving through them.
     let movementDirection = 0;
     if (input.moveForward) {
       movementDirection += 1;
@@ -410,22 +497,40 @@ export class AuthoritativeSimulation {
   }
 
   private updateTurret(player: PlayerEntity, input: TankInput): void {
-    player.turretAngle = normalizeAngleRadians(Math.atan2(input.pointerWorldY - player.y, input.pointerWorldX - player.x));
+    // Update the player's turret angle to point towards the current position of the input pointer,
+    // allowing the player to aim their shots in the direction of the pointer.
+    player.turretAngle = normalizeAngleRadians(
+      Math.atan2(input.pointerWorldY - player.y, input.pointerWorldX - player.x));
   }
 
   private updateBullets(): void {
+    // Update the state of bullets in the simulation,
+    // including their movement and interactions with walls.
     this.projectileSystem.updateBullets(this.bullets, (x, y, radius) => this.intersectsAnyWall(x, y, radius), {
       explodeBullet: (index) => this.triggerBulletExplosion(index),
     });
   }
 
+  private updateMines(): void {
+    // Update the state of mines in the simulation,
+    // including their arming process and interactions with players,
+    // and apply any resulting explosions or effects.
+    this.mineSystem.updateMines(this.mines, {
+      explodeMine: (x, y, sourcePlayerId) => this.triggerMineExplosion(x, y, sourcePlayerId),});
+  }
+
   private resolveBulletBulletCollisions(): void {
+    // Resolve collisions between bullets in the simulation,
+    // including checking for collisions between bullets
+    // and applying any resulting explosions or effects.
     this.projectileSystem.resolveBulletBulletCollisions(this.bullets, {
       explodeBullet: (index) => this.triggerBulletExplosion(index),
     });
   }
 
   private resolveBulletImpacts(): void {
+    // Resolve impacts of bullets with players, mines, and walls,
+    // and apply any resulting explosions, player damage, or mine triggers.
     this.projectileSystem.resolveBulletImpacts(this.bullets, this.mines, this.players, {
       explodeBullet: (index) => this.triggerBulletExplosion(index),
       explodeMine: (x, y, sourcePlayerId) => this.triggerMineExplosion(x, y, sourcePlayerId),
@@ -436,14 +541,11 @@ export class AuthoritativeSimulation {
   }
 
   private resolveMineTriggers(): void {
+    // Resolve mine triggers based on player proximity to mines
+    // and apply any resulting explosions or effects.
     this.mineSystem.resolveMineTriggers(this.mines, this.players, {
       explodeMine: (x, y, sourcePlayerId) => this.triggerMineExplosion(x, y, sourcePlayerId),
     });
-  }
-
-  private updateMines(): void {
-    this.mineSystem.updateMines(this.mines, {
-      explodeMine: (x, y, sourcePlayerId) => this.triggerMineExplosion(x, y, sourcePlayerId),});
   }
 
   private triggerMineExplosion(x: number, y: number, sourcePlayerId?: string): void {
@@ -473,11 +575,14 @@ export class AuthoritativeSimulation {
   }
 
   private tryPlaceMine(player: PlayerEntity): void {
+    // Attempt to place a mine for the player at their current position.
     const mine = this.mineSystem.tryPlaceMine(player, this.mines, `m-${this.mineCounter}`);
     if (mine === undefined) {
       return;
     }
-
+    
+    // If the mine was successfully placed, add it to the simulation's mine list
+    // and push a mine placement effect to the effect buffer for visual feedback on the client side.
     this.mineCounter += 1;
     this.mines.push(mine);
     this.effectBuffer.pushTransient('mine-place', player.x, player.y, mine.radius, player.bulletColor, 0);
@@ -534,10 +639,13 @@ export class AuthoritativeSimulation {
   }
 
   private processRespawns(): void {
-    this.playerLifecycleSystem.processRespawns(this.players, this.world.walls, this.nowMs, this.tick);
+    // Process player respawns based on their respawn timers and the current world state.
+    this.playerLifecycleSystem.processRespawns(
+      this.players, this.world.walls, this.nowMs, this.tick);
   }
 
   private getActiveBulletCountForPlayer(playerId: string): number {
+    // Get the count of active bullets in the simulation that belong to a specific player.
     return this.bullets.filter((bullet) => bullet.ownerPlayerId === playerId).length;
   }
 
@@ -547,6 +655,7 @@ export class AuthoritativeSimulation {
   }
 
   private intersectsAnyWall(x: number, y: number, radius: number): boolean {
+    // Check if a circle defined by (x, y, radius) intersects with any of the walls in the world.
     for (const wall of this.world.walls) {
       if (circleIntersectsRect(x, y, radius, wall.x, wall.y, wall.width, wall.height)) {
         return true;
