@@ -2,7 +2,6 @@ import {
   BULLET_EXPLOSION_VISUAL_DURATION_MS,
   BULLET_RADIUS,
   FIXED_TIMESTEP_SECONDS,
-  MAX_ACTIVE_BULLETS_PER_TANK,
   MINE_ARMING_DELAY_MS,
   MINE_EXPLOSION_RADIUS,
   MINE_EXPLOSION_VISUAL_DURATION_MS,
@@ -44,6 +43,8 @@ import {
   updateShieldState as updateShieldEntityState,
 } from './entities/shield.js';
 import { buildShotPreview } from './entities/shotPreview.js';
+import { splitMitosisBulletEntity } from './entities/mitosisBullet.js';
+import { MitosisGun } from './entities/mitosisGun.js';
 import { SimpleGun } from './entities/simpleGun.js';
 import { EffectBuffer } from './systems/effects.js';
 import { ExplosionService } from './systems/explosionService.js';
@@ -86,6 +87,8 @@ export class AuthoritativeSimulation {
       // that creates a new SimpleGun instance when requested.
       this.weaponRegistry.register(tankType, (runtime) => new SimpleGun(runtime));
     }
+
+    this.weaponRegistry.register('PolPot', (runtime) => new MitosisGun(runtime));
   }
 
   public step(): void {
@@ -150,6 +153,8 @@ export class AuthoritativeSimulation {
       this.weaponRegistry.createForTankType(tankType, {
         nextBulletId: () => `b-${this.bulletCounter++}`,
         detonateOldestBulletForPlayer: (id) => this.tryDetonateOldestBulletForPlayer(id),
+        splitOldestMitosisBulletForPlayer: (id) => this.trySplitOldestMitosisBulletForPlayer(id),
+        detonateSplitMitosisBulletsForPlayer: (id) => this.tryDetonateSplitMitosisBulletsForPlayer(id),
       }),
     );
     
@@ -314,7 +319,7 @@ export class AuthoritativeSimulation {
     
     // Determine if the player can fire based on the number of active bullets 
     // they currently have in the simulation
-    const canFire = this.getActiveBulletCountForPlayer(player.id) < MAX_ACTIVE_BULLETS_PER_TANK;
+    const canFire = this.getActiveBulletCountForPlayer(player.id) < weapon.getMaxActiveBullets();
 
     // Handle the player's firing input through their weapon instance, which will manage firing logic,
     // including checking for cooldowns, firing bullets, and placing mines.
@@ -388,6 +393,8 @@ export class AuthoritativeSimulation {
         radius: bullet.radius,
         color: bullet.color,
         isCharged: bullet.isCharged,
+        kind: bullet.kind,
+        isMitosisSplit: bullet.kind === 'mitosis' && bullet.mitosisGeneration > 0,
       })),
       mines: this.mines.map((mine) => ({
         id: mine.id,
@@ -595,6 +602,82 @@ export class AuthoritativeSimulation {
     }
 
     this.triggerBulletExplosion(bulletIndex);
+  }
+
+  private trySplitOldestMitosisBulletForPlayer(playerId: string): boolean {
+    // Attempt to split the oldest mitosis bullet for the specified player into two new bullets,
+    // and add the new bullets to the simulation if successful.
+    const bulletIndex = this.bullets.findIndex((bullet) => (
+      bullet.ownerPlayerId === playerId
+      && bullet.kind === 'mitosis'
+      && bullet.mitosisGeneration === 0
+    ));
+
+    if (bulletIndex < 0) {
+      return false;
+    }
+
+    const bullet = this.bullets[bulletIndex];
+    if (bullet === undefined) {
+      return false;
+    }
+
+    const splitBullets = splitMitosisBulletEntity(
+      bullet,
+      `b-${this.bulletCounter++}`,
+      `b-${this.bulletCounter++}`,
+    );
+
+    if (splitBullets.length !== 2) {
+      return false;
+    }
+
+    this.bullets.splice(bulletIndex, 1, splitBullets[0], splitBullets[1]);
+    return true;
+  }
+
+  private tryDetonateSplitMitosisBulletsForPlayer(playerId: string): boolean {
+    // Attempt to detonate all split mitosis bullets for the specified player,
+    // and trigger explosions for each of those bullets if successful.
+    const splitIndexes: number[] = [];
+    for (let index = 0; index < this.bullets.length; index += 1) {
+      const bullet = this.bullets[index];
+      if (bullet === undefined) {
+        continue;
+      }
+
+      if (
+        bullet.ownerPlayerId === playerId
+        && bullet.kind === 'mitosis'
+        && bullet.mitosisGeneration > 0
+      ) {
+        splitIndexes.push(index);
+      }
+    }
+
+    if (splitIndexes.length === 0) {
+      return false;
+    }
+
+    for (let index = splitIndexes.length - 1; index >= 0; index -= 1) {
+      const bulletIndex = splitIndexes[index];
+      const bullet = this.bullets[bulletIndex];
+      if (bullet === undefined) {
+        continue;
+      }
+
+      if (
+        bullet.ownerPlayerId !== playerId
+        || bullet.kind !== 'mitosis'
+        || bullet.mitosisGeneration === 0
+      ) {
+        continue;
+      }
+
+      this.triggerBulletExplosion(bulletIndex);
+    }
+
+    return true;
   }
 
   private triggerBulletExplosion(index: number): void {

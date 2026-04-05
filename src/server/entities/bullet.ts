@@ -4,6 +4,8 @@ import {
 } from '../../shared/constants.js';
 import type { PlayerEntity } from './player.js';
 
+export type BulletKind = 'standard' | 'mitosis';
+
 export interface BulletEntity {
   id: string;
   ownerPlayerId: string;
@@ -18,6 +20,8 @@ export interface BulletEntity {
   explosionRadius: number;
   explodeOnWallImpact: boolean;
   isCharged: boolean;
+  kind: BulletKind;
+  mitosisGeneration: number;
 }
 
 export interface BulletSpawnConfig {
@@ -26,6 +30,8 @@ export interface BulletSpawnConfig {
   maxBounces: number;
   explodeOnWallImpact: boolean;
   isCharged: boolean;
+  kind?: BulletKind;
+  mitosisGeneration?: number;
 }
 
 export function createBulletEntity(
@@ -50,5 +56,7 @@ export function createBulletEntity(
     explosionRadius: config.explosionRadius,
     explodeOnWallImpact: config.explodeOnWallImpact,
     isCharged: config.isCharged,
+    kind: config.kind ?? 'standard',
+    mitosisGeneration: config.mitosisGeneration ?? 0,
   };
 }

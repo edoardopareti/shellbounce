@@ -8,6 +8,8 @@ export interface BulletRenderData {
   radius: number;
   color: number;
   isCharged: boolean;
+  kind: 'standard' | 'mitosis';
+  isMitosisSplit: boolean;
   time: number;
   graphics: Phaser.GameObjects.Graphics;
 }
@@ -19,7 +21,7 @@ export class RenderBullet extends DynamicElement {
 
   sync(data: BulletRenderData): void {
     const {
-      x, y, radius, color, isCharged, time, graphics
+      x, y, radius, color, isCharged, kind, isMitosisSplit, time, graphics
     } = data;
     // Configurable constants
     const CHARGED_OUTLINE_WIDTH = 2;
@@ -31,6 +33,17 @@ export class RenderBullet extends DynamicElement {
 
     graphics.fillStyle(color, 1);
     graphics.fillCircle(x, y, radius);
+
+    if (kind === 'mitosis') {
+      graphics.lineStyle(1.5, 0xffffff, 0.55);
+      graphics.strokeCircle(x, y, radius * 0.72);
+
+      if (isMitosisSplit) {
+        graphics.lineStyle(1.25, 0xffffff, 0.85);
+        graphics.strokeCircle(x, y, radius + 2);
+      }
+    }
+
     if (isCharged) {
       const pulse = 1 + Math.sin(time * CHARGED_OUTLINE_PULSE_FREQ) * CHARGED_OUTLINE_PULSE_AMP;
       graphics.lineStyle(

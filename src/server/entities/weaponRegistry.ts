@@ -1,12 +1,5 @@
 import type { TankType } from '../../shared/types.js';
-import type { Weapon } from './weapon.js';
-
-// WeaponRuntime provides the necessary functions and data
-// for weapon instances to interact with the simulation
-export interface WeaponRuntime {
-  nextBulletId: () => string;
-  detonateOldestBulletForPlayer: (playerId: string) => void;
-}
+import type { Weapon, WeaponRuntime } from './weapon.js';
 
 export type WeaponFactory = (runtime: WeaponRuntime) => Weapon;
 

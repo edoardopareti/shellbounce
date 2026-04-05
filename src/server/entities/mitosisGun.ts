@@ -1,6 +1,5 @@
 import {
   BULLET_EXPLOSION_RADIUS,
-  BULLET_MAX_BOUNCES,
   BULLET_SPEED,
   CHARGED_SHOT_COOLDOWN_MS,
   CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
@@ -8,40 +7,40 @@ import {
   FIRE_COOLDOWN_MS,
 } from '../../shared/constants.js';
 import type { BulletEntity } from './bullet.js';
-import { createBulletEntity } from './bullet.js';
+import { createMitosisBulletEntity } from './mitosisBullet.js';
 import type { PlayerEntity } from './player.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
 
-export interface SimpleGunRuntime extends Pick<WeaponRuntime,
-  'nextBulletId' | 'detonateOldestBulletForPlayer'
+export interface MitosisGunInterface extends Pick<WeaponRuntime,
+  'nextBulletId' | 'splitOldestMitosisBulletForPlayer' | 'detonateSplitMitosisBulletsForPlayer'
 > {}
 
-export class SimpleGun extends Weapon {
-  public constructor(private readonly runtime: SimpleGunRuntime) {
+export class MitosisGun extends Weapon {
+  public constructor(private readonly runtime: MitosisGunInterface) {
     super();
   }
 
+  public getMaxActiveBullets(): number {
+    return 1;
+  }
+
   protected createNormalShot(player: PlayerEntity): BulletEntity {
-    return createBulletEntity(this.runtime.nextBulletId(), player, {
+    return createMitosisBulletEntity(this.runtime.nextBulletId(), player, {
       speed: BULLET_SPEED,
-      explosionRadius: BULLET_EXPLOSION_RADIUS,
-      maxBounces: BULLET_MAX_BOUNCES,
-      explodeOnWallImpact: false,
       isCharged: false,
     });
   }
 
   protected createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity {
     const speed = lerp(BULLET_SPEED, BULLET_SPEED * CHARGED_SHOT_MAX_SPEED_MULTIPLIER, chargeRatio);
-    const explosionRadius = lerp(
-      BULLET_EXPLOSION_RADIUS,
-      BULLET_EXPLOSION_RADIUS * CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
-      chargeRatio,
-    );
 
-    return createBulletEntity(this.runtime.nextBulletId(), player, {
+    return createMitosisBulletEntity(this.runtime.nextBulletId(), player, {
       speed,
-      explosionRadius,
+      explosionRadius: lerp(
+        BULLET_EXPLOSION_RADIUS,
+        BULLET_EXPLOSION_RADIUS * CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
+        chargeRatio,
+      ),
       maxBounces: 0,
       explodeOnWallImpact: true,
       isCharged: true,
@@ -53,7 +52,11 @@ export class SimpleGun extends Weapon {
       return;
     }
 
-    this.runtime.detonateOldestBulletForPlayer(player.id);
+    if (this.runtime.splitOldestMitosisBulletForPlayer(player.id)) {
+      return;
+    }
+
+    this.runtime.detonateSplitMitosisBulletsForPlayer(player.id);
   }
 
   protected getNormalShotCooldownMs(): number {

@@ -86,6 +86,8 @@ export interface BulletState {
   radius: number;
   color: number;
   isCharged: boolean;
+  kind: 'standard' | 'mitosis';
+  isMitosisSplit: boolean;
 }
 
 export interface MineState {

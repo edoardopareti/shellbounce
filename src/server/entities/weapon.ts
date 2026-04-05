@@ -3,11 +3,21 @@ import {
   CHARGED_SHOT_MIN_HOLD_MS,
   CHARGED_SHOT_OVERCHARGE_MS,
   FIXED_TIMESTEP_SECONDS,
+  MAX_ACTIVE_BULLETS_PER_TANK,
 } from '../../shared/constants.js';
 import { clamp } from '../../shared/math.js';
 import type { TankInput } from '../../shared/types.js';
 import type { BulletEntity } from './bullet.js';
 import type { PlayerEntity } from './player.js';
+
+// Base runtime contract used by weapon implementations.
+// WeaponRuntime defines the methods that weapon classes can call to interact with the simulation.
+export interface WeaponRuntime {
+  nextBulletId: () => string;
+  detonateOldestBulletForPlayer: (playerId: string) => void;
+  splitOldestMitosisBulletForPlayer: (playerId: string) => boolean;
+  detonateSplitMitosisBulletsForPlayer: (playerId: string) => boolean;
+}
 
 export interface WeaponActionResult {
   firedBullet: BulletEntity | undefined;  // The bullet that was fired as a result of the player's input, if any. This will be undefined if no bullet was fired (e.g., if the player is still charging a shot or if the input was for a surprise action).
@@ -19,6 +29,10 @@ export abstract class Weapon {
   // including normal shots, charged shots, and any special "surprise" actions (e.g., detonating bullets).
   // Specific weapon types will extend this class
   // and implement the abstract methods to define their unique behavior.
+  public getMaxActiveBullets(): number {
+    return MAX_ACTIVE_BULLETS_PER_TANK;
+  }
+
   public handleInput(
     player: PlayerEntity,
     input: Pick<TankInput, 'firePressed' | 'fireHeld' | 'fireReleased' | 'detonatePressed'>,

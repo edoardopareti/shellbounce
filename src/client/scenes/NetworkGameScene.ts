@@ -264,6 +264,8 @@ export class NetworkGameScene extends Phaser.Scene {
         radius: bullet.radius,
         color: bullet.color,
         isCharged: bullet.isCharged,
+        kind: bullet.kind,
+        isMitosisSplit: bullet.isMitosisSplit,
         time: this.time.now,
         graphics: this.dynamicGraphics,
       });
