@@ -6,30 +6,34 @@ import {
   CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
   CHARGED_SHOT_MAX_SPEED_MULTIPLIER,
   FIRE_COOLDOWN_MS,
-  MAX_ACTIVE_BULLETS_PER_TANK,
 } from '../../shared/constants.js';
 import type { BulletEntity } from './bullet.js';
 import { createBulletEntity } from './bullet.js';
 import type { PlayerEntity } from './player.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
 
-export interface SimpleGunRuntime extends Pick<WeaponRuntime,
-  'nextBulletId' | 'detonateOldestBulletForPlayer'
+const GRAPPLE_VOLLEY_ANGLE_OFFSET = Math.PI / 20;
+
+export interface GrappleGunRuntime extends Pick<WeaponRuntime,
+  'nextBulletId' | 'detonateAllBulletsForPlayer'
 > {}
 
-
-export class SimpleGun extends Weapon {
-  public constructor(private readonly runtime: SimpleGunRuntime) {
+export class GrappleGun extends Weapon {
+  public constructor(private readonly runtime: GrappleGunRuntime) {
     super();
   }
 
   public getMaxActiveBullets(): number {
-    // Default for SimpleGun: use the global constant
-    return MAX_ACTIVE_BULLETS_PER_TANK;
+    return 3;
   }
 
-  protected createNormalShot(player: PlayerEntity): BulletEntity {
-    return createBulletEntity(this.runtime.nextBulletId(), player, {
+  protected canStartShot(activeBulletCount: number): boolean {
+    // Grapple fires one volley at a time: all previous grapple bullets must be gone.
+    return activeBulletCount === 0;
+  }
+
+  protected createNormalShot(player: PlayerEntity): BulletEntity[] {
+    return this.createVolley(player, {
       speed: BULLET_SPEED,
       explosionRadius: BULLET_EXPLOSION_RADIUS,
       maxBounces: BULLET_MAX_BOUNCES,
@@ -38,7 +42,7 @@ export class SimpleGun extends Weapon {
     });
   }
 
-  protected createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity {
+  protected createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity[] {
     const speed = lerp(BULLET_SPEED, BULLET_SPEED * CHARGED_SHOT_MAX_SPEED_MULTIPLIER, chargeRatio);
     const explosionRadius = lerp(
       BULLET_EXPLOSION_RADIUS,
@@ -46,7 +50,7 @@ export class SimpleGun extends Weapon {
       chargeRatio,
     );
 
-    return createBulletEntity(this.runtime.nextBulletId(), player, {
+    return this.createVolley(player, {
       speed,
       explosionRadius,
       maxBounces: 0,
@@ -60,7 +64,7 @@ export class SimpleGun extends Weapon {
       return;
     }
 
-    this.runtime.detonateOldestBulletForPlayer(player.id);
+    this.runtime.detonateAllBulletsForPlayer(player.id);
   }
 
   protected getNormalShotCooldownMs(): number {
@@ -69,6 +73,29 @@ export class SimpleGun extends Weapon {
 
   protected getChargedShotCooldownMs(): number {
     return CHARGED_SHOT_COOLDOWN_MS;
+  }
+
+  private createVolley(
+    player: PlayerEntity,
+    config: {
+      speed: number;
+      explosionRadius: number;
+      maxBounces: number;
+      explodeOnWallImpact: boolean;
+      isCharged: boolean;
+    },
+  ): BulletEntity[] {
+    const angles = [
+      player.turretAngle - GRAPPLE_VOLLEY_ANGLE_OFFSET,
+      player.turretAngle,
+      player.turretAngle + GRAPPLE_VOLLEY_ANGLE_OFFSET,
+    ];
+
+    return angles.map((turretAngle) => createBulletEntity(
+      this.runtime.nextBulletId(),
+      { ...player, turretAngle },
+      config,
+    ));
   }
 }
 

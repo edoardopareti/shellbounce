@@ -32,7 +32,7 @@ import { sanitizeInput } from './entities/input.js';
 import type { MineEntity } from './entities/mine.js';
 import {
   createPlayerEntity,
-  resolveTankTypeForNewPlayer,
+  resolveTankTypeForNewPlayer, 
   schedulePlayerRespawn,
   type PlayerEntity,
 } from './entities/player.js';
@@ -45,6 +45,7 @@ import {
 import { buildShotPreview } from './entities/shotPreview.js';
 import { splitMitosisBulletEntity } from './entities/mitosisBullet.js';
 import { MitosisGun } from './entities/mitosisGun.js';
+import { GrappleGun } from './entities/grappleGun.js';
 import { SimpleGun } from './entities/simpleGun.js';
 import { EffectBuffer } from './systems/effects.js';
 import { ExplosionService } from './systems/explosionService.js';
@@ -89,6 +90,8 @@ export class AuthoritativeSimulation {
     }
 
     this.weaponRegistry.register('PolPot', (runtime) => new MitosisGun(runtime));
+    this.weaponRegistry.register('Fantanyl', (runtime) => new GrappleGun(runtime));
+    this.weaponRegistry.register('SSugar', (runtime) => new SimpleGun(runtime));
   }
 
   public step(): void {
@@ -153,6 +156,7 @@ export class AuthoritativeSimulation {
       this.weaponRegistry.createForTankType(tankType, {
         nextBulletId: () => `b-${this.bulletCounter++}`,
         detonateOldestBulletForPlayer: (id) => this.tryDetonateOldestBulletForPlayer(id),
+        detonateAllBulletsForPlayer: (id) => this.tryDetonateAllBulletsForPlayer(id),
         splitOldestMitosisBulletForPlayer: (id) => this.trySplitOldestMitosisBulletForPlayer(id),
         detonateSplitMitosisBulletsForPlayer: (id) => this.tryDetonateSplitMitosisBulletsForPlayer(id),
       }),
@@ -319,19 +323,19 @@ export class AuthoritativeSimulation {
     
     // Determine if the player can fire based on the number of active bullets 
     // they currently have in the simulation
-    const canFire = this.getActiveBulletCountForPlayer(player.id) < weapon.getMaxActiveBullets();
+    const activeBulletCount = this.getActiveBulletCountForPlayer(player.id);
 
     // Handle the player's firing input through their weapon instance, which will manage firing logic,
     // including checking for cooldowns, firing bullets, and placing mines.
-    const weaponAction = weapon.handleInput(player, input, canFire);
+    const weaponAction = weapon.handleInput(player, input, activeBulletCount);
     if (weaponAction.selfDestructed) {
       this.destroyPlayer(player, player.id);
       return;
     }
     
     // If the weapon action resulted in a fired bullet, add it to the simulation's bullet list
-    if (weaponAction.firedBullet !== undefined) {
-      this.bullets.push(weaponAction.firedBullet);
+    if (weaponAction.firedBullets.length > 0) {
+      this.bullets.push(...weaponAction.firedBullets);
       this.effectBuffer.pushTransient(
         'bullet-shot', player.x, player.y, 0, player.bulletColor, 0);
     }
@@ -602,6 +606,36 @@ export class AuthoritativeSimulation {
     }
 
     this.triggerBulletExplosion(bulletIndex);
+  }
+
+  private tryDetonateAllBulletsForPlayer(playerId: string): boolean {
+    const indexes: number[] = [];
+    for (let index = 0; index < this.bullets.length; index += 1) {
+      const bullet = this.bullets[index];
+      if (bullet === undefined) {
+        continue;
+      }
+
+      if (bullet.ownerPlayerId === playerId) {
+        indexes.push(index);
+      }
+    }
+
+    if (indexes.length === 0) {
+      return false;
+    }
+
+    for (let index = indexes.length - 1; index >= 0; index -= 1) {
+      const bulletIndex = indexes[index];
+      const bullet = this.bullets[bulletIndex];
+      if (bullet === undefined || bullet.ownerPlayerId !== playerId) {
+        continue;
+      }
+
+      this.triggerBulletExplosion(bulletIndex);
+    }
+
+    return true;
   }
 
   private trySplitOldestMitosisBulletForPlayer(playerId: string): boolean {

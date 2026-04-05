@@ -15,34 +15,43 @@ import type { PlayerEntity } from './player.js';
 export interface WeaponRuntime {
   nextBulletId: () => string;
   detonateOldestBulletForPlayer: (playerId: string) => void;
+  detonateAllBulletsForPlayer: (playerId: string) => boolean;
   splitOldestMitosisBulletForPlayer: (playerId: string) => boolean;
   detonateSplitMitosisBulletsForPlayer: (playerId: string) => boolean;
 }
 
 export interface WeaponActionResult {
-  firedBullet: BulletEntity | undefined;  // The bullet that was fired as a result of the player's input, if any. This will be undefined if no bullet was fired (e.g., if the player is still charging a shot or if the input was for a surprise action).
+  firedBullets: BulletEntity[];  // The bullets fired as a result of the player's input. This will be empty if no shot was fired.
   selfDestructed: boolean; // A boolean indicating whether the player's own weapon was self-destructed as a result of overcharging a shot. This is true if the player held the charge for too long and triggered the overcharge condition, resulting in the weapon being disabled temporarily.
 }
+
 
 export abstract class Weapon {
   // The Weapon class defines the interface and common logic for handling player firing actions,
   // including normal shots, charged shots, and any special "surprise" actions (e.g., detonating bullets).
   // Specific weapon types will extend this class
   // and implement the abstract methods to define their unique behavior.
-  public getMaxActiveBullets(): number {
-    return MAX_ACTIVE_BULLETS_PER_TANK;
-  }
+
+  /**
+   * Returns the maximum number of active bullets this weapon allows per player.
+   * Must be implemented by each weapon type.
+   */
+  public abstract getMaxActiveBullets(): number;
 
   public handleInput(
     player: PlayerEntity,
     input: Pick<TankInput, 'firePressed' | 'fireHeld' | 'fireReleased' | 'detonatePressed'>,
-    canFire: boolean,
+    activeBulletCount: number,
   ): WeaponActionResult {
-    if (!canFire && !player.isChargingShot) {
-      this.handleSurprise(player, input.detonatePressed);
-      return { firedBullet: undefined, selfDestructed: false };
-    }
+    // Determine if the weapon can start a new shot
+    // based on the current number of active bullets.
+    const canStartShot = this.canStartShot(activeBulletCount);
 
+    if (!canStartShot && !player.isChargingShot) {
+      this.handleSurprise(player, input.detonatePressed);
+      return { firedBullets: [], selfDestructed: false };
+    }
+     
     if (player.isChargingShot && input.fireHeld) {
       player.chargeMs += FIXED_TIMESTEP_SECONDS * 1000;
       if (player.chargeMs >= CHARGED_SHOT_OVERCHARGE_MS) {
@@ -50,25 +59,25 @@ export abstract class Weapon {
         player.chargeMs = 0;
         player.fireCooldownMs = this.getNormalShotCooldownMs();
         this.handleSurprise(player, input.detonatePressed);
-        return { firedBullet: undefined, selfDestructed: true };
+        return { firedBullets: [], selfDestructed: true };
       }
     }
 
-    if (input.firePressed && canFire && player.fireCooldownMs === 0 && !player.isChargingShot) {
+    if (input.firePressed && canStartShot && player.fireCooldownMs === 0 && !player.isChargingShot) {
       player.isChargingShot = true;
       player.chargeMs = 0;
     }
 
     if (!player.isChargingShot || !input.fireReleased) {
       this.handleSurprise(player, input.detonatePressed);
-      return { firedBullet: undefined, selfDestructed: false };
+      return { firedBullets: [], selfDestructed: false };
     }
 
-    if (!canFire || player.fireCooldownMs > 0) {
+    if (!canStartShot || player.fireCooldownMs > 0) {
       player.isChargingShot = false;
       player.chargeMs = 0;
       this.handleSurprise(player, input.detonatePressed);
-      return { firedBullet: undefined, selfDestructed: false };
+      return { firedBullets: [], selfDestructed: false };
     }
 
     const heldMs = player.chargeMs;
@@ -78,16 +87,24 @@ export abstract class Weapon {
     player.isChargingShot = false;
     player.chargeMs = 0;
 
-    const firedBullet = isChargedShot
+    const firedBullets = this.toBulletArray(isChargedShot
       ? this.createChargedShot(player, chargeRatio)
-      : this.createNormalShot(player);
+      : this.createNormalShot(player));
 
     player.fireCooldownMs = isChargedShot
       ? this.getChargedShotCooldownMs()
       : this.getNormalShotCooldownMs();
 
     this.handleSurprise(player, input.detonatePressed);
-    return { firedBullet, selfDestructed: false };
+    return { firedBullets, selfDestructed: false };
+  }
+
+  protected canStartShot(activeBulletCount: number): boolean {
+    // This method determines whether the weapon can start firing a new shot
+    // based on the number of active bullets the player currently has.
+    // By default, a weapon can start a shot if the player has 
+    // fewer active bullets than the maximum allowed.
+    return activeBulletCount < this.getMaxActiveBullets();
   }
 
   public getChargeRatio(player: Pick<PlayerEntity, 'isChargingShot' | 'chargeMs'>): number {
@@ -100,13 +117,17 @@ export abstract class Weapon {
     return clamp(normalized, 0, 1);
   }
 
-  protected abstract createNormalShot(player: PlayerEntity): BulletEntity;
+  protected abstract createNormalShot(player: PlayerEntity): BulletEntity | BulletEntity[];
 
-  protected abstract createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity;
+  protected abstract createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity | BulletEntity[];
 
   protected abstract handleSurprise(player: PlayerEntity, triggered: boolean): void;
 
   protected abstract getNormalShotCooldownMs(): number;
 
   protected abstract getChargedShotCooldownMs(): number;
+
+  private toBulletArray(bullets: BulletEntity | BulletEntity[]): BulletEntity[] {
+    return Array.isArray(bullets) ? bullets : [bullets];
+  }
 }
