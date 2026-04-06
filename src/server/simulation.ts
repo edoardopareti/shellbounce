@@ -1,11 +1,11 @@
 import {
   BULLET_EXPLOSION_VISUAL_DURATION_MS,
-  BULLET_RADIUS,
   FIXED_TIMESTEP_SECONDS,
   MINE_ARMING_DELAY_MS,
   MINE_EXPLOSION_RADIUS,
   MINE_EXPLOSION_VISUAL_DURATION_MS,
   MUZZLE_OFFSET,
+  SHOT_PREVIEW_BULLET_RADIUS,
   SHOT_PREVIEW_MAX_DISTANCE,
   SHOT_PREVIEW_REFLECTIONS,
   TANK_BOOST_MULTIPLIER,
@@ -46,6 +46,7 @@ import { buildShotPreview } from './entities/shotPreview.js';
 import { splitMitosisBulletEntity } from './entities/mitosisBullet.js';
 import { MitosisGun } from './entities/mitosisGun.js';
 import { GrappleGun } from './entities/grappleGun.js';
+import { MachineGun } from './entities/machineGun.js';
 import { SimpleGun } from './entities/simpleGun.js';
 import { EffectBuffer } from './systems/effects.js';
 import { ExplosionService } from './systems/explosionService.js';
@@ -92,6 +93,7 @@ export class AuthoritativeSimulation {
     this.weaponRegistry.register('PolPot', (runtime) => new MitosisGun(runtime));
     this.weaponRegistry.register('Fantanyl', (runtime) => new GrappleGun(runtime));
     this.weaponRegistry.register('SSugar', (runtime) => new SimpleGun(runtime));
+    this.weaponRegistry.register('Hightillery', (runtime) => new MachineGun(runtime));
   }
 
   public step(): void {
@@ -227,12 +229,14 @@ export class AuthoritativeSimulation {
     const humans = Array.from(this.players.values()).filter((player) => !player.isBot && player.isAlive);
 
     // Create a simulation context object that provides necessary information and functions
-    // for weapon instances and bot controllers to interact with the simulation state.
+    // for bots to make informed decisions based on the current state of the world,
+    // active bullets, and player states.
     const context: SimulationContext = {
       world: this.world,
       bullets: this.bullets,
       nowMs: this.nowMs,
       getActiveBulletCountForPlayer: (id) => this.getActiveBulletCountForPlayer(id),
+      getMaxActiveBulletsForPlayer: (id) => this.playerWeapons.get(id)?.getMaxActiveBullets() ?? 0,
       intersectsAnyWall: (x, y, radius) => this.intersectsAnyWall(x, y, radius),
       isExplosionBlockedByWall: (startX, startY, endX, endY) => this.isExplosionBlockedByWall(startX, startY, endX, endY),
     };
@@ -430,7 +434,7 @@ export class AuthoritativeSimulation {
         origin,
         player.turretAngle,
         this.world.walls,
-        BULLET_RADIUS,
+        SHOT_PREVIEW_BULLET_RADIUS,
         player.isChargingShot ? 0 : SHOT_PREVIEW_REFLECTIONS,
         SHOT_PREVIEW_MAX_DISTANCE,
       );

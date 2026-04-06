@@ -1,18 +1,33 @@
-import {
-  BULLET_EXPLOSION_RADIUS,
-  BULLET_MAX_BOUNCES,
-  BULLET_SPEED,
-  CHARGED_SHOT_COOLDOWN_MS,
-  CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
-  CHARGED_SHOT_MAX_SPEED_MULTIPLIER,
-  FIRE_COOLDOWN_MS,
-} from '../../shared/constants.js';
+// grapple gun - Small spaces dominance
+
 import type { BulletEntity } from './bullet.js';
-import { createBulletEntity } from './bullet.js';
+import { createStandardBulletEntity } from './bullet.js';
 import type { PlayerEntity } from './player.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
+import type { BulletSpawnConfig } from './bullet.js';
+import type { VolleyWeaponConfig } from './weaponConfig.js';
 
-const GRAPPLE_VOLLEY_ANGLE_OFFSET = Math.PI / 20;
+const GRAPPLE_GUN_CONFIG: VolleyWeaponConfig = {
+  maxActiveBullets: 3,
+  normalShotCooldownMs: 100,
+  chargedShotCooldownMs: 2400,
+  normalShot: {
+    speed: 420,
+    explosionRadius: 84,
+    maxBounces: 3,
+    explodeOnWallImpact: false,
+    isCharged: false,
+  },
+  chargedShot: {
+    speedMultiplier: 2.5,
+    explosionRadiusMultiplier: 1.5,
+    maxBounces: 0,
+    explodeOnWallImpact: true,
+    isCharged: true,
+  },
+  volleyAngleOffsetsRadians: [-(Math.PI / 15), 0, Math.PI / 15],
+  requiresEmptyChamberToShoot: true,
+};
 
 export interface GrappleGunRuntime extends Pick<WeaponRuntime,
   'nextBulletId' | 'detonateAllBulletsForPlayer'
@@ -24,38 +39,40 @@ export class GrappleGun extends Weapon {
   }
 
   public getMaxActiveBullets(): number {
-    return 3;
+    return GRAPPLE_GUN_CONFIG.maxActiveBullets;
   }
 
   protected canStartShot(activeBulletCount: number): boolean {
-    // Grapple fires one volley at a time: all previous grapple bullets must be gone.
-    return activeBulletCount === 0;
+    if (GRAPPLE_GUN_CONFIG.requiresEmptyChamberToShoot) {
+      return activeBulletCount === 0;
+    }
+
+    return super.canStartShot(activeBulletCount);
   }
 
   protected createNormalShot(player: PlayerEntity): BulletEntity[] {
-    return this.createVolley(player, {
-      speed: BULLET_SPEED,
-      explosionRadius: BULLET_EXPLOSION_RADIUS,
-      maxBounces: BULLET_MAX_BOUNCES,
-      explodeOnWallImpact: false,
-      isCharged: false,
-    });
+    return this.createVolley(player, GRAPPLE_GUN_CONFIG.normalShot);
   }
 
   protected createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity[] {
-    const speed = lerp(BULLET_SPEED, BULLET_SPEED * CHARGED_SHOT_MAX_SPEED_MULTIPLIER, chargeRatio);
+    const { normalShot, chargedShot } = GRAPPLE_GUN_CONFIG;
+    const speed = lerp(
+      normalShot.speed,
+      normalShot.speed * chargedShot.speedMultiplier,
+      chargeRatio,
+    );
     const explosionRadius = lerp(
-      BULLET_EXPLOSION_RADIUS,
-      BULLET_EXPLOSION_RADIUS * CHARGED_SHOT_MAX_EXPLOSION_MULTIPLIER,
+      normalShot.explosionRadius,
+      normalShot.explosionRadius * chargedShot.explosionRadiusMultiplier,
       chargeRatio,
     );
 
     return this.createVolley(player, {
       speed,
       explosionRadius,
-      maxBounces: 0,
-      explodeOnWallImpact: true,
-      isCharged: true,
+      maxBounces: chargedShot.maxBounces,
+      explodeOnWallImpact: chargedShot.explodeOnWallImpact,
+      isCharged: chargedShot.isCharged,
     });
   }
 
@@ -68,30 +85,22 @@ export class GrappleGun extends Weapon {
   }
 
   protected getNormalShotCooldownMs(): number {
-    return FIRE_COOLDOWN_MS;
+    return GRAPPLE_GUN_CONFIG.normalShotCooldownMs;
   }
 
   protected getChargedShotCooldownMs(): number {
-    return CHARGED_SHOT_COOLDOWN_MS;
+    return GRAPPLE_GUN_CONFIG.chargedShotCooldownMs;
   }
 
   private createVolley(
     player: PlayerEntity,
-    config: {
-      speed: number;
-      explosionRadius: number;
-      maxBounces: number;
-      explodeOnWallImpact: boolean;
-      isCharged: boolean;
-    },
+    config: BulletSpawnConfig,
   ): BulletEntity[] {
-    const angles = [
-      player.turretAngle - GRAPPLE_VOLLEY_ANGLE_OFFSET,
-      player.turretAngle,
-      player.turretAngle + GRAPPLE_VOLLEY_ANGLE_OFFSET,
-    ];
+    const angles = GRAPPLE_GUN_CONFIG.volleyAngleOffsetsRadians.map(
+      (offset) => player.turretAngle + offset,
+    );
 
-    return angles.map((turretAngle) => createBulletEntity(
+    return angles.map((turretAngle) => createStandardBulletEntity(
       this.runtime.nextBulletId(),
       { ...player, turretAngle },
       config,

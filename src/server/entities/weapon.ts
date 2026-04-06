@@ -1,14 +1,14 @@
 import {
-  CHARGED_SHOT_MAX_HOLD_MS,
-  CHARGED_SHOT_MIN_HOLD_MS,
-  CHARGED_SHOT_OVERCHARGE_MS,
   FIXED_TIMESTEP_SECONDS,
-  MAX_ACTIVE_BULLETS_PER_TANK,
 } from '../../shared/constants.js';
 import { clamp } from '../../shared/math.js';
 import type { TankInput } from '../../shared/types.js';
 import type { BulletEntity } from './bullet.js';
 import type { PlayerEntity } from './player.js';
+
+const DEFAULT_CHARGED_SHOT_MIN_HOLD_MS = 150;
+const DEFAULT_CHARGED_SHOT_MAX_HOLD_MS = 1200;
+const DEFAULT_CHARGED_SHOT_OVERCHARGE_MS = 2400;
 
 // Base runtime contract used by weapon implementations.
 // WeaponRuntime defines the methods that weapon classes can call to interact with the simulation.
@@ -54,7 +54,7 @@ export abstract class Weapon {
      
     if (player.isChargingShot && input.fireHeld) {
       player.chargeMs += FIXED_TIMESTEP_SECONDS * 1000;
-      if (player.chargeMs >= CHARGED_SHOT_OVERCHARGE_MS) {
+      if (player.chargeMs >= DEFAULT_CHARGED_SHOT_OVERCHARGE_MS) {
         player.isChargingShot = false;
         player.chargeMs = 0;
         player.fireCooldownMs = this.getNormalShotCooldownMs();
@@ -82,7 +82,7 @@ export abstract class Weapon {
 
     const heldMs = player.chargeMs;
     const chargeRatio = this.getChargeRatio(player);
-    const isChargedShot = heldMs >= CHARGED_SHOT_MIN_HOLD_MS;
+    const isChargedShot = heldMs >= DEFAULT_CHARGED_SHOT_MIN_HOLD_MS;
 
     player.isChargingShot = false;
     player.chargeMs = 0;
@@ -112,8 +112,9 @@ export abstract class Weapon {
       return 0;
     }
 
-    const cappedChargeMs = Math.min(player.chargeMs, CHARGED_SHOT_MAX_HOLD_MS);
-    const normalized = (cappedChargeMs - CHARGED_SHOT_MIN_HOLD_MS) / (CHARGED_SHOT_MAX_HOLD_MS - CHARGED_SHOT_MIN_HOLD_MS);
+    const cappedChargeMs = Math.min(player.chargeMs, DEFAULT_CHARGED_SHOT_MAX_HOLD_MS);
+    const normalized = (cappedChargeMs - DEFAULT_CHARGED_SHOT_MIN_HOLD_MS)
+      / (DEFAULT_CHARGED_SHOT_MAX_HOLD_MS - DEFAULT_CHARGED_SHOT_MIN_HOLD_MS);
     return clamp(normalized, 0, 1);
   }
 

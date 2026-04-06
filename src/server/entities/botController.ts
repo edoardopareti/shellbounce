@@ -1,12 +1,9 @@
 import {
-  BULLET_EXPLOSION_RADIUS,
-  BULLET_RADIUS,
-  MAX_ACTIVE_BULLETS_PER_TANK,
   TANK_RADIUS,
 } from '../../shared/constants.js';
 import { clamp, distance, normalizeAngleRadians } from '../../shared/math.js';
 import { EMPTY_INPUT, type TankInput } from '../../shared/types.js';
-import type { BulletEntity } from './bullet.js';
+import { DEFAULT_BULLET_RADIUS, type BulletEntity } from './bullet.js';
 import type { NavigationGrid } from './grid.js';
 import { buildNavigationGrid, findGridPath } from './grid.js';
 import type { PlayerEntity } from './player.js';
@@ -87,7 +84,8 @@ export class BotController {
     const turnRight = absAngleDelta > profile.steeringDeadZoneRadians && angleDelta > 0;
 
     const aimOnTarget = Math.abs(turretAngleDelta) < 0.22;
-    const hasShotCapacity = context.getActiveBulletCountForPlayer(bot.id) < MAX_ACTIVE_BULLETS_PER_TANK;
+    const hasShotCapacity =
+      context.getActiveBulletCountForPlayer(bot.id) < context.getMaxActiveBulletsForPlayer(bot.id);
     const lineOfSightToTarget = !context.isExplosionBlockedByWall(bot.x, bot.y, target.x, target.y);
     const safeDistanceToFire = distanceToTarget > Math.max(profile.preferredDistanceMin * 0.42, 75);
     const canShootByDistance = distanceToTarget <= profile.maxFireRange;
@@ -198,7 +196,8 @@ export class BotController {
 
     const detonationProximityFactor = 0.72;
     const targetDistance = distance(oldestOwnedBullet.x, oldestOwnedBullet.y, target.x, target.y);
-    const targetReach = (BULLET_EXPLOSION_RADIUS + target.radius) * detonationProximityFactor + profile.detonationMargin;
+    const targetReach = (oldestOwnedBullet.explosionRadius + target.radius)
+      * detonationProximityFactor + profile.detonationMargin;
     if (targetDistance > targetReach) {
       return false;
     }
@@ -208,7 +207,7 @@ export class BotController {
     }
 
     const selfDistance = distance(oldestOwnedBullet.x, oldestOwnedBullet.y, bot.x, bot.y);
-    const selfSafeDistance = BULLET_EXPLOSION_RADIUS + bot.radius + profile.selfPreservationMargin;
+    const selfSafeDistance = oldestOwnedBullet.explosionRadius + bot.radius + profile.selfPreservationMargin;
     if (selfDistance < selfSafeDistance) {
       return false;
     }
@@ -221,7 +220,7 @@ export class BotController {
     profile: BotDifficultyProfile,
     bullets: ReadonlyArray<BulletEntity>,
   ): BulletThreat | undefined {
-    const dangerRadius = bot.radius + BULLET_RADIUS + profile.dodgeMargin;
+    const dangerRadius = bot.radius + DEFAULT_BULLET_RADIUS + profile.dodgeMargin;
     const horizonSeconds = profile.bulletThreatHorizonMs / 1000;
     let bestThreat: BulletThreat | undefined;
 
@@ -301,7 +300,7 @@ export class BotController {
     }
 
     const lateralDistance = Math.abs(fromPlayerToBotX * aimDirectionY - fromPlayerToBotY * aimDirectionX);
-    const dangerLaneHalfWidth = bot.radius + BULLET_RADIUS + profile.lineOfFireMargin;
+    const dangerLaneHalfWidth = bot.radius + DEFAULT_BULLET_RADIUS + profile.lineOfFireMargin;
     if (lateralDistance > dangerLaneHalfWidth) {
       return undefined;
     }

@@ -1,12 +1,14 @@
 import {
-  BULLET_RADIUS,
   MUZZLE_OFFSET,
 } from '../../shared/constants.js';
 import type { PlayerEntity } from './player.js';
 
+export const DEFAULT_BULLET_RADIUS = 5;
+export const DEFAULT_BULLET_MAX_LIFETIME_MS = 4000;
+
 export type BulletKind = 'standard' | 'mitosis';
 
-export interface BulletEntity {
+export interface BaseBulletEntity {
   id: string;
   ownerPlayerId: string;
   color: number;
@@ -16,29 +18,47 @@ export interface BulletEntity {
   vy: number;
   radius: number;
   lifetimeMs: number;
+  maxLifetimeMs: number;
   bouncesRemaining: number;
   explosionRadius: number;
   explodeOnWallImpact: boolean;
   isCharged: boolean;
-  kind: BulletKind;
+}
+
+export interface StandardBulletEntity extends BaseBulletEntity {
+  kind: 'standard';
+}
+
+export interface MitosisBulletEntity extends BaseBulletEntity {
+  kind: 'mitosis';
   mitosisGeneration: number;
 }
 
-export interface BulletSpawnConfig {
+export type BulletEntity = StandardBulletEntity | MitosisBulletEntity;
+
+export interface BaseBulletSpawnConfig {
   speed: number;
   explosionRadius: number;
   maxBounces: number;
   explodeOnWallImpact: boolean;
   isCharged: boolean;
-  kind?: BulletKind;
+  radius?: number;
+  maxLifetimeMs?: number;
+}
+
+export interface BulletSpawnConfig extends BaseBulletSpawnConfig {
+  kind?: 'standard';
+}
+
+export interface MitosisBulletSpawnConfig extends BaseBulletSpawnConfig {
   mitosisGeneration?: number;
 }
 
-export function createBulletEntity(
+function createBaseBulletEntity(
   id: string,
   player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
-  config: BulletSpawnConfig,
-): BulletEntity {
+  config: BaseBulletSpawnConfig,
+): BaseBulletEntity {
   const spawnX = player.x + Math.cos(player.turretAngle) * MUZZLE_OFFSET;
   const spawnY = player.y + Math.sin(player.turretAngle) * MUZZLE_OFFSET;
 
@@ -50,13 +70,35 @@ export function createBulletEntity(
     y: spawnY,
     vx: Math.cos(player.turretAngle) * config.speed,
     vy: Math.sin(player.turretAngle) * config.speed,
-    radius: BULLET_RADIUS,
+    radius: config.radius ?? DEFAULT_BULLET_RADIUS,
     lifetimeMs: 0,
+    maxLifetimeMs: config.maxLifetimeMs ?? DEFAULT_BULLET_MAX_LIFETIME_MS,
     bouncesRemaining: config.maxBounces,
     explosionRadius: config.explosionRadius,
     explodeOnWallImpact: config.explodeOnWallImpact,
     isCharged: config.isCharged,
-    kind: config.kind ?? 'standard',
+  };
+}
+
+export function createStandardBulletEntity(
+  id: string,
+  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  config: BulletSpawnConfig,
+): StandardBulletEntity {
+  return {
+    ...createBaseBulletEntity(id, player, config),
+    kind: 'standard',
+  };
+}
+
+export function createMitosisBulletFromBase(
+  id: string,
+  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  config: MitosisBulletSpawnConfig,
+): MitosisBulletEntity {
+  return {
+    ...createBaseBulletEntity(id, player, config),
+    kind: 'mitosis',
     mitosisGeneration: config.mitosisGeneration ?? 0,
   };
 }

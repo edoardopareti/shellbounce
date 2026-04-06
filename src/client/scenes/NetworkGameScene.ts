@@ -13,8 +13,8 @@ import { BoostEffect } from '../render/BoostEffect';
 import { ScoreBoard } from '../render/ScoreBoard';
 import { preloadTankTextures } from '../render/tankVisuals';
 import {
-  BULLET_RADIUS,
   MUZZLE_OFFSET,
+  SHOT_PREVIEW_BULLET_RADIUS,
   SHOT_PREVIEW_MAX_DISTANCE,
   SHOT_PREVIEW_REFLECTIONS,
 } from '../../shared/constants';
@@ -285,7 +285,7 @@ export class NetworkGameScene extends Phaser.Scene {
           origin,
           player.turretAngle,
           snapshot.walls,
-          BULLET_RADIUS,
+          SHOT_PREVIEW_BULLET_RADIUS,
           player.isChargingShot ? 0 : SHOT_PREVIEW_REFLECTIONS,
           SHOT_PREVIEW_MAX_DISTANCE,
         );

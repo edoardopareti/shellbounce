@@ -1,10 +1,8 @@
 import {
-  BULLET_LIFETIME_MS,
-  BULLET_RADIUS,
   FIXED_TIMESTEP_SECONDS,
 } from '../../shared/constants.js';
 import { distance } from '../../shared/math.js';
-import type { BulletEntity } from '../entities/bullet.js';
+import { DEFAULT_BULLET_RADIUS, type BulletEntity } from '../entities/bullet.js';
 import type { MineEntity } from '../entities/mine.js';
 import type { PlayerEntity } from '../entities/player.js';
 
@@ -35,7 +33,7 @@ export class ProjectileSystem {
       }
 
       bullet.lifetimeMs += deltaMs;
-      if (bullet.lifetimeMs >= BULLET_LIFETIME_MS) {
+      if (bullet.lifetimeMs >= bullet.maxLifetimeMs) {
         bullets.splice(index, 1);
         continue;
       }
@@ -188,6 +186,6 @@ export class ProjectileSystem {
     targetY: number,
     margin: number,
   ): boolean {
-    return distance(bulletOriginX, bulletOriginY, targetX, targetY) <= BULLET_RADIUS + margin;
+    return distance(bulletOriginX, bulletOriginY, targetX, targetY) <= DEFAULT_BULLET_RADIUS + margin;
   }
 }
