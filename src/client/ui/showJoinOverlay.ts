@@ -58,7 +58,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     'Aim: Mouse',
     'Normal Shot: Left Click',
     'Charged Shot: Left Click (hold)',
-    'Detonate Shot: Right Click',
+    'Surprise!: Right Click',
     'Place Mine: Middle Click or E',
     'Shield: Left+Right Click (hold)',
     'Boost: SPACE',
