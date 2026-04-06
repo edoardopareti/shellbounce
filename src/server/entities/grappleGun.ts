@@ -8,9 +8,9 @@ import type { BulletSpawnConfig } from './bullet.js';
 import type { VolleyWeaponConfig } from './weaponConfig.js';
 
 const GRAPPLE_GUN_CONFIG: VolleyWeaponConfig = {
-  maxActiveBullets: 3,
-  normalShotCooldownMs: 100,
-  chargedShotCooldownMs: 2400,
+  maxActiveBullets: 6,
+  normalShotCooldownMs: 200,
+  chargedShotCooldownMs: 2500,
   normalShot: {
     speed: 420,
     explosionRadius: 84,
@@ -26,7 +26,7 @@ const GRAPPLE_GUN_CONFIG: VolleyWeaponConfig = {
     isCharged: true,
   },
   volleyAngleOffsetsRadians: [-(Math.PI / 15), 0, Math.PI / 15],
-  requiresEmptyChamberToShoot: true,
+  requiresEmptyChamberToShoot: false,
 };
 
 export interface GrappleGunRuntime extends Pick<WeaponRuntime,

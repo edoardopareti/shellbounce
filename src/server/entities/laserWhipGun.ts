@@ -6,19 +6,19 @@ import type { LaserWhipWeaponConfig } from './weaponConfig.js';
 
 const LASER_WHIP_CONFIG: LaserWhipWeaponConfig = {
   maxActiveBullets: 1,
-  normalShotCooldownMs: 90,
-  chargedShotCooldownMs: 260,
+  normalShotCooldownMs: 130,
+  chargedShotCooldownMs: 250,
   normalShot: {
-    speed: 760,
+    speed: 1200,
     explosionRadius: 70,
-    maxBounces: 2,
-    laserLength: 82,
+    maxBounces: 1,
+    laserLength: 90,
     radius: 4,
-    maxLifetimeMs: 1800,
+    maxLifetimeMs: 2300,
   },
   chargedShot: {
-    speedMultiplier: 1.9,
-    maxBounces: 1,
+    speedMultiplier: 2.2,
+    maxBounces: 0,
     isCharged: true,
   },
   whip: {

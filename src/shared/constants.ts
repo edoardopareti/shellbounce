@@ -8,9 +8,9 @@ export const TANK_ROTATION_SPEED = Math.PI * 2.5;
 
 export const MUZZLE_OFFSET = 26;
 
-export const TANK_BOOST_MULTIPLIER = 2;
-export const TANK_BOOST_DURATION_MS = 1700;
-export const TANK_BOOST_COOLDOWN_MS = 2200;
+export const TANK_BOOST_MULTIPLIER = 2.25;
+export const TANK_BOOST_DURATION_MS = 1800;
+export const TANK_BOOST_COOLDOWN_MS = 2100;
 
 export const SHOT_PREVIEW_BULLET_RADIUS = 5;
 
@@ -29,7 +29,7 @@ export const MINE_EXPLOSION_VISUAL_DURATION_MS = 210;
 export const MAX_ACTIVE_MINES_PER_TANK = 3;
 
 export const TANK_RESPAWN_DELAY_MS = 3000;
-export const TANK_RESPAWN_PROTECTION_MS = 3000;
+export const TANK_RESPAWN_PROTECTION_MS = 1800;
 export const SPAWN_CORNER_PADDING = 56;
 
 export const SHOT_PREVIEW_REFLECTIONS = 1;
