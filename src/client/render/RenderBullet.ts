@@ -8,8 +8,10 @@ export interface BulletRenderData {
   radius: number;
   color: number;
   isCharged: boolean;
-  kind: 'standard' | 'mitosis';
+  kind: 'standard' | 'mitosis' | 'laser';
   isMitosisSplit: boolean;
+  laserLength?: number;
+  laserAngle?: number;
   time: number;
   graphics: Phaser.GameObjects.Graphics;
 }
@@ -21,7 +23,7 @@ export class RenderBullet extends DynamicElement {
 
   sync(data: BulletRenderData): void {
     const {
-      x, y, radius, color, isCharged, kind, isMitosisSplit, time, graphics
+      x, y, radius, color, isCharged, kind, isMitosisSplit, laserLength, laserAngle, time, graphics
     } = data;
     // Configurable constants
     const CHARGED_OUTLINE_WIDTH = 2;
@@ -31,8 +33,30 @@ export class RenderBullet extends DynamicElement {
     const CHARGED_OUTLINE_PULSE_FREQ = 0.02;
     const CHARGED_OUTLINE_PULSE_AMP = 0.22;
 
-    graphics.fillStyle(color, 1);
-    graphics.fillCircle(x, y, radius);
+    if (kind === 'laser') {
+      const angle = laserAngle ?? 0;
+      const length = laserLength ?? 64;
+      const tailX = x - Math.cos(angle) * length;
+      const tailY = y - Math.sin(angle) * length;
+
+      graphics.lineStyle(radius * 2.1, color, 0.95);
+      graphics.beginPath();
+      graphics.moveTo(tailX, tailY);
+      graphics.lineTo(x, y);
+      graphics.strokePath();
+
+      graphics.lineStyle(Math.max(1, radius), 0xffffff, 0.65);
+      graphics.beginPath();
+      graphics.moveTo(tailX, tailY);
+      graphics.lineTo(x, y);
+      graphics.strokePath();
+
+      graphics.fillStyle(color, 1);
+      graphics.fillCircle(x, y, radius + 0.8);
+    } else {
+      graphics.fillStyle(color, 1);
+      graphics.fillCircle(x, y, radius);
+    }
 
     if (kind === 'mitosis') {
       graphics.lineStyle(1.5, 0xffffff, 0.55);
@@ -51,11 +75,22 @@ export class RenderBullet extends DynamicElement {
         CHARGED_OUTLINE_COLOR,
         CHARGED_OUTLINE_ALPHA
       );
-      graphics.strokeCircle(
-        x,
-        y,
-        (radius + CHARGED_OUTLINE_EXTRA_RADIUS) * pulse
-      );
+      if (kind === 'laser') {
+        const angle = laserAngle ?? 0;
+        const length = laserLength ?? 64;
+        const tailX = x - Math.cos(angle) * length;
+        const tailY = y - Math.sin(angle) * length;
+        graphics.beginPath();
+        graphics.moveTo(tailX, tailY);
+        graphics.lineTo(x, y);
+        graphics.strokePath();
+      } else {
+        graphics.strokeCircle(
+          x,
+          y,
+          (radius + CHARGED_OUTLINE_EXTRA_RADIUS) * pulse
+        );
+      }
     }
   }
 }

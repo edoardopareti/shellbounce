@@ -18,6 +18,7 @@ export interface WeaponRuntime {
   detonateAllBulletsForPlayer: (playerId: string) => boolean;
   splitOldestMitosisBulletForPlayer: (playerId: string) => boolean;
   detonateSplitMitosisBulletsForPlayer: (playerId: string) => boolean;
+  pullPlayerToOwnedLaserTip: (playerId: string, stepDistance: number) => boolean;
 }
 
 export interface WeaponActionResult {

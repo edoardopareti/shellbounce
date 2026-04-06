@@ -28,3 +28,22 @@ export interface MachineGunWeaponConfig extends WeaponConfigBase {
   bullet: BulletSpawnConfig;
   holdToRapidFireMs: number;
 }
+
+export interface LaserWhipWeaponConfig extends WeaponConfigBase {
+  normalShot: {
+    speed: number;
+    explosionRadius: number;
+    maxBounces: number;
+    laserLength: number;
+    radius: number;
+    maxLifetimeMs: number;
+  };
+  chargedShot: {
+    speedMultiplier: number;
+    maxBounces: number;
+    isCharged: boolean;
+  };
+  whip: {
+    pullStepDistance: number;
+  };
+}

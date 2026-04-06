@@ -47,6 +47,7 @@ import { splitMitosisBulletEntity } from './entities/mitosisBullet.js';
 import { MitosisGun } from './entities/mitosisGun.js';
 import { GrappleGun } from './entities/grappleGun.js';
 import { MachineGun } from './entities/machineGun.js';
+import { LaserWhipGun } from './entities/laserWhipGun.js';
 import { SimpleGun } from './entities/simpleGun.js';
 import { EffectBuffer } from './systems/effects.js';
 import { ExplosionService } from './systems/explosionService.js';
@@ -92,7 +93,7 @@ export class AuthoritativeSimulation {
 
     this.weaponRegistry.register('PolPot', (runtime) => new MitosisGun(runtime));
     this.weaponRegistry.register('Fantanyl', (runtime) => new GrappleGun(runtime));
-    this.weaponRegistry.register('SSugar', (runtime) => new SimpleGun(runtime));
+    this.weaponRegistry.register('SSugar', (runtime) => new LaserWhipGun(runtime));
     this.weaponRegistry.register('Hightillery', (runtime) => new MachineGun(runtime));
   }
 
@@ -161,6 +162,7 @@ export class AuthoritativeSimulation {
         detonateAllBulletsForPlayer: (id) => this.tryDetonateAllBulletsForPlayer(id),
         splitOldestMitosisBulletForPlayer: (id) => this.trySplitOldestMitosisBulletForPlayer(id),
         detonateSplitMitosisBulletsForPlayer: (id) => this.tryDetonateSplitMitosisBulletsForPlayer(id),
+        pullPlayerToOwnedLaserTip: (id, stepDistance) => this.tryPullPlayerToOwnedLaserTip(id, stepDistance),
       }),
     );
     
@@ -403,6 +405,8 @@ export class AuthoritativeSimulation {
         isCharged: bullet.isCharged,
         kind: bullet.kind,
         isMitosisSplit: bullet.kind === 'mitosis' && bullet.mitosisGeneration > 0,
+        laserLength: bullet.kind === 'laser' ? bullet.laserLength : undefined,
+        laserAngle: bullet.kind === 'laser' ? Math.atan2(bullet.vy, bullet.vx) : undefined,
       })),
       mines: this.mines.map((mine) => ({
         id: mine.id,
@@ -716,6 +720,81 @@ export class AuthoritativeSimulation {
     }
 
     return true;
+  }
+
+  private tryPullPlayerToOwnedLaserTip(playerId: string, stepDistance: number): boolean {
+    const player = this.players.get(playerId);
+    if (player === undefined || !player.isAlive) {
+      return false;
+    }
+
+    const hook = this.findLatestLaserForPlayer(playerId);
+    if (hook === undefined) {
+      return false;
+    }
+
+    // Consume the hook projectile before moving the player so they cannot
+    // collide with their own laser tip on the same tick.
+    this.bullets.splice(hook.index, 1);
+    const laser = hook.bullet;
+
+    const startX = player.x;
+    const startY = player.y;
+    const dx = laser.x - startX;
+    const dy = laser.y - startY;
+    const distance = Math.hypot(dx, dy);
+    if (distance <= Number.EPSILON) {
+      return false;
+    }
+
+    const dirX = dx / distance;
+    const dirY = dy / distance;
+    const targetX = laser.x;
+    const targetY = laser.y;
+
+    // Primary behavior: teleport directly to the live laser tip.
+    if (!this.intersectsAnyWall(targetX, targetY, player.radius)) {
+      player.x = targetX;
+      player.y = targetY;
+      player.bodyAngle = normalizeAngleRadians(Math.atan2(dirY, dirX));
+      player.turretAngle = player.bodyAngle;
+      return true;
+    }
+
+    // Fallback: if the tip is invalid for tank radius, walk back from tip to start
+    // to find the closest valid position on the whip segment.
+    const safeStepDistance = Math.max(1, Math.min(stepDistance, 8));
+    let pullback = safeStepDistance;
+    while (pullback <= distance) {
+      const candidateX = targetX - dirX * pullback;
+      const candidateY = targetY - dirY * pullback;
+      if (!this.intersectsAnyWall(candidateX, candidateY, player.radius)) {
+        player.x = candidateX;
+        player.y = candidateY;
+        player.bodyAngle = normalizeAngleRadians(Math.atan2(player.y - startY, player.x - startX));
+        player.turretAngle = player.bodyAngle;
+        return true;
+      }
+
+      pullback += safeStepDistance;
+    }
+
+    return false;
+  }
+
+  private findLatestLaserForPlayer(playerId: string): { index: number; bullet: BulletEntity } | undefined {
+    for (let index = this.bullets.length - 1; index >= 0; index -= 1) {
+      const bullet = this.bullets[index];
+      if (bullet === undefined) {
+        continue;
+      }
+
+      if (bullet.ownerPlayerId === playerId && bullet.kind === 'laser') {
+        return { index, bullet };
+      }
+    }
+
+    return undefined;
   }
 
   private triggerBulletExplosion(index: number): void {

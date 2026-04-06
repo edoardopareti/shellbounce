@@ -266,6 +266,8 @@ export class NetworkGameScene extends Phaser.Scene {
         isCharged: bullet.isCharged,
         kind: bullet.kind,
         isMitosisSplit: bullet.isMitosisSplit,
+        laserLength: bullet.laserLength,
+        laserAngle: bullet.laserAngle,
         time: this.time.now,
         graphics: this.dynamicGraphics,
       });

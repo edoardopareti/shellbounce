@@ -6,7 +6,7 @@ import type { PlayerEntity } from './player.js';
 export const DEFAULT_BULLET_RADIUS = 5;
 export const DEFAULT_BULLET_MAX_LIFETIME_MS = 4000;
 
-export type BulletKind = 'standard' | 'mitosis';
+export type BulletKind = 'standard' | 'mitosis' | 'laser';
 
 export interface BaseBulletEntity {
   id: string;
@@ -34,7 +34,12 @@ export interface MitosisBulletEntity extends BaseBulletEntity {
   mitosisGeneration: number;
 }
 
-export type BulletEntity = StandardBulletEntity | MitosisBulletEntity;
+export interface LaserBulletEntity extends BaseBulletEntity {
+  kind: 'laser';
+  laserLength: number;
+}
+
+export type BulletEntity = StandardBulletEntity | MitosisBulletEntity | LaserBulletEntity;
 
 export interface BaseBulletSpawnConfig {
   speed: number;
@@ -52,6 +57,10 @@ export interface BulletSpawnConfig extends BaseBulletSpawnConfig {
 
 export interface MitosisBulletSpawnConfig extends BaseBulletSpawnConfig {
   mitosisGeneration?: number;
+}
+
+export interface LaserBulletSpawnConfig extends BaseBulletSpawnConfig {
+  laserLength: number;
 }
 
 function createBaseBulletEntity(
@@ -100,5 +109,17 @@ export function createMitosisBulletFromBase(
     ...createBaseBulletEntity(id, player, config),
     kind: 'mitosis',
     mitosisGeneration: config.mitosisGeneration ?? 0,
+  };
+}
+
+export function createLaserBulletFromBase(
+  id: string,
+  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  config: LaserBulletSpawnConfig,
+): LaserBulletEntity {
+  return {
+    ...createBaseBulletEntity(id, player, config),
+    kind: 'laser',
+    laserLength: config.laserLength,
   };
 }
