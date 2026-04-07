@@ -22,6 +22,8 @@ export interface ChargedBulletWeaponConfig extends WeaponConfigBase {
 export interface VolleyWeaponConfig extends ChargedBulletWeaponConfig {
   volleyAngleOffsetsRadians: number[];
   requiresEmptyChamberToShoot: boolean;
+  grappleArmedDetonationDelayMs?: number;
+  grappleManualDetonationMinDelayMs?: number;
 }
 
 export interface MachineGunWeaponConfig extends WeaponConfigBase {

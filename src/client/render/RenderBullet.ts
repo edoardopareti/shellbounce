@@ -8,10 +8,11 @@ export interface BulletRenderData {
   radius: number;
   color: number;
   isCharged: boolean;
-  kind: 'standard' | 'mitosis' | 'laser';
+  kind: 'standard' | 'mitosis' | 'laser' | 'grapple';
   isMitosisSplit: boolean;
   laserLength?: number;
   laserAngle?: number;
+  isGrappleArmed?: boolean;
   time: number;
   graphics: Phaser.GameObjects.Graphics;
 }
@@ -23,7 +24,7 @@ export class RenderBullet extends DynamicElement {
 
   sync(data: BulletRenderData): void {
     const {
-      x, y, radius, color, isCharged, kind, isMitosisSplit, laserLength, laserAngle, time, graphics
+      x, y, radius, color, isCharged, kind, isMitosisSplit, laserLength, laserAngle, isGrappleArmed, time, graphics
     } = data;
     // Configurable constants
     const CHARGED_OUTLINE_WIDTH = 2;
@@ -66,6 +67,11 @@ export class RenderBullet extends DynamicElement {
         graphics.lineStyle(1.25, 0xffffff, 0.85);
         graphics.strokeCircle(x, y, radius + 2);
       }
+    }
+
+    if (kind === 'grapple' && isGrappleArmed) {
+      graphics.lineStyle(1.6, 0xf97316, 0.95);
+      graphics.strokeCircle(x, y, radius + 2.2);
     }
 
     if (isCharged) {

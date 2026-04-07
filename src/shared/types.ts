@@ -86,10 +86,11 @@ export interface BulletState {
   radius: number;
   color: number;
   isCharged: boolean;
-  kind: 'standard' | 'mitosis' | 'laser';
+  kind: 'standard' | 'mitosis' | 'laser' | 'grapple';
   isMitosisSplit: boolean;
   laserLength?: number;
   laserAngle?: number;
+  isGrappleArmed?: boolean;
 }
 
 export interface MineState {

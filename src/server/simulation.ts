@@ -162,6 +162,7 @@ export class AuthoritativeSimulation {
         detonateAllBulletsForPlayer: (id) => this.tryDetonateAllBulletsForPlayer(id),
         splitOldestMitosisBulletForPlayer: (id) => this.trySplitOldestMitosisBulletForPlayer(id),
         detonateSplitMitosisBulletsForPlayer: (id) => this.tryDetonateSplitMitosisBulletsForPlayer(id),
+        armOrDetonateGrappleBulletsForPlayer: (id) => this.tryArmOrDetonateGrappleBulletsForPlayer(id),
         pullPlayerToOwnedLaserTip: (id, stepDistance) => this.tryPullPlayerToOwnedLaserTip(id, stepDistance),
       }),
     );
@@ -407,6 +408,7 @@ export class AuthoritativeSimulation {
         isMitosisSplit: bullet.kind === 'mitosis' && bullet.mitosisGeneration > 0,
         laserLength: bullet.kind === 'laser' ? bullet.laserLength : undefined,
         laserAngle: bullet.kind === 'laser' ? Math.atan2(bullet.vy, bullet.vx) : undefined,
+        isGrappleArmed: bullet.kind === 'grapple' ? bullet.isArmed : undefined,
       })),
       mines: this.mines.map((mine) => ({
         id: mine.id,
@@ -528,6 +530,8 @@ export class AuthoritativeSimulation {
     this.projectileSystem.updateBullets(this.bullets, (x, y, radius) => this.intersectsAnyWall(x, y, radius), {
       explodeBullet: (index) => this.triggerBulletExplosion(index),
     });
+
+    this.updateArmedGrappleBulletFuses();
   }
 
   private updateMines(): void {
@@ -608,11 +612,15 @@ export class AuthoritativeSimulation {
   }
 
   private tryDetonateOldestBulletForPlayer(playerId: string): void {
+    // Attempt to detonate the oldest active bullet for the specified player
+
+    // Find the index of the oldest bullet owned by the player in the bullets array.
     const bulletIndex = this.bullets.findIndex((bullet) => bullet.ownerPlayerId === playerId);
     if (bulletIndex < 0) {
       return;
     }
-
+    
+    // If a bullet is found, trigger its explosion and remove it from the simulation.
     this.triggerBulletExplosion(bulletIndex);
   }
 
@@ -721,6 +729,120 @@ export class AuthoritativeSimulation {
 
     return true;
   }
+  /**
+   * 
+   * @param playerId 
+   * @returns an object indicating whether any grapple bullets were armed or detonated for the player, and whether the action was blocked by minimum detonation delay
+   * 
+   * Arm any unarmed grapple bullets owned by the specified player,
+   * or detonate any armed grapple bullets if they are ready to be detonated
+   * based on their arming time and minimum detonation delay.
+   */
+  private tryArmOrDetonateGrappleBulletsForPlayer(playerId: string): {
+    didArmOrDetonate: boolean;
+    blockedByMinDetonationDelay: boolean;
+  } {
+    const ownedIndexes: number[] = [];
+    const armedIndexes: number[] = [];
+
+    for (let index = 0; index < this.bullets.length; index += 1) {
+      const bullet = this.bullets[index];
+      if (bullet === undefined || bullet.ownerPlayerId !== playerId || bullet.kind !== 'grapple') {
+        continue;
+      }
+
+      ownedIndexes.push(index);
+      if (bullet.isArmed) {
+        armedIndexes.push(index);
+      }
+    }
+
+    if (ownedIndexes.length === 0) {
+      return {
+        didArmOrDetonate: false,
+        blockedByMinDetonationDelay: false,
+      };
+    }
+
+    if (armedIndexes.length > 0) {
+      let didDetonate = false;
+      for (let i = armedIndexes.length - 1; i >= 0; i -= 1) {
+        const bulletIndex = armedIndexes[i];
+        const bullet = this.bullets[bulletIndex];
+        if (bullet === undefined || bullet.ownerPlayerId !== playerId || bullet.kind !== 'grapple' || !bullet.isArmed) {
+          continue;
+        }
+
+        if (!this.isGrappleBulletDetonationReady(bullet)) {
+          continue;
+        }
+
+        this.triggerBulletExplosion(bulletIndex);
+        didDetonate = true;
+      }
+
+      return {
+        didArmOrDetonate: didDetonate,
+        blockedByMinDetonationDelay: !didDetonate,
+      };
+    }
+
+    for (let i = 0; i < ownedIndexes.length; i += 1) {
+      const bulletIndex = ownedIndexes[i];
+      const bullet = this.bullets[bulletIndex];
+      if (bullet === undefined || bullet.ownerPlayerId !== playerId || bullet.kind !== 'grapple') {
+        continue;
+      }
+
+      bullet.isArmed = true;
+      bullet.armedAtMs = this.nowMs;
+      bullet.vx = 0;
+      bullet.vy = 0;
+    }
+
+    return {
+      didArmOrDetonate: true,
+      blockedByMinDetonationDelay: false,
+    };
+  }
+  
+  /**
+   * 
+   * @param bullet the grapple bullet to check for detonation readiness
+   * @returns boolean indicating whether the grapple bullet is ready to be detonated based on its arming time and minimum detonation delay
+   */
+  private isGrappleBulletDetonationReady(
+    bullet: Extract<BulletEntity, { kind: 'grapple' }>,
+  ): boolean {
+    if (bullet.armedAtMs === null) {
+      return false;
+    }
+
+    return this.nowMs - bullet.armedAtMs >= bullet.manualDetonationMinDelayMs;
+  }
+  
+  /**
+   * Update the fuses of armed grapple bullets to check
+   * if they have reached their detonation time based on their arming time and detonation delay,
+   * and trigger explosions for those that are ready to detonate.
+   */
+  private updateArmedGrappleBulletFuses(): void {
+    for (let index = this.bullets.length - 1; index >= 0; index -= 1) {
+      const bullet = this.bullets[index];
+      if (
+        bullet === undefined
+        || bullet.kind !== 'grapple'
+        || !bullet.isArmed
+        || bullet.armedAtMs === null
+      ) {
+        continue;
+      }
+
+      if (this.nowMs - bullet.armedAtMs >= bullet.armedDetonationDelayMs) {
+        this.triggerBulletExplosion(index);
+      }
+    }
+  }
 
   private tryPullPlayerToOwnedLaserTip(playerId: string, stepDistance: number): boolean {
     const player = this.players.get(playerId);
@@ -798,6 +920,8 @@ export class AuthoritativeSimulation {
   }
 
   private triggerBulletExplosion(index: number): void {
+    // Push a bullet explosion effect for the bullet at the specified index,
+    // so the client can render it
     const bullet = this.bullets[index];
     if (bullet === undefined) {
       return;

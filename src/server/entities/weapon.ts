@@ -18,6 +18,10 @@ export interface WeaponRuntime {
   detonateAllBulletsForPlayer: (playerId: string) => boolean;
   splitOldestMitosisBulletForPlayer: (playerId: string) => boolean;
   detonateSplitMitosisBulletsForPlayer: (playerId: string) => boolean;
+  armOrDetonateGrappleBulletsForPlayer: (playerId: string) => {
+    didArmOrDetonate: boolean;
+    blockedByMinDetonationDelay: boolean;
+  };
   pullPlayerToOwnedLaserTip: (playerId: string, stepDistance: number) => boolean;
 }
 
@@ -33,19 +37,11 @@ export abstract class Weapon {
   // Specific weapon types will extend this class
   // and implement the abstract methods to define their unique behavior.
 
-  /**
-   * Returns the maximum number of active bullets this weapon allows per player.
-   * Must be implemented by each weapon type.
-   */
-  public abstract getMaxActiveBullets(): number;
-
   public handleInput(
     player: PlayerEntity,
     input: Pick<TankInput, 'firePressed' | 'fireHeld' | 'fireReleased' | 'detonatePressed'>,
     activeBulletCount: number,
   ): WeaponActionResult {
-    // Determine if the weapon can start a new shot
-    // based on the current number of active bullets.
     const canStartShot = this.canStartShot(activeBulletCount);
 
     if (!canStartShot && !player.isChargingShot) {
@@ -100,6 +96,10 @@ export abstract class Weapon {
     return { firedBullets, selfDestructed: false };
   }
 
+  // Each weapon type will implement its custom logic 
+  // as concrete subclasses of the Weapon base class
+  // providing specific implementations.
+
   protected canStartShot(activeBulletCount: number): boolean {
     // This method determines whether the weapon can start firing a new shot
     // based on the number of active bullets the player currently has.
@@ -118,6 +118,12 @@ export abstract class Weapon {
       / (DEFAULT_CHARGED_SHOT_MAX_HOLD_MS - DEFAULT_CHARGED_SHOT_MIN_HOLD_MS);
     return clamp(normalized, 0, 1);
   }
+  
+  /**
+   * Returns the maximum number of active bullets this weapon allows per player.
+   * Must be implemented by each weapon type.
+   */
+  public abstract getMaxActiveBullets(): number;
 
   protected abstract createNormalShot(player: PlayerEntity): BulletEntity | BulletEntity[];
 

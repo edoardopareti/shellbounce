@@ -6,7 +6,7 @@ import type { PlayerEntity } from './player.js';
 export const DEFAULT_BULLET_RADIUS = 5;
 export const DEFAULT_BULLET_MAX_LIFETIME_MS = 4000;
 
-export type BulletKind = 'standard' | 'mitosis' | 'laser';
+export type BulletKind = 'standard' | 'mitosis' | 'laser' | 'grapple';
 
 export interface BaseBulletEntity {
   id: string;
@@ -39,7 +39,15 @@ export interface LaserBulletEntity extends BaseBulletEntity {
   laserLength: number;
 }
 
-export type BulletEntity = StandardBulletEntity | MitosisBulletEntity | LaserBulletEntity;
+export interface GrappleBulletEntity extends BaseBulletEntity {
+  kind: 'grapple';
+  isArmed: boolean;
+  armedAtMs: number | null;
+  armedDetonationDelayMs: number;
+  manualDetonationMinDelayMs: number;
+}
+
+export type BulletEntity = StandardBulletEntity | MitosisBulletEntity | LaserBulletEntity | GrappleBulletEntity;
 
 export interface BaseBulletSpawnConfig {
   speed: number;
@@ -61,6 +69,11 @@ export interface MitosisBulletSpawnConfig extends BaseBulletSpawnConfig {
 
 export interface LaserBulletSpawnConfig extends BaseBulletSpawnConfig {
   laserLength: number;
+}
+
+export interface GrappleBulletSpawnConfig extends BaseBulletSpawnConfig {
+  armedDetonationDelayMs: number;
+  manualDetonationMinDelayMs: number;
 }
 
 function createBaseBulletEntity(
@@ -121,5 +134,20 @@ export function createLaserBulletFromBase(
     ...createBaseBulletEntity(id, player, config),
     kind: 'laser',
     laserLength: config.laserLength,
+  };
+}
+
+export function createGrappleBulletFromBase(
+  id: string,
+  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  config: GrappleBulletSpawnConfig,
+): GrappleBulletEntity {
+  return {
+    ...createBaseBulletEntity(id, player, config),
+    kind: 'grapple',
+    isArmed: false,
+    armedAtMs: null,
+    armedDetonationDelayMs: config.armedDetonationDelayMs,
+    manualDetonationMinDelayMs: config.manualDetonationMinDelayMs,
   };
 }
