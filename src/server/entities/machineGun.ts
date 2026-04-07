@@ -1,3 +1,5 @@
+// Machine gun - quick close combat
+
 import { FIXED_TIMESTEP_SECONDS } from '../../shared/constants.js';
 import type { TankInput } from '../../shared/types.js';
 import type { BulletEntity } from './bullet.js';
@@ -10,18 +12,29 @@ import {
 } from './weapon.js';
 import type { MachineGunWeaponConfig } from './weaponConfig.js';
 
+const MAX_ACTIVE_BULLETS = 4;
+const NORMAL_SHOT_COOLDOWN_MS = 110;
+const CHARGED_SHOT_COOLDOWN_MS = 40;
+const HOLD_TO_RAPID_FIRE_MS = 180;
+const NORMAL_SHOT_SPEED = 520;
+const NORMAL_SHOT_EXPLOSION_RADIUS = 56;
+const NORMAL_SHOT_MAX_BOUNCES = 0;
+const NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT = false;
+const NORMAL_SHOT_IS_CHARGED = false;
+const NORMAL_SHOT_RADIUS = 3.5;
+
 const MACHINE_GUN_CONFIG: MachineGunWeaponConfig = {
-  maxActiveBullets: 4,
-  normalShotCooldownMs: 110,
-  chargedShotCooldownMs: 40,
-  holdToRapidFireMs: 180,
+  maxActiveBullets: MAX_ACTIVE_BULLETS,
+  normalShotCooldownMs: NORMAL_SHOT_COOLDOWN_MS,
+  chargedShotCooldownMs: CHARGED_SHOT_COOLDOWN_MS,
+  holdToRapidFireMs: HOLD_TO_RAPID_FIRE_MS,
   bullet: {
-    speed: 520,
-    explosionRadius: 56,
-    maxBounces: 0,
-    explodeOnWallImpact: false,
-    isCharged: false,
-    radius: 3.5,
+    speed: NORMAL_SHOT_SPEED,
+    explosionRadius: NORMAL_SHOT_EXPLOSION_RADIUS,
+    maxBounces: NORMAL_SHOT_MAX_BOUNCES,
+    explodeOnWallImpact: NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT,
+    isCharged: NORMAL_SHOT_IS_CHARGED,
+    radius: NORMAL_SHOT_RADIUS,
   },
 };
 
@@ -36,6 +49,30 @@ export class MachineGun extends Weapon {
 
   public getMaxActiveBullets(): number {
     return MACHINE_GUN_CONFIG.maxActiveBullets;
+  }
+
+  protected createNormalShot(player: PlayerEntity): BulletEntity {
+    return createStandardBulletEntity(this.runtime.nextBulletId(), player, MACHINE_GUN_CONFIG.bullet);
+  }
+
+  protected createChargedShot(player: PlayerEntity, _chargeRatio: number): BulletEntity {
+    return createStandardBulletEntity(this.runtime.nextBulletId(), player, MACHINE_GUN_CONFIG.bullet);
+  }
+
+  protected handleSurprise(player: PlayerEntity, triggered: boolean): void {
+    if (!triggered) {
+      return;
+    }
+
+    this.runtime.detonateAllBulletsForPlayer(player.id);
+  }
+
+  protected getNormalShotCooldownMs(): number {
+    return MACHINE_GUN_CONFIG.normalShotCooldownMs;
+  }
+
+  protected getChargedShotCooldownMs(): number {
+    return MACHINE_GUN_CONFIG.chargedShotCooldownMs;
   }
 
   public handleInput(
@@ -80,29 +117,5 @@ export class MachineGun extends Weapon {
     const bullet = this.createChargedShot(player, 1);
     player.fireCooldownMs = this.getChargedShotCooldownMs();
     return { firedBullets: [bullet], selfDestructed: false };
-  }
-
-  protected createNormalShot(player: PlayerEntity): BulletEntity {
-    return createStandardBulletEntity(this.runtime.nextBulletId(), player, MACHINE_GUN_CONFIG.bullet);
-  }
-
-  protected createChargedShot(player: PlayerEntity, _chargeRatio: number): BulletEntity {
-    return createStandardBulletEntity(this.runtime.nextBulletId(), player, MACHINE_GUN_CONFIG.bullet);
-  }
-
-  protected handleSurprise(player: PlayerEntity, triggered: boolean): void {
-    if (!triggered) {
-      return;
-    }
-
-    this.runtime.detonateAllBulletsForPlayer(player.id);
-  }
-
-  protected getNormalShotCooldownMs(): number {
-    return MACHINE_GUN_CONFIG.normalShotCooldownMs;
-  }
-
-  protected getChargedShotCooldownMs(): number {
-    return MACHINE_GUN_CONFIG.chargedShotCooldownMs;
   }
 }

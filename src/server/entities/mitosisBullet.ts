@@ -5,6 +5,7 @@ import {
   createMitosisBulletFromBase,
 } from './bullet.js';
 
+// Fallback values for mitosis bullet properties if not specified in weapon config
 const MITOSIS_SPLIT_ANGLE_RADIANS = Math.PI / 4;
 const MITOSIS_SPLIT_RADIUS_MULTIPLIER = 0.72;
 const MITOSIS_SPLIT_EXPLOSION_RADIUS_MULTIPLIER = 0.8;

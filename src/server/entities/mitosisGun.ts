@@ -6,23 +6,37 @@ import type { PlayerEntity } from './player.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
 import type { ChargedBulletWeaponConfig } from './weaponConfig.js';
 
+const MAX_ACTIVE_BULLETS = 3;
+const NORMAL_SHOT_COOLDOWN_MS = 100;
+const CHARGED_SHOT_COOLDOWN_MS = 2400;
+const NORMAL_SHOT_SPEED = 420;
+const NORMAL_SHOT_EXPLOSION_RADIUS = 84;
+const NORMAL_SHOT_MAX_BOUNCES = 3;
+const NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT = false;
+const NORMAL_SHOT_IS_CHARGED = false;
+const CHARGED_SHOT_SPEED_MULTIPLIER = 2.5;
+const CHARGED_SHOT_EXPLOSION_RADIUS_MULTIPLIER = 1.5;
+const CHARGED_SHOT_MAX_BOUNCES = 0;
+const CHARGED_SHOT_EXPLODE_ON_WALL_IMPACT = true;
+const CHARGED_SHOT_IS_CHARGED = true;
+
 const MITOSIS_GUN_CONFIG: ChargedBulletWeaponConfig = {
-  maxActiveBullets: 3,
-  normalShotCooldownMs: 100,
-  chargedShotCooldownMs: 2400,
+  maxActiveBullets: MAX_ACTIVE_BULLETS,
+  normalShotCooldownMs: NORMAL_SHOT_COOLDOWN_MS,
+  chargedShotCooldownMs: CHARGED_SHOT_COOLDOWN_MS,
   normalShot: {
-    speed: 420,
-    explosionRadius: 84,
-    maxBounces: 3,
-    explodeOnWallImpact: false,
-    isCharged: false,
+    speed: NORMAL_SHOT_SPEED,
+    explosionRadius: NORMAL_SHOT_EXPLOSION_RADIUS,
+    maxBounces: NORMAL_SHOT_MAX_BOUNCES,
+    explodeOnWallImpact: NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT,
+    isCharged: NORMAL_SHOT_IS_CHARGED,
   },
   chargedShot: {
-    speedMultiplier: 2.5,
-    explosionRadiusMultiplier: 1.5,
-    maxBounces: 0,
-    explodeOnWallImpact: true,
-    isCharged: true,
+    speedMultiplier: CHARGED_SHOT_SPEED_MULTIPLIER,
+    explosionRadiusMultiplier: CHARGED_SHOT_EXPLOSION_RADIUS_MULTIPLIER,
+    maxBounces: CHARGED_SHOT_MAX_BOUNCES,
+    explodeOnWallImpact: CHARGED_SHOT_EXPLODE_ON_WALL_IMPACT,
+    isCharged: CHARGED_SHOT_IS_CHARGED,
   },
 };
 

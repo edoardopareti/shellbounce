@@ -1,28 +1,44 @@
+// Laser whip gun - close combat control and mobility
+
 import type { BulletEntity } from './bullet.js';
 import { createLaserBulletEntity } from './laserBullet.js';
 import type { PlayerEntity } from './player.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
 import type { LaserWhipWeaponConfig } from './weaponConfig.js';
 
+const MAX_ACTIVE_BULLETS = 1;
+const NORMAL_SHOT_COOLDOWN_MS = 130;
+const CHARGED_SHOT_COOLDOWN_MS = 250;
+const NORMAL_SHOT_SPEED = 1200;
+const NORMAL_SHOT_EXPLOSION_RADIUS = 70;
+const NORMAL_SHOT_MAX_BOUNCES = 1;
+const NORMAL_SHOT_LASER_LENGTH = 90;
+const NORMAL_SHOT_RADIUS = 4;
+const NORMAL_SHOT_MAX_LIFETIME_MS = 2300;
+const CHARGED_SHOT_SPEED_MULTIPLIER = 2.2;
+const CHARGED_SHOT_MAX_BOUNCES = 0;
+const CHARGED_SHOT_IS_CHARGED = true;
+const WHIP_PULL_STEP_DISTANCE = 28;
+
 const LASER_WHIP_CONFIG: LaserWhipWeaponConfig = {
-  maxActiveBullets: 1,
-  normalShotCooldownMs: 130,
-  chargedShotCooldownMs: 250,
+  maxActiveBullets: MAX_ACTIVE_BULLETS,
+  normalShotCooldownMs: NORMAL_SHOT_COOLDOWN_MS,
+  chargedShotCooldownMs: CHARGED_SHOT_COOLDOWN_MS,
   normalShot: {
-    speed: 1200,
-    explosionRadius: 70,
-    maxBounces: 1,
-    laserLength: 90,
-    radius: 4,
-    maxLifetimeMs: 2300,
+    speed: NORMAL_SHOT_SPEED,
+    explosionRadius: NORMAL_SHOT_EXPLOSION_RADIUS,
+    maxBounces: NORMAL_SHOT_MAX_BOUNCES,
+    laserLength: NORMAL_SHOT_LASER_LENGTH,
+    radius: NORMAL_SHOT_RADIUS,
+    maxLifetimeMs: NORMAL_SHOT_MAX_LIFETIME_MS,
   },
   chargedShot: {
-    speedMultiplier: 2.2,
-    maxBounces: 0,
-    isCharged: true,
+    speedMultiplier: CHARGED_SHOT_SPEED_MULTIPLIER,
+    maxBounces: CHARGED_SHOT_MAX_BOUNCES,
+    isCharged: CHARGED_SHOT_IS_CHARGED,
   },
   whip: {
-    pullStepDistance: 28,
+    pullStepDistance: WHIP_PULL_STEP_DISTANCE,
   },
 };
 

@@ -5,6 +5,7 @@ import {
   createLaserBulletFromBase,
 } from './bullet.js';
 
+// Fallback values for laser bullet properties if not specified in weapon config
 const LASER_BULLET_BASE_SPEED = 760;
 const LASER_BULLET_BASE_EXPLOSION_RADIUS = 70;
 const LASER_BULLET_BASE_MAX_BOUNCES = 2;
