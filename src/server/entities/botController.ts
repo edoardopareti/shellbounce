@@ -54,14 +54,14 @@ export class BotController {
     if (target === undefined) {
       return {
         ...EMPTY_INPUT,
-        pointerWorldX: bot.x + Math.cos(bot.bodyAngle) * 120,
-        pointerWorldY: bot.y + Math.sin(bot.bodyAngle) * 120,
+        pointerWorldX: bot.tank.x + Math.cos(bot.tank.bodyAngle) * 120,
+        pointerWorldY: bot.tank.y + Math.sin(bot.tank.bodyAngle) * 120,
       };
     }
 
-    const distanceToTarget = distance(bot.x, bot.y, target.x, target.y);
-    const headingToTarget = Math.atan2(target.y - bot.y, target.x - bot.x);
-    const turretAngleDelta = normalizeAngleRadians(headingToTarget - bot.turretAngle);
+    const distanceToTarget = distance(bot.tank.x, bot.tank.y, target.tank.x, target.tank.y);
+    const headingToTarget = Math.atan2(target.tank.y - bot.tank.y, target.tank.x - bot.tank.x);
+    const turretAngleDelta = normalizeAngleRadians(headingToTarget - bot.tank.turretAngle);
     const threat = this.findMostDangerousBullet(bot, profile, context.bullets);
     const shouldDodge = threat !== undefined && Math.random() <= profile.dodgeReactionChance;
     const lineOfFireThreat = this.detectLineOfFireThreat(bot, target, profile, context.isExplosionBlockedByWall);
@@ -74,11 +74,11 @@ export class BotController {
       desiredHeading = this.computeLineOfFireDodgeHeading(bot, lineOfFireThreat, profile, context.intersectsAnyWall);
     } else {
       const navigationTarget = this.getBotNavigationTarget(bot, target, profile, context);
-      const pathHeading = Math.atan2(navigationTarget.y - bot.y, navigationTarget.x - bot.x);
+      const pathHeading = Math.atan2(navigationTarget.y - bot.tank.y, navigationTarget.x - bot.tank.x);
       desiredHeading = this.computeWallAwareHeading(bot, pathHeading, profile, context.intersectsAnyWall);
     }
 
-    const angleDelta = normalizeAngleRadians(desiredHeading - bot.bodyAngle);
+    const angleDelta = normalizeAngleRadians(desiredHeading - bot.tank.bodyAngle);
     const absAngleDelta = Math.abs(angleDelta);
     const turnLeft = absAngleDelta > profile.steeringDeadZoneRadians && angleDelta < 0;
     const turnRight = absAngleDelta > profile.steeringDeadZoneRadians && angleDelta > 0;
@@ -86,7 +86,7 @@ export class BotController {
     const aimOnTarget = Math.abs(turretAngleDelta) < 0.22;
     const hasShotCapacity =
       context.getActiveBulletCountForPlayer(bot.id) < context.getMaxActiveBulletsForPlayer(bot.id);
-    const lineOfSightToTarget = !context.isExplosionBlockedByWall(bot.x, bot.y, target.x, target.y);
+    const lineOfSightToTarget = !context.isExplosionBlockedByWall(bot.tank.x, bot.tank.y, target.tank.x, target.tank.y);
     const safeDistanceToFire = distanceToTarget > Math.max(profile.preferredDistanceMin * 0.42, 75);
     const canShootByDistance = distanceToTarget <= profile.maxFireRange;
     const canShootByPrediction = aimOnTarget || distanceToTarget <= profile.maxFireRange * profile.suppressionFireRangeFactor;
@@ -154,8 +154,8 @@ export class BotController {
       detonatePressed,
       placeMinePressed,
       boostPressed,
-      pointerWorldX: target.x,
-      pointerWorldY: target.y,
+      pointerWorldX: target.tank.x,
+      pointerWorldY: target.tank.y,
     };
   }
 
@@ -195,19 +195,19 @@ export class BotController {
     }
 
     const detonationProximityFactor = 0.72;
-    const targetDistance = distance(oldestOwnedBullet.x, oldestOwnedBullet.y, target.x, target.y);
-    const targetReach = (oldestOwnedBullet.explosionRadius + target.radius)
+    const targetDistance = distance(oldestOwnedBullet.x, oldestOwnedBullet.y, target.tank.x, target.tank.y);
+    const targetReach = (oldestOwnedBullet.explosionRadius + target.tank.radius)
       * detonationProximityFactor + profile.detonationMargin;
     if (targetDistance > targetReach) {
       return false;
     }
 
-    if (isExplosionBlockedByWall(oldestOwnedBullet.x, oldestOwnedBullet.y, target.x, target.y)) {
+    if (isExplosionBlockedByWall(oldestOwnedBullet.x, oldestOwnedBullet.y, target.tank.x, target.tank.y)) {
       return false;
     }
 
-    const selfDistance = distance(oldestOwnedBullet.x, oldestOwnedBullet.y, bot.x, bot.y);
-    const selfSafeDistance = oldestOwnedBullet.explosionRadius + bot.radius + profile.selfPreservationMargin;
+    const selfDistance = distance(oldestOwnedBullet.x, oldestOwnedBullet.y, bot.tank.x, bot.tank.y);
+    const selfSafeDistance = oldestOwnedBullet.explosionRadius + bot.tank.radius + profile.selfPreservationMargin;
     if (selfDistance < selfSafeDistance) {
       return false;
     }
@@ -220,7 +220,7 @@ export class BotController {
     profile: BotDifficultyProfile,
     bullets: ReadonlyArray<BulletEntity>,
   ): BulletThreat | undefined {
-    const dangerRadius = bot.radius + DEFAULT_BULLET_RADIUS + profile.dodgeMargin;
+    const dangerRadius = bot.tank.radius + DEFAULT_BULLET_RADIUS + profile.dodgeMargin;
     const horizonSeconds = profile.bulletThreatHorizonMs / 1000;
     let bestThreat: BulletThreat | undefined;
 
@@ -234,8 +234,8 @@ export class BotController {
         continue;
       }
 
-      const toBotX = bot.x - bullet.x;
-      const toBotY = bot.y - bullet.y;
+      const toBotX = bot.tank.x - bullet.x;
+      const toBotY = bot.tank.y - bullet.y;
       const towardBot = toBotX * bullet.vx + toBotY * bullet.vy;
       if (towardBot <= 0) {
         continue;
@@ -244,7 +244,7 @@ export class BotController {
       const closestTime = clamp(towardBot / speedSquared, 0, horizonSeconds);
       const closestX = bullet.x + bullet.vx * closestTime;
       const closestY = bullet.y + bullet.vy * closestTime;
-      const distanceAtClosest = distance(bot.x, bot.y, closestX, closestY);
+      const distanceAtClosest = distance(bot.tank.x, bot.tank.y, closestX, closestY);
       if (distanceAtClosest > dangerRadius) {
         continue;
       }
@@ -265,7 +265,7 @@ export class BotController {
   ): number {
     const speed = Math.sqrt(incomingBullet.vx * incomingBullet.vx + incomingBullet.vy * incomingBullet.vy);
     if (speed <= Number.EPSILON) {
-      return bot.bodyAngle;
+      return bot.tank.bodyAngle;
     }
 
     const directionX = incomingBullet.vx / speed;
@@ -289,10 +289,10 @@ export class BotController {
     profile: BotDifficultyProfile,
     isExplosionBlockedByWall: (startX: number, startY: number, endX: number, endY: number) => boolean,
   ): LineOfFireThreat | undefined {
-    const aimDirectionX = Math.cos(target.turretAngle);
-    const aimDirectionY = Math.sin(target.turretAngle);
-    const fromPlayerToBotX = bot.x - target.x;
-    const fromPlayerToBotY = bot.y - target.y;
+    const aimDirectionX = Math.cos(target.tank.turretAngle);
+    const aimDirectionY = Math.sin(target.tank.turretAngle);
+    const fromPlayerToBotX = bot.tank.x - target.tank.x;
+    const fromPlayerToBotY = bot.tank.y - target.tank.y;
     const forwardDistance = fromPlayerToBotX * aimDirectionX + fromPlayerToBotY * aimDirectionY;
 
     if (forwardDistance <= 0 || forwardDistance > profile.lineOfFireDangerMaxDistance) {
@@ -300,12 +300,12 @@ export class BotController {
     }
 
     const lateralDistance = Math.abs(fromPlayerToBotX * aimDirectionY - fromPlayerToBotY * aimDirectionX);
-    const dangerLaneHalfWidth = bot.radius + DEFAULT_BULLET_RADIUS + profile.lineOfFireMargin;
+    const dangerLaneHalfWidth = bot.tank.radius + DEFAULT_BULLET_RADIUS + profile.lineOfFireMargin;
     if (lateralDistance > dangerLaneHalfWidth) {
       return undefined;
     }
 
-    if (isExplosionBlockedByWall(target.x, target.y, bot.x, bot.y)) {
+    if (isExplosionBlockedByWall(target.tank.x, target.tank.y, bot.tank.x, bot.tank.y)) {
       return undefined;
     }
 
@@ -383,9 +383,9 @@ export class BotController {
     probeDistance: number,
     intersectsAnyWall: (x: number, y: number, radius: number) => boolean,
   ): boolean {
-    const probeX = bot.x + Math.cos(heading) * probeDistance;
-    const probeY = bot.y + Math.sin(heading) * probeDistance;
-    return intersectsAnyWall(probeX, probeY, bot.radius);
+    const probeX = bot.tank.x + Math.cos(heading) * probeDistance;
+    const probeY = bot.tank.y + Math.sin(heading) * probeDistance;
+    return intersectsAnyWall(probeX, probeY, bot.tank.radius);
   }
 
   private getBotNavigationTarget(
@@ -399,7 +399,7 @@ export class BotController {
 
     const currentWaypoint = waypoints[currentWaypointIndex];
     if (currentWaypoint !== undefined) {
-      const reachedWaypoint = distance(bot.x, bot.y, currentWaypoint.x, currentWaypoint.y) <= TANK_RADIUS * 0.9;
+      const reachedWaypoint = distance(bot.tank.x, bot.tank.y, currentWaypoint.x, currentWaypoint.y) <= TANK_RADIUS * 0.9;
       if (reachedWaypoint) {
         this.botPathWaypointIndex.set(bot.id, currentWaypointIndex + 1);
       }
@@ -414,7 +414,7 @@ export class BotController {
     const waypoint = refreshedPath[refreshedIndex];
 
     if (waypoint === undefined) {
-      return { x: target.x, y: target.y };
+      return { x: target.tank.x, y: target.tank.y };
     }
 
     return waypoint;
@@ -442,8 +442,8 @@ export class BotController {
       return true;
     }
 
-    const directRouteBlocked = context.isExplosionBlockedByWall(bot.x, bot.y, target.x, target.y);
-    const waypointRouteBlocked = context.isExplosionBlockedByWall(bot.x, bot.y, nextWaypoint.x, nextWaypoint.y);
+    const directRouteBlocked = context.isExplosionBlockedByWall(bot.tank.x, bot.tank.y, target.tank.x, target.tank.y);
+    const waypointRouteBlocked = context.isExplosionBlockedByWall(bot.tank.x, bot.tank.y, nextWaypoint.x, nextWaypoint.y);
 
     if (!directRouteBlocked) {
       return false;
@@ -453,7 +453,7 @@ export class BotController {
       return true;
     }
 
-    const distanceToTarget = distance(bot.x, bot.y, target.x, target.y);
+    const distanceToTarget = distance(bot.tank.x, bot.tank.y, target.tank.x, target.tank.y);
     return distanceToTarget < profile.preferredDistanceMax;
   }
 
@@ -464,9 +464,9 @@ export class BotController {
     context: SimulationContext,
   ): void {
     const grid = this.getPathGrid(profile.pathCellSize, context.world);
-    const path = findGridPath(grid, { x: bot.x, y: bot.y }, { x: target.x, y: target.y });
+    const path = findGridPath(grid, { x: bot.tank.x, y: bot.tank.y }, { x: target.tank.x, y: target.tank.y });
 
-    const trimmedPath = path.slice(1).filter((point) => !context.intersectsAnyWall(point.x, point.y, bot.radius));
+    const trimmedPath = path.slice(1).filter((point) => !context.intersectsAnyWall(point.x, point.y, bot.tank.radius));
     this.botPathWaypoints.set(bot.id, trimmedPath);
     this.botPathWaypointIndex.set(bot.id, 0);
     this.botNextPathPlanAtMs.set(bot.id, context.nowMs + this.randomInRange(profile.pathReplanMs.min, profile.pathReplanMs.max));
@@ -495,7 +495,7 @@ export class BotController {
     let bestDistance = Number.POSITIVE_INFINITY;
 
     for (const human of humans) {
-      const candidateDistance = distance(bot.x, bot.y, human.x, human.y);
+      const candidateDistance = distance(bot.tank.x, bot.tank.y, human.tank.x, human.tank.y);
       if (candidateDistance < bestDistance) {
         bestDistance = candidateDistance;
         best = human;

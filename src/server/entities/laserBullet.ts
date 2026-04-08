@@ -1,5 +1,5 @@
-import type { PlayerEntity } from './player.js';
 import {
+  type BulletOwner,
   type LaserBulletEntity,
   type LaserBulletSpawnConfig,
   createLaserBulletFromBase,
@@ -25,7 +25,7 @@ export interface LaserBulletConfig {
 
 export function createLaserBulletEntity(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: LaserBulletConfig = {},
 ): LaserBulletEntity {
   const spawnConfig: LaserBulletSpawnConfig = {

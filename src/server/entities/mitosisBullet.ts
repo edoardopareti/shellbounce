@@ -1,5 +1,4 @@
-import type { PlayerEntity } from './player.js';
-import type { BulletEntity, MitosisBulletEntity } from './bullet.js';
+import type { BulletEntity, BulletOwner, MitosisBulletEntity } from './bullet.js';
 import {
   DEFAULT_BULLET_RADIUS,
   createMitosisBulletFromBase,
@@ -24,7 +23,7 @@ export interface MitosisBulletSpawnConfig {
 
 export function createMitosisBulletEntity(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: MitosisBulletSpawnConfig = {},
 ): MitosisBulletEntity {
   return createMitosisBulletFromBase(id, player, {

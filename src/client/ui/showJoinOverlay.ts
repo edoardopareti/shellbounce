@@ -1,6 +1,12 @@
 import type { ClientJoinProfile } from '../network/GameClient';
-import { ALL_TANK_TYPES, type TankType } from '../../shared/types';
-import { isTankType } from '../utils/utils';
+import {
+  ALL_TANK_TYPES,
+  ALL_WEAPON_TYPES,
+  DEFAULT_WEAPON_BY_TANK,
+  type TankType,
+  type WeaponType,
+} from '../../shared/types';
+import { isTankType, isWeaponType } from '../utils/utils';
 
 const MAX_PLAYER_NAME_LENGTH = 24;
 
@@ -104,6 +110,27 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     tankSelect.appendChild(option);
   }
 
+  const weaponLabel = document.createElement('label');
+  weaponLabel.textContent = 'Weapon';
+  weaponLabel.htmlFor = 'join-weapon-type';
+  weaponLabel.style.fontSize = '13px';
+
+  const weaponSelect = document.createElement('select');
+  weaponSelect.id = 'join-weapon-type';
+  weaponSelect.style.height = '36px';
+  weaponSelect.style.borderRadius = '8px';
+  weaponSelect.style.border = '1px solid #475569';
+  weaponSelect.style.background = '#020617';
+  weaponSelect.style.color = '#e2e8f0';
+  weaponSelect.style.padding = '0 10px';
+
+  for (const weaponType of ALL_WEAPON_TYPES) {
+    const option = document.createElement('option');
+    option.value = weaponType;
+    option.textContent = weaponType;
+    weaponSelect.appendChild(option);
+  }
+
   const previewContainer = document.createElement('div');
   previewContainer.style.display = 'flex';
   previewContainer.style.alignItems = 'center';
@@ -148,6 +175,8 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   panel.appendChild(nameInput);
   panel.appendChild(tankLabel);
   panel.appendChild(tankSelect);
+  panel.appendChild(weaponLabel);
+  panel.appendChild(weaponSelect);
   panel.appendChild(previewContainer);
   panel.appendChild(errorText);
   panel.appendChild(confirmButton);
@@ -158,20 +187,27 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   const updatePreview = (): void => {
     const playerName = nameInput.value.trim();
     const tankType = tankSelect.value as TankType;
+    const weaponType = weaponSelect.value as WeaponType;
     const color = TANK_PREVIEW_COLORS[tankType] ?? '#94a3b8';
 
     colorSwatch.style.backgroundColor = color;
-    previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType}`;
+    previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType} / ${weaponType}`;
   };
 
   nameInput.addEventListener('input', updatePreview);
-  tankSelect.addEventListener('change', updatePreview);
+  tankSelect.addEventListener('change', () => {
+    const selectedTankType = tankSelect.value as TankType;
+    weaponSelect.value = DEFAULT_WEAPON_BY_TANK[selectedTankType];
+    updatePreview();
+  });
+  weaponSelect.addEventListener('change', updatePreview);
 
   panel.addEventListener('submit', (event) => {
     event.preventDefault();
 
     const playerId = nameInput.value.trim();
     const selectedTankType = tankSelect.value;
+    const selectedWeaponType = weaponSelect.value;
 
     if (playerId.length === 0) {
       errorText.textContent = 'Player name cannot be empty.';
@@ -185,14 +221,20 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
       errorText.textContent = 'Please choose a valid tank type.';
       return;
     }
+    if (!isWeaponType(selectedWeaponType)) {
+      errorText.textContent = 'Please choose a valid weapon.';
+      return;
+    }
 
     overlay.remove();
     onSubmit({
       playerId,
       tankType: selectedTankType,
+      weaponType: selectedWeaponType,
     });
   });
 
+  weaponSelect.value = DEFAULT_WEAPON_BY_TANK[tankSelect.value as TankType];
   updatePreview();
   nameInput.focus();
 }

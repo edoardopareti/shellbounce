@@ -47,8 +47,9 @@ export class MineSystem {
       }
 
       const owner = players.get(mine.ownerPlayerId);
-      if (owner !== undefined && owner.isAlive) {
-        const ownerOverlappingMine = distance(owner.x, owner.y, mine.x, mine.y) <= owner.radius + mine.radius;
+      if (owner !== undefined && owner.tank.isAlive) {
+        const ownerOverlappingMine = distance(owner.tank.x, owner.tank.y, mine.x, mine.y)
+          <= owner.tank.radius + mine.radius;
         if (!ownerOverlappingMine) {
           mine.ownerHasClearedMine = true;
         }
@@ -57,7 +58,7 @@ export class MineSystem {
       }
 
       for (const player of players.values()) {
-        if (!player.isAlive) {
+        if (!player.tank.isAlive) {
           continue;
         }
 
@@ -65,7 +66,7 @@ export class MineSystem {
           continue;
         }
 
-        if (distance(player.x, player.y, mine.x, mine.y) > player.radius + mine.radius) {
+        if (distance(player.tank.x, player.tank.y, mine.x, mine.y) > player.tank.radius + mine.radius) {
           continue;
         }
 

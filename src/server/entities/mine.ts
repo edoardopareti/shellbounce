@@ -12,13 +12,13 @@ export interface MineEntity {
   ownerHasClearedMine: boolean;
 }
 
-export function createMineEntity(id: string, player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y'>): MineEntity {
+export function createMineEntity(id: string, player: Pick<PlayerEntity, 'id' | 'tank'>): MineEntity {
   return {
     id,
     ownerPlayerId: player.id,
-    color: player.bulletColor,
-    x: player.x,
-    y: player.y,
+    color: player.tank.bulletColor,
+    x: player.tank.x,
+    y: player.tank.y,
     radius: MINE_RADIUS,
     lifetimeMs: 0,
     ownerHasClearedMine: false,

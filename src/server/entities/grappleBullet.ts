@@ -1,6 +1,7 @@
 import type { PlayerEntity } from './player.js';
 import type { VolleyWeaponConfig } from './weaponConfig.js';
 import {
+  type BulletOwner,
   type GrappleBulletEntity,
   type GrappleBulletSpawnConfig,
   createGrappleBulletFromBase,
@@ -24,7 +25,7 @@ export interface GrappleBulletConfig {
 
 export function createGrappleBulletEntity(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: GrappleBulletConfig = {},
 ): GrappleBulletEntity {
   const spawnConfig: GrappleBulletSpawnConfig = {
@@ -60,12 +61,18 @@ export function createGrappleVolley(
   nextBulletId: () => string,
 ): GrappleBulletEntity[] {
   const angles = volleyConfig.volleyAngleOffsetsRadians.map(
-    (offset) => player.turretAngle + offset,
+    (offset) => player.tank.turretAngle + offset,
   );
 
   return angles.map((turretAngle) => createGrappleBulletEntity(
     nextBulletId(),
-    { ...player, turretAngle },
+    {
+      id: player.id,
+      tank: {
+        ...player.tank,
+        turretAngle,
+      },
+    },
     {
       ...config,
       armedDetonationDelayMs: volleyConfig.grappleArmedDetonationDelayMs,

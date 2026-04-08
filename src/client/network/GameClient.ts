@@ -5,6 +5,7 @@ import type {
   ServerStateMessage,
   ServerWelcomeMessage,
   TankType,
+  WeaponType,
   TankInput,
   WorldSnapshot,
 } from '../../shared/types';
@@ -13,6 +14,7 @@ import { ConnectionState } from '../../shared/types';
 export interface ClientJoinProfile {
   playerId: string;  // The player's chosen name or identifier to be used in the game.
   tankType: TankType;  // The type of tank the player wants to use.
+  weaponType: WeaponType;
 }
 
 export class GameClient {
@@ -51,6 +53,7 @@ export class GameClient {
         type: 'join',
         playerId: joinProfile.playerId,
         tankType: joinProfile.tankType,
+        weaponType: joinProfile.weaponType,
       };
       this.socket?.send(JSON.stringify(joinMessage));
     };

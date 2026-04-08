@@ -87,37 +87,37 @@ export class MachineGun extends Weapon {
     const canShoot = this.canStartShot(activeBulletCount);
 
     if (input.fireReleased && !input.firePressed) {
-      player.isChargingShot = false;
-      player.chargeMs = 0;
+      player.tank.isChargingShot = false;
+      player.tank.chargeMs = 0;
       return { firedBullets: [], selfDestructed: false };
     }
 
     if (input.firePressed) {
-      player.isChargingShot = true;
-      player.chargeMs = 0;
+      player.tank.isChargingShot = true;
+      player.tank.chargeMs = 0;
 
-      if (!canShoot || player.fireCooldownMs > 0) {
+      if (!canShoot || player.tank.fireCooldownMs > 0) {
         return { firedBullets: [], selfDestructed: false };
       }
 
       const bullet = this.createNormalShot(player);
-      player.fireCooldownMs = this.getNormalShotCooldownMs();
+      player.tank.fireCooldownMs = this.getNormalShotCooldownMs();
       return { firedBullets: [bullet], selfDestructed: false };
     }
 
-    if (!player.isChargingShot || !input.fireHeld) {
+    if (!player.tank.isChargingShot || !input.fireHeld) {
       return { firedBullets: [], selfDestructed: false };
     }
 
-    player.chargeMs += FIXED_TIMESTEP_SECONDS * 1000;
-    const rapidModeActive = player.chargeMs >= MACHINE_GUN_CONFIG.holdToRapidFireMs;
+    player.tank.chargeMs += FIXED_TIMESTEP_SECONDS * 1000;
+    const rapidModeActive = player.tank.chargeMs >= MACHINE_GUN_CONFIG.holdToRapidFireMs;
 
-    if (!rapidModeActive || !canShoot || player.fireCooldownMs > 0) {
+    if (!rapidModeActive || !canShoot || player.tank.fireCooldownMs > 0) {
       return { firedBullets: [], selfDestructed: false };
     }
 
     const bullet = this.createChargedShot(player, 1);
-    player.fireCooldownMs = this.getChargedShotCooldownMs();
+    player.tank.fireCooldownMs = this.getChargedShotCooldownMs();
     return { firedBullets: [bullet], selfDestructed: false };
   }
 }

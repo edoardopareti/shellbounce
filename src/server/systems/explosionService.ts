@@ -42,16 +42,16 @@ export class ExplosionService {
     handlers: ExplosionHandlers,
   ): void {
     for (const player of players.values()) {
-      if (!player.isAlive || player.isShieldActive) {
+      if (!player.tank.isAlive || player.tank.isShieldActive) {
         continue;
       }
 
-      const withinRadius = distance(player.x, player.y, centerX, centerY) <= radius + player.radius;
+      const withinRadius = distance(player.tank.x, player.tank.y, centerX, centerY) <= radius + player.tank.radius;
       if (!withinRadius) {
         continue;
       }
 
-      const blockedByWall = this.isBlockedByWall(environment.walls, centerX, centerY, player.x, player.y);
+      const blockedByWall = this.isBlockedByWall(environment.walls, centerX, centerY, player.tank.x, player.tank.y);
       if (!blockedByWall) {
         handlers.destroyPlayer(player, sourcePlayerId);
       }

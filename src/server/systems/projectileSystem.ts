@@ -153,7 +153,7 @@ export class ProjectileSystem {
       }
 
       for (const player of players.values()) {
-        if (!player.isAlive) {
+        if (!player.tank.isAlive) {
           continue;
         }
 
@@ -163,7 +163,7 @@ export class ProjectileSystem {
           break;
         }
 
-        if (distance(player.x, player.y, bullet.x, bullet.y) > player.radius + bullet.radius) {
+        if (distance(player.tank.x, player.tank.y, bullet.x, bullet.y) > player.tank.radius + bullet.radius) {
           continue;
         }
 

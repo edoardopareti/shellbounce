@@ -44,51 +44,51 @@ export abstract class Weapon {
   ): WeaponActionResult {
     const canStartShot = this.canStartShot(activeBulletCount);
 
-    if (!canStartShot && !player.isChargingShot) {
+    if (!canStartShot && !player.tank.isChargingShot) {
       this.handleSurprise(player, input.detonatePressed);
       return { firedBullets: [], selfDestructed: false };
     }
      
-    if (player.isChargingShot && input.fireHeld) {
-      player.chargeMs += FIXED_TIMESTEP_SECONDS * 1000;
-      if (player.chargeMs >= DEFAULT_CHARGED_SHOT_OVERCHARGE_MS) {
-        player.isChargingShot = false;
-        player.chargeMs = 0;
-        player.fireCooldownMs = this.getNormalShotCooldownMs();
+    if (player.tank.isChargingShot && input.fireHeld) {
+      player.tank.chargeMs += FIXED_TIMESTEP_SECONDS * 1000;
+      if (player.tank.chargeMs >= DEFAULT_CHARGED_SHOT_OVERCHARGE_MS) {
+        player.tank.isChargingShot = false;
+        player.tank.chargeMs = 0;
+        player.tank.fireCooldownMs = this.getNormalShotCooldownMs();
         this.handleSurprise(player, input.detonatePressed);
         return { firedBullets: [], selfDestructed: true };
       }
     }
 
-    if (input.firePressed && canStartShot && player.fireCooldownMs === 0 && !player.isChargingShot) {
-      player.isChargingShot = true;
-      player.chargeMs = 0;
+    if (input.firePressed && canStartShot && player.tank.fireCooldownMs === 0 && !player.tank.isChargingShot) {
+      player.tank.isChargingShot = true;
+      player.tank.chargeMs = 0;
     }
 
-    if (!player.isChargingShot || !input.fireReleased) {
+    if (!player.tank.isChargingShot || !input.fireReleased) {
       this.handleSurprise(player, input.detonatePressed);
       return { firedBullets: [], selfDestructed: false };
     }
 
-    if (!canStartShot || player.fireCooldownMs > 0) {
-      player.isChargingShot = false;
-      player.chargeMs = 0;
+    if (!canStartShot || player.tank.fireCooldownMs > 0) {
+      player.tank.isChargingShot = false;
+      player.tank.chargeMs = 0;
       this.handleSurprise(player, input.detonatePressed);
       return { firedBullets: [], selfDestructed: false };
     }
 
-    const heldMs = player.chargeMs;
+    const heldMs = player.tank.chargeMs;
     const chargeRatio = this.getChargeRatio(player);
     const isChargedShot = heldMs >= DEFAULT_CHARGED_SHOT_MIN_HOLD_MS;
 
-    player.isChargingShot = false;
-    player.chargeMs = 0;
+    player.tank.isChargingShot = false;
+    player.tank.chargeMs = 0;
 
     const firedBullets = this.toBulletArray(isChargedShot
       ? this.createChargedShot(player, chargeRatio)
       : this.createNormalShot(player));
 
-    player.fireCooldownMs = isChargedShot
+    player.tank.fireCooldownMs = isChargedShot
       ? this.getChargedShotCooldownMs()
       : this.getNormalShotCooldownMs();
 
@@ -108,12 +108,12 @@ export abstract class Weapon {
     return activeBulletCount < this.getMaxActiveBullets();
   }
 
-  public getChargeRatio(player: Pick<PlayerEntity, 'isChargingShot' | 'chargeMs'>): number {
-    if (!player.isChargingShot) {
+  public getChargeRatio(player: Pick<PlayerEntity, 'tank'>): number {
+    if (!player.tank.isChargingShot) {
       return 0;
     }
 
-    const cappedChargeMs = Math.min(player.chargeMs, DEFAULT_CHARGED_SHOT_MAX_HOLD_MS);
+    const cappedChargeMs = Math.min(player.tank.chargeMs, DEFAULT_CHARGED_SHOT_MAX_HOLD_MS);
     const normalized = (cappedChargeMs - DEFAULT_CHARGED_SHOT_MIN_HOLD_MS)
       / (DEFAULT_CHARGED_SHOT_MAX_HOLD_MS - DEFAULT_CHARGED_SHOT_MIN_HOLD_MS);
     return clamp(normalized, 0, 1);

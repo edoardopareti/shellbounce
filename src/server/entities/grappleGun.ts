@@ -122,7 +122,7 @@ export class GrappleGun extends Weapon {
 
     const result = this.runtime.armOrDetonateGrappleBulletsForPlayer(player.id);
     if (result.blockedByMinDetonationDelay) {
-      player.fireCooldownBlocked = true;
+      player.tank.fireCooldownBlocked = true;
     }
   }
 

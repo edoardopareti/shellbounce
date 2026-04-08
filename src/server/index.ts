@@ -9,7 +9,14 @@ import { createServer } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { TICK_RATE } from '../shared/constants.js';
 import { AuthoritativeSimulation } from './simulation.js';
-import { ALL_TANK_TYPES, type ClientJoinMessage, type ClientMessage, type ServerMessage, type TankInput } from '../shared/types.js';
+import {
+  ALL_TANK_TYPES,
+  ALL_WEAPON_TYPES,
+  type ClientJoinMessage,
+  type ClientMessage,
+  type ServerMessage,
+  type TankInput,
+} from '../shared/types.js';
 
 
 // TODO: Currently, a single AuthoritativeSimulation instance is used for all N clients,
@@ -217,13 +224,18 @@ function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
     return;
   }
 
+  if (!ALL_WEAPON_TYPES.includes(message.weaponType)) {
+    sendError(socket, `Invalid weapon type. Allowed: ${ALL_WEAPON_TYPES.join(', ')}`);
+    return;
+  }
+
   if (isPlayerIdTaken(playerId)) {
     sendError(socket, 'Player name already taken. Choose a different name.');
     return;
   }
   
   // Add the new player to the simulation with the generated player ID.
-  simulation.addPlayer(playerId, false, message.tankType);
+  simulation.addPlayer(playerId, false, message.tankType, message.weaponType);
   
   // Create a new client session and store it in the sessions map, keyed by the WebSocket connection.
   sessions.set(socket, {
@@ -262,7 +274,11 @@ function isClientMessage(value: unknown): value is ClientMessage {
 
   const candidate = value as Partial<ClientMessage>;
   if (candidate.type === 'join') {
-    return typeof candidate.playerId === 'string' && typeof candidate.tankType === 'string';
+    return (
+      typeof candidate.playerId === 'string'
+      && typeof candidate.tankType === 'string'
+      && typeof candidate.weaponType === 'string'
+    );
   }
 
   return candidate.type === 'input' && typeof candidate.seq === 'number' && typeof candidate.input === 'object';

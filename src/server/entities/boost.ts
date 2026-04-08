@@ -1,12 +1,12 @@
 import {
   FIXED_TIMESTEP_SECONDS,
-  TANK_BOOST_COOLDOWN_MS,
-  TANK_BOOST_DURATION_MS,
 } from '../../shared/constants.js';
+import type { TankConfig } from './tank.js';
 
 export interface BoostState {
   boostRemainingMs: number;
   boostCooldownMs: number;
+  tankConfig: Pick<TankConfig, 'boostCooldownMs' | 'boostDurationMs'>;
 }
 
 export function updateBoostState(
@@ -25,7 +25,7 @@ export function updateBoostState(
     player.boostRemainingMs = Math.max(0, player.boostRemainingMs - deltaMs);
     if (player.boostRemainingMs === 0) {
       // If the boost time runs out, start the cooldown.
-      player.boostCooldownMs = TANK_BOOST_COOLDOWN_MS;
+      player.boostCooldownMs = player.tankConfig.boostCooldownMs;
     }
   } else if (player.boostCooldownMs > 0) {
     // If the player is currently in boost cooldown, decrement the cooldown time by deltaMs.
@@ -36,7 +36,7 @@ export function updateBoostState(
   // start the boost by setting the boost remaining time to the defined boost duration 
   // and return true to indicate that the boost was activated.
   if (boostPressed && player.boostRemainingMs === 0 && player.boostCooldownMs === 0) {
-    player.boostRemainingMs = TANK_BOOST_DURATION_MS;
+    player.boostRemainingMs = player.tankConfig.boostDurationMs;
     return true;
   }
 

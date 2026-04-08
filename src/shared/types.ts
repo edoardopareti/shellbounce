@@ -22,6 +22,22 @@ export type MapName = 'map1' | 'map2' | 'map3';
 export type TankType = 'PolPot' | 'Hightillery' | 'SSugar' | 'Fantanyl';
 export const ALL_TANK_TYPES: readonly TankType[] = ['PolPot', 'Hightillery', 'SSugar', 'Fantanyl'];
 
+export type WeaponType = 'SimpleGun' | 'MitosisGun' | 'MachineGun' | 'GrappleGun' | 'LaserWhipGun';
+export const ALL_WEAPON_TYPES: readonly WeaponType[] = [
+  'SimpleGun',
+  'MitosisGun',
+  'MachineGun',
+  'GrappleGun',
+  'LaserWhipGun',
+];
+
+export const DEFAULT_WEAPON_BY_TANK: Record<TankType, WeaponType> = {
+  PolPot: 'MitosisGun',
+  Hightillery: 'MachineGun',
+  SSugar: 'LaserWhipGun',
+  Fantanyl: 'GrappleGun',
+};
+
 // TankInput represents the player's input state for a single game tick,
 // including movement commands, firing actions, and pointer position.
 export interface TankInput {
@@ -59,6 +75,7 @@ export const EMPTY_INPUT: TankInput = {
 export interface PlayerState {
   id: string;
   tankType: TankType;
+  weaponType: WeaponType;
   kills: number;
   deaths: number;
   score: number;
@@ -160,6 +177,7 @@ export interface ClientJoinMessage {
   type: 'join';
   playerId: string;
   tankType: TankType;
+  weaponType: WeaponType;
 }
 // ClientInputMessage represents the structure of player input messages sent from clients to the server,
 // containing the input state and a sequence number for ordering.

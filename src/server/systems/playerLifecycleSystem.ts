@@ -32,8 +32,8 @@ export class PlayerLifecycleSystem {
     for (let offset = 0; offset < points.length; offset += 1) {
       const spawn = points[(startIndex + offset) % points.length];
       const alivePlayers = Array.from(players.values())
-        .filter((player) => player.isAlive)
-        .map((player) => ({ id: player.id, x: player.x, y: player.y, radius: player.radius }));
+        .filter((player) => player.tank.isAlive)
+        .map((player) => ({ id: player.id, x: player.tank.x, y: player.tank.y, radius: player.tank.radius }));
       if (!isSpawnPointBlocked(spawn.x, spawn.y, excludedPlayerId, walls, alivePlayers)) {
         return spawn;
       }
@@ -50,7 +50,7 @@ export class PlayerLifecycleSystem {
   ): void {
     // Iterate through all players to check if any are due for respawn based on their respawn timers.
     for (const player of players.values()) {
-      if (player.isAlive || nowMs < player.respawnAtMs) {
+      if (player.tank.isAlive || nowMs < player.respawnAtMs) {
         continue;
       }
       

@@ -1,7 +1,5 @@
-import {
-  MUZZLE_OFFSET,
-} from '../../shared/constants.js';
 import type { PlayerEntity } from './player.js';
+import type { TankConfig } from './tank.js';
 
 // Fallback values for bullet properties if not specified in weapon config
 export const DEFAULT_BULLET_RADIUS = 5;
@@ -77,22 +75,32 @@ export interface GrappleBulletSpawnConfig extends BaseBulletSpawnConfig {
   manualDetonationMinDelayMs: number;
 }
 
+type BulletTankView = {
+  x: number;
+  y: number;
+  turretAngle: number;
+  bulletColor: number;
+  tankConfig: Pick<TankConfig, 'muzzleOffset'>;
+};
+
+export type BulletOwner = Pick<PlayerEntity, 'id'> & { tank: BulletTankView };
+
 function createBaseBulletEntity(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: BaseBulletSpawnConfig,
 ): BaseBulletEntity {
-  const spawnX = player.x + Math.cos(player.turretAngle) * MUZZLE_OFFSET;
-  const spawnY = player.y + Math.sin(player.turretAngle) * MUZZLE_OFFSET;
+  const spawnX = player.tank.x + Math.cos(player.tank.turretAngle) * player.tank.tankConfig.muzzleOffset;
+  const spawnY = player.tank.y + Math.sin(player.tank.turretAngle) * player.tank.tankConfig.muzzleOffset;
 
   return {
     id,
     ownerPlayerId: player.id,
-    color: player.bulletColor,
+    color: player.tank.bulletColor,
     x: spawnX,
     y: spawnY,
-    vx: Math.cos(player.turretAngle) * config.speed,
-    vy: Math.sin(player.turretAngle) * config.speed,
+    vx: Math.cos(player.tank.turretAngle) * config.speed,
+    vy: Math.sin(player.tank.turretAngle) * config.speed,
     radius: config.radius ?? DEFAULT_BULLET_RADIUS,
     lifetimeMs: 0,
     maxLifetimeMs: config.maxLifetimeMs ?? DEFAULT_BULLET_MAX_LIFETIME_MS,
@@ -105,7 +113,7 @@ function createBaseBulletEntity(
 
 export function createStandardBulletEntity(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: BulletSpawnConfig,
 ): StandardBulletEntity {
   return {
@@ -116,7 +124,7 @@ export function createStandardBulletEntity(
 
 export function createMitosisBulletFromBase(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: MitosisBulletSpawnConfig,
 ): MitosisBulletEntity {
   return {
@@ -128,7 +136,7 @@ export function createMitosisBulletFromBase(
 
 export function createLaserBulletFromBase(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: LaserBulletSpawnConfig,
 ): LaserBulletEntity {
   return {
@@ -140,7 +148,7 @@ export function createLaserBulletFromBase(
 
 export function createGrappleBulletFromBase(
   id: string,
-  player: Pick<PlayerEntity, 'id' | 'bulletColor' | 'x' | 'y' | 'turretAngle'>,
+  player: BulletOwner,
   config: GrappleBulletSpawnConfig,
 ): GrappleBulletEntity {
   return {
