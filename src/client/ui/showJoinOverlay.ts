@@ -110,7 +110,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     MachineGun: 'Rapid fire with limited range. Good for close combat.', // Perfect for who likes spamming a button until developing carpal tunnel syndrome.',
     LaserWhipGun: 'Allows fast shooting and instant teleportation.', // Can cause headaches to you and others.',
     GrappleGun: 'Shoots volleys that can stick to the ground. Good for open space control.', // Use it in narrow spaces to blow your own a*s.',
-    MitosisGun: 'Splits shots into multiple projectiles. Great open field strategic control.', // After some practice you will stop questioning the game developer mental stability.',
+    MitosisGun: 'Splits shots into multiple projectiles. Great for strategic field control.', // After some practice you will stop questioning the game developer mental stability.',
   };
 
   const tankSelect = document.createElement('select');
