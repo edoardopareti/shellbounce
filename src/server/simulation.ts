@@ -13,6 +13,7 @@ import { circleIntersectsRect, normalizeAngleRadians } from '../shared/math.js';
 import {
   ALL_WEAPON_TYPES,
   EMPTY_INPUT,
+  type ShieldType,
   type ShotPreviewState,
   type TankInput,
   type TankType,
@@ -27,6 +28,7 @@ import { sanitizeInput } from './entities/input.js';
 import type { MineEntity } from './entities/mine.js';
 import {
   createPlayerEntity,
+  resolveShieldTypeForNewPlayer,
   resolveTankTypeForNewPlayer, 
   resolveWeaponTypeForNewPlayer,
   schedulePlayerRespawn,
@@ -51,6 +53,8 @@ import { MineRegistry } from './entities/mineRegistry.js';
 import { ShieldRegistry } from './entities/shieldRegistry.js';
 import { StandardMine } from './entities/standardMine.js';
 import { StandardShield } from './entities/standardShield.js';
+import { OmniDirShield } from './entities/omniDirShield.js';
+import type { Shield } from './entities/shield.js';
 
 // AuthoritativeSimulation manages the state and logic of the game,
 // including players, bullets, mines, and bots.
@@ -90,7 +94,10 @@ export class AuthoritativeSimulation {
     this.weaponRegistry.register('MachineGun', (runtime) => new MachineGun(runtime));
 
     this.mineRegistry.registerDefault(() => new StandardMine());
+
     this.shieldRegistry.registerDefault(() => new StandardShield());
+    this.shieldRegistry.register('StandardShield', () => new StandardShield());
+    this.shieldRegistry.register('OmniDirShield', () => new OmniDirShield());
   }
 
   public step(): void {
@@ -129,6 +136,7 @@ export class AuthoritativeSimulation {
     isBot: boolean,
     preferredTankType?: TankType,
     preferredWeaponType?: WeaponType,
+    preferredShieldType?: ShieldType,
   ): void {
 
     // Add a new player to the simulation with the specified playerId and bot status.
@@ -144,6 +152,12 @@ export class AuthoritativeSimulation {
       this.playerJoinCounter,
       tankType,
       preferredWeaponType,
+    );
+    const shieldType = resolveShieldTypeForNewPlayer(
+      isBot,
+      this.playerJoinCounter,
+      tankType,
+      preferredShieldType,
     );
 
     // Pick an available spawn point for the new player.
@@ -161,9 +175,21 @@ export class AuthoritativeSimulation {
       pullPlayerToOwnedLaserTip: (id: string, stepDistance: number) => this.tryPullPlayerToOwnedLaserTip(id, stepDistance),
     });
     const mine = this.mineRegistry.createDefault();
-    const shield = this.shieldRegistry.createDefault();
+    const shield = this.shieldRegistry.createForShieldType(shieldType);
+    const respawnShield = this.shieldRegistry.createForShieldType('OmniDirShield');
 
-    const player = createPlayerEntity(playerId, isBot, spawn, tankType, weaponType, weapon, mine, shield);
+    const player = createPlayerEntity(
+      playerId,
+      isBot,
+      spawn,
+      tankType,
+      weaponType,
+      shieldType,
+      weapon,
+      mine,
+      shield,
+      respawnShield,
+    );
     
     // Increment the player join counter to ensure unique player IDs for bots
     this.playerJoinCounter += 1;
@@ -290,6 +316,7 @@ export class AuthoritativeSimulation {
     
     // Evaluate how much time the player has left of spawn protection, if any.
     player.tank.spawnProtectionMs = Math.max(0, player.tank.spawnProtectionMs - FIXED_TIMESTEP_SECONDS * 1000);
+    player.tank.respawnShield.setForcedActive(player.tank.spawnProtectionMs > 0);
     // If the player still has spawn protection time remaining, consider them offensively locked.
     const offensiveLocked = player.tank.spawnProtectionMs > 0;
     
@@ -376,6 +403,7 @@ export class AuthoritativeSimulation {
           id: player.id,
           tankType: player.tank.tankType,
           weaponType: player.tank.weaponType,
+          shieldType: player.tank.shieldType,
           kills: player.kills,
           deaths: player.deaths,
           score: player.kills - player.deaths,
@@ -387,7 +415,7 @@ export class AuthoritativeSimulation {
           isAlive: player.tank.isAlive,
           isBot: player.tank.isBot,
           bulletColor: player.tank.bulletColor,
-          isShieldActive: player.tank.shield.isActive,
+          isShieldActive: this.getActiveShieldForPlayer(player) !== undefined,
           isSpawnProtected: player.tank.spawnProtectionMs > 0,
           shieldCooldownBlocked: player.tank.shield.isCooldownBlocked,
           isChargingShot: player.tank.isChargingShot,
@@ -941,11 +969,33 @@ export class AuthoritativeSimulation {
   }
 
   private isBulletHittingShield(bullet: BulletEntity, player: PlayerEntity): boolean {
-    return player.tank.shield.isBulletHitting(bullet, player.tank);
+    const shield = this.getActiveShieldForPlayer(player);
+    if (shield === undefined) {
+      return false;
+    }
+
+    return shield.isBulletHitting(bullet, player.tank);
   }
 
   private deflectBulletByShieldSurfaceNormal(bullet: BulletEntity, player: PlayerEntity): void {
-    player.tank.shield.deflectBulletBySurfaceNormal(bullet, player.tank);
+    const shield = this.getActiveShieldForPlayer(player);
+    if (shield === undefined) {
+      return;
+    }
+
+    shield.deflectBulletBySurfaceNormal(bullet, player.tank);
+  }
+
+  private getActiveShieldForPlayer(player: PlayerEntity): Shield | undefined {
+    if (player.tank.respawnShield.isActive) {
+      return player.tank.respawnShield;
+    }
+
+    if (player.tank.shield.isActive) {
+      return player.tank.shield;
+    }
+
+    return undefined;
   }
 
   private destroyPlayer(player: PlayerEntity, killerPlayerId?: string): void {

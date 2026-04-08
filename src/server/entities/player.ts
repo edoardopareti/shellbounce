@@ -4,7 +4,9 @@ import {
   TANK_RESPAWN_PROTECTION_MS,
 } from '../../shared/constants.js';
 import {
+  DEFAULT_SHIELD_BY_TANK,
   ALL_TANK_TYPES,
+  type ShieldType,
   DEFAULT_WEAPON_BY_TANK,
   type TankType,
   type WeaponType,
@@ -29,16 +31,18 @@ export function createPlayerEntity(
   spawn: { x: number; y: number },
   tankType: TankType,
   weaponType: WeaponType,
+  shieldType: ShieldType,
   weapon: Weapon,
   mine: Mine,
   shield: Shield,
+  respawnShield: Shield,
 ): PlayerEntity {
   return {
     id: playerId,
     kills: 0,
     deaths: 0,
     respawnAtMs: 0,
-    tank: createTankByType(tankType, weaponType, weapon, mine, shield, isBot, spawn),
+    tank: createTankByType(tankType, weaponType, shieldType, weapon, mine, shield, respawnShield, isBot, spawn),
   };
 }
 
@@ -78,6 +82,25 @@ export function resolveWeaponTypeForNewPlayer(
   return preferredWeaponType ?? DEFAULT_WEAPON_BY_TANK[tankType];
 }
 
+export function resolveShieldTypeForNewPlayer(
+  isBot: boolean,
+  playerJoinCounter: number,
+  tankType: TankType,
+  preferredShieldType?: ShieldType,
+): ShieldType {
+  if (!isBot && preferredShieldType !== undefined) {
+    return preferredShieldType;
+  }
+
+  if (isBot && preferredShieldType === undefined) {
+    const index = playerJoinCounter % ALL_TANK_TYPES.length;
+    const botTankType = ALL_TANK_TYPES[index];
+    return DEFAULT_SHIELD_BY_TANK[botTankType];
+  }
+
+  return preferredShieldType ?? DEFAULT_SHIELD_BY_TANK[tankType];
+}
+
 export function resetPlayerForRespawn(player: PlayerEntity, spawn: { x: number; y: number }): void {
 
   // Reset the player's state for respawn, including position, angles, timers, and status effects,
@@ -94,6 +117,8 @@ export function resetPlayerForRespawn(player: PlayerEntity, spawn: { x: number; 
   player.tank.boostRemainingMs = 0;
   player.tank.boostCooldownMs = 0;
   player.tank.shield.reset();
+  player.tank.respawnShield.reset();
+  player.tank.respawnShield.setForcedActive(true);
   player.tank.fireCooldownBlocked = false;
   player.tank.isChargingShot = false;
   player.tank.chargeMs = 0;
@@ -105,6 +130,8 @@ export function schedulePlayerRespawn(player: PlayerEntity, nowMs: number): void
   player.respawnAtMs = nowMs + TANK_RESPAWN_DELAY_MS;
   player.tank.spawnProtectionMs = 0;
   player.tank.shield.deactivate();
+  player.tank.respawnShield.setForcedActive(false);
+  player.tank.respawnShield.deactivate();
   player.tank.fireCooldownBlocked = false;
   player.tank.isChargingShot = false;
   player.tank.chargeMs = 0;

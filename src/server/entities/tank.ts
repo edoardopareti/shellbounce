@@ -1,4 +1,5 @@
 import {
+  type ShieldType,
   type TankType,
   type WeaponType,
 } from '../../shared/types.js';
@@ -41,9 +42,11 @@ export interface TankState {
 export abstract class Tank implements TankState {
   public readonly tankType: TankType;
   public readonly weaponType: WeaponType;
+  public readonly shieldType: ShieldType;
   public readonly weapon: Weapon;
   public readonly mine: Mine;
   public readonly shield: Shield;
+  public readonly respawnShield: Shield;
   public readonly tankConfig: TankConfig;
   public readonly bulletColor: number;
 
@@ -64,9 +67,11 @@ export abstract class Tank implements TankState {
   protected constructor(
     tankType: TankType,
     weaponType: WeaponType,
+    shieldType: ShieldType,
     weapon: Weapon,
     mine: Mine,
     shield: Shield,
+    respawnShield: Shield,
     bulletColor: number,
     isBot: boolean,
     spawn: { x: number; y: number },
@@ -74,9 +79,11 @@ export abstract class Tank implements TankState {
   ) {
     this.tankType = tankType;
     this.weaponType = weaponType;
+    this.shieldType = shieldType;
     this.weapon = weapon;
     this.mine = mine;
     this.shield = shield;
+    this.respawnShield = respawnShield;
     this.bulletColor = bulletColor;
     this.isBot = isBot;
     this.tankConfig = tankConfig;

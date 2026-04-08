@@ -148,15 +148,18 @@ export class RenderTank {
       this.chargeSpark.setScale(Phaser.Math.Linear(0.7, 1.5, player.chargeLevel) * sparklePulse);
     }
 
-    if (player.isSpawnProtected) {
+    const renderOmnidirectionalShield = player.isSpawnProtected || player.shieldType === 'OmniDirShield';
+
+    if (renderOmnidirectionalShield) {
       const shieldPulse = 0.97 + Math.sin(this.scene.time.now * 0.014) * 0.06;
       this.shieldRing.setPosition(0, 0);
       this.shieldRing.setStartAngle(0);
       this.shieldRing.setEndAngle(360);
-      this.shieldRing.setAlpha(0.58);
-      this.shieldRing.setFillStyle(0x60a5fa, 0.2);
+      const shieldColor = player.isSpawnProtected ? 0x60a5fa : player.bulletColor;
+      this.shieldRing.setAlpha(player.isShieldActive ? 0.58 : 0);
+      this.shieldRing.setFillStyle(shieldColor, player.isSpawnProtected ? 0.2 : 0.14);
       this.shieldRing.setScale(shieldPulse);
-      this.shieldRing.setStrokeStyle(2.8, 0x60a5fa, 0.9);
+      this.shieldRing.setStrokeStyle(player.isSpawnProtected ? 2.8 : 2.5, shieldColor, player.isSpawnProtected ? 0.9 : 0.7);
       return;
     }
 

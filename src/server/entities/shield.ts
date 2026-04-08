@@ -8,13 +8,13 @@ export interface ShieldConfig {
   sectorAngleRadians: number;
   cooldownMs: number;
   overchargeMs: number;
+  mode: 'sector' | 'omnidirectional';
 }
 
 export interface ShieldOwnerPose {
   x: number;
   y: number;
   turretAngle: number;
-  spawnProtectionMs: number;
 }
 
 export abstract class Shield {
@@ -22,11 +22,12 @@ export abstract class Shield {
   private cooldownMs = 0;
   private active = false;
   private cooldownBlocked = false;
+  private forcedActive = false;
 
   public constructor(private readonly shieldConfig: ShieldConfig) {}
 
   public get isActive(): boolean {
-    return this.active;
+    return this.active || this.forcedActive;
   }
 
   public get holdDurationMs(): number {
@@ -56,6 +57,10 @@ export abstract class Shield {
     this.active = false;
     this.cooldownBlocked = false;
     this.holdMs = 0;
+  }
+
+  public setForcedActive(active: boolean): void {
+    this.forcedActive = active;
   }
 
   public update(shieldHeld: boolean): void {
@@ -92,11 +97,11 @@ export abstract class Shield {
     bullet: Pick<BulletEntity, 'x' | 'y' | 'radius'>,
     owner: ShieldOwnerPose,
   ): boolean {
-    if (!this.active && owner.spawnProtectionMs <= 0) {
+    if (!this.isActive) {
       return false;
     }
 
-    if (owner.spawnProtectionMs > 0) {
+    if (this.shieldConfig.mode === 'omnidirectional') {
       return distance(bullet.x, bullet.y, owner.x, owner.y) <= bullet.radius + this.shieldConfig.radius;
     }
 
@@ -115,7 +120,7 @@ export abstract class Shield {
     bullet: Pick<BulletEntity, 'x' | 'y' | 'vx' | 'vy' | 'radius'>,
     owner: ShieldOwnerPose,
   ): void {
-    const shieldCenter = owner.spawnProtectionMs > 0 ? { x: owner.x, y: owner.y } : this.getCenter(owner);
+    const shieldCenter = this.shieldConfig.mode === 'omnidirectional' ? { x: owner.x, y: owner.y } : this.getCenter(owner);
     let nx = bullet.x - shieldCenter.x;
     let ny = bullet.y - shieldCenter.y;
 

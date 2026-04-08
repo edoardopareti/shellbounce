@@ -1,4 +1,4 @@
-import type { WeaponType } from '../../shared/types.js';
+import type { ShieldType, WeaponType } from '../../shared/types.js';
 import type { Mine } from './mine.js';
 import type { Shield } from './shield.js';
 import type { Weapon } from './weapon.js';
@@ -18,13 +18,15 @@ export const SSUGAR_TANK_CONFIG: Readonly<TankConfig> = {
 export class SSugarTank extends Tank {
   public constructor(
     weaponType: WeaponType,
+    shieldType: ShieldType,
     weapon: Weapon,
     mine: Mine,
     shield: Shield,
+    respawnShield: Shield,
     isBot: boolean,
     spawn: { x: number; y: number },
     tankConfig: TankConfig = SSUGAR_TANK_CONFIG,
   ) {
-    super('SSugar', weaponType, weapon, mine, shield, 0xf8fafc, isBot, spawn, tankConfig);
+    super('SSugar', weaponType, shieldType, weapon, mine, shield, respawnShield, 0xf8fafc, isBot, spawn, tankConfig);
   }
 }

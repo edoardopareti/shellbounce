@@ -1,12 +1,15 @@
 import type { ClientJoinProfile } from '../network/GameClient';
 import {
+  ALL_SHIELD_TYPES,
   ALL_TANK_TYPES,
   ALL_WEAPON_TYPES,
+  DEFAULT_SHIELD_BY_TANK,
   DEFAULT_WEAPON_BY_TANK,
+  type ShieldType,
   type TankType,
   type WeaponType,
 } from '../../shared/types';
-import { isTankType, isWeaponType } from '../utils/utils';
+import { isShieldType, isTankType, isWeaponType } from '../utils/utils';
 
 const MAX_PLAYER_NAME_LENGTH = 24;
 
@@ -131,6 +134,27 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     weaponSelect.appendChild(option);
   }
 
+  const shieldLabel = document.createElement('label');
+  shieldLabel.textContent = 'Shield';
+  shieldLabel.htmlFor = 'join-shield-type';
+  shieldLabel.style.fontSize = '13px';
+
+  const shieldSelect = document.createElement('select');
+  shieldSelect.id = 'join-shield-type';
+  shieldSelect.style.height = '36px';
+  shieldSelect.style.borderRadius = '8px';
+  shieldSelect.style.border = '1px solid #475569';
+  shieldSelect.style.background = '#020617';
+  shieldSelect.style.color = '#e2e8f0';
+  shieldSelect.style.padding = '0 10px';
+
+  for (const shieldType of ALL_SHIELD_TYPES) {
+    const option = document.createElement('option');
+    option.value = shieldType;
+    option.textContent = shieldType;
+    shieldSelect.appendChild(option);
+  }
+
   const previewContainer = document.createElement('div');
   previewContainer.style.display = 'flex';
   previewContainer.style.alignItems = 'center';
@@ -177,6 +201,8 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   panel.appendChild(tankSelect);
   panel.appendChild(weaponLabel);
   panel.appendChild(weaponSelect);
+  panel.appendChild(shieldLabel);
+  panel.appendChild(shieldSelect);
   panel.appendChild(previewContainer);
   panel.appendChild(errorText);
   panel.appendChild(confirmButton);
@@ -188,19 +214,22 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     const playerName = nameInput.value.trim();
     const tankType = tankSelect.value as TankType;
     const weaponType = weaponSelect.value as WeaponType;
+    const shieldType = shieldSelect.value as ShieldType;
     const color = TANK_PREVIEW_COLORS[tankType] ?? '#94a3b8';
 
     colorSwatch.style.backgroundColor = color;
-    previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType} / ${weaponType}`;
+    previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType} / ${weaponType} / ${shieldType}`;
   };
 
   nameInput.addEventListener('input', updatePreview);
   tankSelect.addEventListener('change', () => {
     const selectedTankType = tankSelect.value as TankType;
     weaponSelect.value = DEFAULT_WEAPON_BY_TANK[selectedTankType];
+    shieldSelect.value = DEFAULT_SHIELD_BY_TANK[selectedTankType];
     updatePreview();
   });
   weaponSelect.addEventListener('change', updatePreview);
+  shieldSelect.addEventListener('change', updatePreview);
 
   panel.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -208,6 +237,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     const playerId = nameInput.value.trim();
     const selectedTankType = tankSelect.value;
     const selectedWeaponType = weaponSelect.value;
+    const selectedShieldType = shieldSelect.value;
 
     if (playerId.length === 0) {
       errorText.textContent = 'Player name cannot be empty.';
@@ -225,16 +255,22 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
       errorText.textContent = 'Please choose a valid weapon.';
       return;
     }
+    if (!isShieldType(selectedShieldType)) {
+      errorText.textContent = 'Please choose a valid shield.';
+      return;
+    }
 
     overlay.remove();
     onSubmit({
       playerId,
       tankType: selectedTankType,
       weaponType: selectedWeaponType,
+      shieldType: selectedShieldType,
     });
   });
 
   weaponSelect.value = DEFAULT_WEAPON_BY_TANK[tankSelect.value as TankType];
+  shieldSelect.value = DEFAULT_SHIELD_BY_TANK[tankSelect.value as TankType];
   updatePreview();
   nameInput.focus();
 }

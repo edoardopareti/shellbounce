@@ -38,6 +38,19 @@ export const DEFAULT_WEAPON_BY_TANK: Record<TankType, WeaponType> = {
   Fantanyl: 'GrappleGun',
 };
 
+export type ShieldType = 'StandardShield' | 'OmniDirShield';
+export const ALL_SHIELD_TYPES: readonly ShieldType[] = [
+  'StandardShield',
+  'OmniDirShield',
+];
+
+export const DEFAULT_SHIELD_BY_TANK: Record<TankType, ShieldType> = {
+  PolPot: 'StandardShield',
+  Hightillery: 'StandardShield',
+  SSugar: 'StandardShield',
+  Fantanyl: 'StandardShield',
+};
+
 // TankInput represents the player's input state for a single game tick,
 // including movement commands, firing actions, and pointer position.
 export interface TankInput {
@@ -76,6 +89,7 @@ export interface PlayerState {
   id: string;
   tankType: TankType;
   weaponType: WeaponType;
+  shieldType: ShieldType;
   kills: number;
   deaths: number;
   score: number;
@@ -178,6 +192,7 @@ export interface ClientJoinMessage {
   playerId: string;
   tankType: TankType;
   weaponType: WeaponType;
+  shieldType: ShieldType;
 }
 // ClientInputMessage represents the structure of player input messages sent from clients to the server,
 // containing the input state and a sequence number for ordering.

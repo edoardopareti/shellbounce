@@ -10,6 +10,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { TICK_RATE } from '../shared/constants.js';
 import { AuthoritativeSimulation } from './simulation.js';
 import {
+  ALL_SHIELD_TYPES,
   ALL_TANK_TYPES,
   ALL_WEAPON_TYPES,
   type ClientJoinMessage,
@@ -229,13 +230,18 @@ function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
     return;
   }
 
+  if (!ALL_SHIELD_TYPES.includes(message.shieldType)) {
+    sendError(socket, `Invalid shield type. Allowed: ${ALL_SHIELD_TYPES.join(', ')}`);
+    return;
+  }
+
   if (isPlayerIdTaken(playerId)) {
     sendError(socket, 'Player name already taken. Choose a different name.');
     return;
   }
   
   // Add the new player to the simulation with the generated player ID.
-  simulation.addPlayer(playerId, false, message.tankType, message.weaponType);
+  simulation.addPlayer(playerId, false, message.tankType, message.weaponType, message.shieldType);
   
   // Create a new client session and store it in the sessions map, keyed by the WebSocket connection.
   sessions.set(socket, {
@@ -278,6 +284,7 @@ function isClientMessage(value: unknown): value is ClientMessage {
       typeof candidate.playerId === 'string'
       && typeof candidate.tankType === 'string'
       && typeof candidate.weaponType === 'string'
+      && typeof candidate.shieldType === 'string'
     );
   }
 
