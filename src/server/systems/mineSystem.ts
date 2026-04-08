@@ -1,11 +1,8 @@
 import {
   FIXED_TIMESTEP_SECONDS,
-  MAX_ACTIVE_MINES_PER_TANK,
-  MINE_ARMING_DELAY_MS,
-  MINE_LIFETIME_MS,
 } from '../../shared/constants.js';
 import { distance } from '../../shared/math.js';
-import { createMineEntity, type MineEntity } from '../entities/mine.js';
+import type { MineEntity } from '../entities/mine.js';
 import type { PlayerEntity } from '../entities/player.js';
 
 export interface MineSystemHandlers {
@@ -23,7 +20,7 @@ export class MineSystem {
       }
       mine.lifetimeMs += deltaMs;
 
-      if (mine.lifetimeMs < MINE_LIFETIME_MS) {
+      if (mine.lifetimeMs < mine.maxLifetimeMs) {
         continue;
       }
 
@@ -42,7 +39,7 @@ export class MineSystem {
       if (mine === undefined) {
         continue;
       }
-      if (mine.lifetimeMs < MINE_ARMING_DELAY_MS) {
+      if (mine.lifetimeMs < mine.armingDelayMs) {
         continue;
       }
 
@@ -79,10 +76,10 @@ export class MineSystem {
 
   public tryPlaceMine(player: PlayerEntity, mines: MineEntity[], nextMineId: string): MineEntity | undefined {
     const activeMineCount = mines.filter((mine) => mine.ownerPlayerId === player.id).length;
-    if (activeMineCount >= MAX_ACTIVE_MINES_PER_TANK) {
+    if (activeMineCount >= player.tank.mine.getMaxActiveMines()) {
       return undefined;
     }
 
-    return createMineEntity(nextMineId, player);
+    return player.tank.mine.createEntity(nextMineId, player);
   }
 }

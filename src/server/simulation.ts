@@ -1,7 +1,6 @@
 import {
   BULLET_EXPLOSION_VISUAL_DURATION_MS,
   FIXED_TIMESTEP_SECONDS,
-  MINE_ARMING_DELAY_MS,
   MINE_EXPLOSION_RADIUS,
   MINE_EXPLOSION_VISUAL_DURATION_MS,
   SHOT_PREVIEW_BULLET_RADIUS,
@@ -34,11 +33,6 @@ import {
   type PlayerEntity,
 } from './entities/player.js';
 import { registerFrag } from './entities/scoreboard.js';
-import {
-  deflectBulletByShieldSurfaceNormal as deflectBulletByShield,
-  isBulletHittingShield as bulletHitsShield,
-  updateShieldState as updateShieldEntityState,
-} from './entities/shield.js';
 import { buildShotPreview } from './entities/shotPreview.js';
 import { splitMitosisBulletEntity } from './entities/mitosisBullet.js';
 import { MitosisGun } from './entities/mitosisGun.js';
@@ -53,6 +47,10 @@ import { PlayerLifecycleSystem } from './systems/playerLifecycleSystem.js';
 import { ProjectileSystem } from './systems/projectileSystem.js';
 import type { SimulationContext } from './systems/simulationContext.js';
 import { WeaponRegistry } from './entities/weaponRegistry.js';
+import { MineRegistry } from './entities/mineRegistry.js';
+import { ShieldRegistry } from './entities/shieldRegistry.js';
+import { StandardMine } from './entities/standardMine.js';
+import { StandardShield } from './entities/standardShield.js';
 
 // AuthoritativeSimulation manages the state and logic of the game,
 // including players, bullets, mines, and bots.
@@ -66,6 +64,8 @@ export class AuthoritativeSimulation {
   private readonly mines: MineEntity[] = []; // Active mines in the simulation
   private readonly botController = new BotController(); // Bot controller to manage AI player behavior
   private readonly weaponRegistry = new WeaponRegistry(); // Registry for creating weapons based on tank types
+  private readonly mineRegistry = new MineRegistry(); // Registry for creating mine behavior instances
+  private readonly shieldRegistry = new ShieldRegistry(); // Registry for creating shield behavior instances
   private readonly effectBuffer = new EffectBuffer();  // Buffer for visual effects to be sent to clients
   private readonly explosionService = new ExplosionService();  // Service to handle explosion logic and its effects on players, bullets, and mines
   private readonly mineSystem = new MineSystem();  // System to handle mine placement, arming, and explosion logic
@@ -88,6 +88,9 @@ export class AuthoritativeSimulation {
     this.weaponRegistry.register('GrappleGun', (runtime) => new GrappleGun(runtime));
     this.weaponRegistry.register('LaserWhipGun', (runtime) => new LaserWhipGun(runtime));
     this.weaponRegistry.register('MachineGun', (runtime) => new MachineGun(runtime));
+
+    this.mineRegistry.registerDefault(() => new StandardMine());
+    this.shieldRegistry.registerDefault(() => new StandardShield());
   }
 
   public step(): void {
@@ -157,8 +160,10 @@ export class AuthoritativeSimulation {
       armOrDetonateGrappleBulletsForPlayer: (id: string) => this.tryArmOrDetonateGrappleBulletsForPlayer(id),
       pullPlayerToOwnedLaserTip: (id: string, stepDistance: number) => this.tryPullPlayerToOwnedLaserTip(id, stepDistance),
     });
+    const mine = this.mineRegistry.createDefault();
+    const shield = this.shieldRegistry.createDefault();
 
-    const player = createPlayerEntity(playerId, isBot, spawn, tankType, weaponType, weapon);
+    const player = createPlayerEntity(playerId, isBot, spawn, tankType, weaponType, weapon, mine, shield);
     
     // Increment the player join counter to ensure unique player IDs for bots
     this.playerJoinCounter += 1;
@@ -382,9 +387,9 @@ export class AuthoritativeSimulation {
           isAlive: player.tank.isAlive,
           isBot: player.tank.isBot,
           bulletColor: player.tank.bulletColor,
-          isShieldActive: player.tank.isShieldActive,
+          isShieldActive: player.tank.shield.isActive,
           isSpawnProtected: player.tank.spawnProtectionMs > 0,
-          shieldCooldownBlocked: player.tank.shieldCooldownBlocked,
+          shieldCooldownBlocked: player.tank.shield.isCooldownBlocked,
           isChargingShot: player.tank.isChargingShot,
           chargeLevel: this.getChargeRatio(player),
           fireCooldownBlocked: player.tank.fireCooldownBlocked,
@@ -409,7 +414,7 @@ export class AuthoritativeSimulation {
         x: mine.x,
         y: mine.y,
         radius: mine.radius,
-        armed: mine.lifetimeMs >= MINE_ARMING_DELAY_MS,
+        armed: mine.lifetimeMs >= mine.armingDelayMs,
         color: mine.color,
       })),
       effects,
@@ -458,7 +463,7 @@ export class AuthoritativeSimulation {
   private updateShieldState(player: PlayerEntity, input: TankInput): void {
     // Update the player's shield state
     // based on their input and apply any resulting effects or cooldowns.
-    updateShieldEntityState(player.tank, input.shieldHeld);
+    player.tank.shield.update(input.shieldHeld);
   }
 
   private updateBodyRotation(player: PlayerEntity, input: TankInput): void {
@@ -936,11 +941,11 @@ export class AuthoritativeSimulation {
   }
 
   private isBulletHittingShield(bullet: BulletEntity, player: PlayerEntity): boolean {
-    return bulletHitsShield(bullet, player.tank);
+    return player.tank.shield.isBulletHitting(bullet, player.tank);
   }
 
   private deflectBulletByShieldSurfaceNormal(bullet: BulletEntity, player: PlayerEntity): void {
-    deflectBulletByShield(bullet, player.tank);
+    player.tank.shield.deflectBulletBySurfaceNormal(bullet, player.tank);
   }
 
   private destroyPlayer(player: PlayerEntity, killerPlayerId?: string): void {

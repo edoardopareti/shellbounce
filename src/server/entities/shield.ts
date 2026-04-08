@@ -1,121 +1,152 @@
-import {
-  FIXED_TIMESTEP_SECONDS,
-  SHIELD_COOLDOWN_MS,
-  SHIELD_OVERCHARGE_MS,
-  TANK_SHIELD_FORWARD_OFFSET,
-  TANK_SHIELD_RADIUS,
-  TANK_SHIELD_SECTOR_ANGLE_RADIANS,
-} from '../../shared/constants.js';
+import { FIXED_TIMESTEP_SECONDS } from '../../shared/constants.js';
 import { distance, normalizeAngleRadians } from '../../shared/math.js';
 import type { BulletEntity } from './bullet.js';
 
-export interface ShieldState {
-  x: number;  // The current x-coordinate of the player's tank, used for calculating the shield's position and interactions.
-  y: number; // The current y-coordinate of the player's tank, used for calculating the shield's position and interactions.
-  turretAngle: number; // The current angle of the player's turret, which determines the orientation of the shield and its interaction with incoming bullets.
-  isShieldActive: boolean; // A boolean indicating whether the player's shield is currently active, which affects whether it can block or deflect incoming bullets.
-  shieldHoldMs: number; // A timer that tracks how long the shield has been continuously held active, used to determine if the shield should overcharge and deactivate.
-  shieldCooldownMs: number; // A timer that tracks the remaining cooldown time before the shield can be activated again.
-  shieldCooldownBlocked: boolean; // A boolean indicating whether the shield activation is currently blocked due to cooldown or other conditions.
-  spawnProtectionMs: number; // A timer that tracks the remaining spawn protection time, during which the shield behaves differently.
+export interface ShieldConfig {
+  radius: number;
+  forwardOffset: number;
+  sectorAngleRadians: number;
+  cooldownMs: number;
+  overchargeMs: number;
 }
 
-export function updateShieldState(player: ShieldState, shieldHeld: boolean): void {
-  
-  // Update the state of the player's shield based on whether the shield input is currently held,
-  // the current cooldown timers, and any overcharge conditions.
+export interface ShieldOwnerPose {
+  x: number;
+  y: number;
+  turretAngle: number;
+  spawnProtectionMs: number;
+}
 
-  const deltaMs = FIXED_TIMESTEP_SECONDS * 1000;
-  const wasShieldActive = player.isShieldActive;
-  
-  // Decrease the shield cooldown timer if it's above zero
-  player.shieldCooldownMs = Math.max(0, player.shieldCooldownMs - deltaMs);
+export abstract class Shield {
+  private holdMs = 0;
+  private cooldownMs = 0;
+  private active = false;
+  private cooldownBlocked = false;
 
-  // Determine if shield activation should be blocked based on whether the shield input is held and if the shield is currently in cooldown.
-  player.shieldCooldownBlocked = shieldHeld && player.shieldCooldownMs > 0;
-  
-  // Compute shield state
-  if (!shieldHeld || player.shieldCooldownMs > 0) {
-    if (wasShieldActive) {
-      player.shieldCooldownMs = SHIELD_COOLDOWN_MS;
+  public constructor(private readonly shieldConfig: ShieldConfig) {}
+
+  public get isActive(): boolean {
+    return this.active;
+  }
+
+  public get holdDurationMs(): number {
+    return this.holdMs;
+  }
+
+  public get cooldownDurationMs(): number {
+    return this.cooldownMs;
+  }
+
+  public get isCooldownBlocked(): boolean {
+    return this.cooldownBlocked;
+  }
+
+  public get radius(): number {
+    return this.shieldConfig.radius;
+  }
+
+  public reset(): void {
+    this.holdMs = 0;
+    this.cooldownMs = 0;
+    this.active = false;
+    this.cooldownBlocked = false;
+  }
+
+  public deactivate(): void {
+    this.active = false;
+    this.cooldownBlocked = false;
+    this.holdMs = 0;
+  }
+
+  public update(shieldHeld: boolean): void {
+    const deltaMs = FIXED_TIMESTEP_SECONDS * 1000;
+    const wasActive = this.active;
+
+    this.cooldownMs = Math.max(0, this.cooldownMs - deltaMs);
+    this.cooldownBlocked = shieldHeld && this.cooldownMs > 0;
+
+    if (!shieldHeld || this.cooldownMs > 0) {
+      if (wasActive) {
+        this.cooldownMs = this.shieldConfig.cooldownMs;
+      }
+
+      this.active = false;
+      this.holdMs = 0;
+      return;
     }
 
-    player.isShieldActive = false;
-    player.shieldHoldMs = 0;
-    return;
+    this.active = true;
+    this.holdMs += deltaMs;
+
+    if (this.holdMs < this.shieldConfig.overchargeMs) {
+      return;
+    }
+
+    this.active = false;
+    this.holdMs = 0;
+    this.cooldownMs = this.shieldConfig.cooldownMs;
+    this.cooldownBlocked = false;
   }
 
-  player.isShieldActive = true;
-  player.shieldHoldMs += deltaMs;
+  public isBulletHitting(
+    bullet: Pick<BulletEntity, 'x' | 'y' | 'radius'>,
+    owner: ShieldOwnerPose,
+  ): boolean {
+    if (!this.active && owner.spawnProtectionMs <= 0) {
+      return false;
+    }
 
-  if (player.shieldHoldMs < SHIELD_OVERCHARGE_MS) {
-    return;
+    if (owner.spawnProtectionMs > 0) {
+      return distance(bullet.x, bullet.y, owner.x, owner.y) <= bullet.radius + this.shieldConfig.radius;
+    }
+
+    const shieldCenter = this.getCenter(owner);
+    const distanceToShieldCenter = distance(bullet.x, bullet.y, shieldCenter.x, shieldCenter.y);
+    if (distanceToShieldCenter > bullet.radius + this.shieldConfig.radius) {
+      return false;
+    }
+
+    const angleToBullet = Math.atan2(bullet.y - shieldCenter.y, bullet.x - shieldCenter.x);
+    const delta = normalizeAngleRadians(angleToBullet - owner.turretAngle);
+    return Math.abs(delta) <= this.shieldConfig.sectorAngleRadians * 0.5;
   }
 
-  player.isShieldActive = false;
-  player.shieldHoldMs = 0;
-  player.shieldCooldownMs = SHIELD_COOLDOWN_MS;
-  player.shieldCooldownBlocked = false;
-}
+  public deflectBulletBySurfaceNormal(
+    bullet: Pick<BulletEntity, 'x' | 'y' | 'vx' | 'vy' | 'radius'>,
+    owner: ShieldOwnerPose,
+  ): void {
+    const shieldCenter = owner.spawnProtectionMs > 0 ? { x: owner.x, y: owner.y } : this.getCenter(owner);
+    let nx = bullet.x - shieldCenter.x;
+    let ny = bullet.y - shieldCenter.y;
 
-export function getShieldCenter(player: Pick<ShieldState, 'x' | 'y' | 'turretAngle'>): { x: number; y: number } {
-  return {
-    x: player.x + Math.cos(player.turretAngle) * TANK_SHIELD_FORWARD_OFFSET,
-    y: player.y + Math.sin(player.turretAngle) * TANK_SHIELD_FORWARD_OFFSET,
-  };
-}
-
-export function isBulletHittingShield(
-  bullet: Pick<BulletEntity, 'x' | 'y' | 'radius'>,
-  player: Pick<ShieldState, 'x' | 'y' | 'turretAngle' | 'isShieldActive' | 'spawnProtectionMs'>,
-): boolean {
-  if (!player.isShieldActive && player.spawnProtectionMs <= 0) {
-    return false;
-  }
-
-  if (player.spawnProtectionMs > 0) {
-    return distance(bullet.x, bullet.y, player.x, player.y) <= bullet.radius + TANK_SHIELD_RADIUS;
-  }
-
-  const shieldCenter = getShieldCenter(player);
-  const distanceToShieldCenter = distance(bullet.x, bullet.y, shieldCenter.x, shieldCenter.y);
-  if (distanceToShieldCenter > bullet.radius + TANK_SHIELD_RADIUS) {
-    return false;
-  }
-
-  const angleToBullet = Math.atan2(bullet.y - shieldCenter.y, bullet.x - shieldCenter.x);
-  const delta = normalizeAngleRadians(angleToBullet - player.turretAngle);
-  return Math.abs(delta) <= TANK_SHIELD_SECTOR_ANGLE_RADIANS * 0.5;
-}
-
-export function deflectBulletByShieldSurfaceNormal(
-  bullet: Pick<BulletEntity, 'x' | 'y' | 'vx' | 'vy' | 'radius'>,
-  player: Pick<ShieldState, 'x' | 'y' | 'turretAngle' | 'spawnProtectionMs'>,
-): void {
-  const shieldCenter = player.spawnProtectionMs > 0 ? { x: player.x, y: player.y } : getShieldCenter(player);
-  let nx = bullet.x - shieldCenter.x;
-  let ny = bullet.y - shieldCenter.y;
-
-  const length = Math.sqrt(nx * nx + ny * ny);
-  if (length <= Number.EPSILON) {
-    const speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
-    if (speed > Number.EPSILON) {
-      nx = -bullet.vx / speed;
-      ny = -bullet.vy / speed;
+    const length = Math.sqrt(nx * nx + ny * ny);
+    if (length <= Number.EPSILON) {
+      const speed = Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy);
+      if (speed > Number.EPSILON) {
+        nx = -bullet.vx / speed;
+        ny = -bullet.vy / speed;
+      } else {
+        nx = 1;
+        ny = 0;
+      }
     } else {
-      nx = 1;
-      ny = 0;
+      nx /= length;
+      ny /= length;
     }
-  } else {
-    nx /= length;
-    ny /= length;
+
+    const speed = Math.max(Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy), Number.EPSILON);
+    bullet.vx = nx * speed;
+    bullet.vy = ny * speed;
+
+    const safeDistance = this.shieldConfig.radius + bullet.radius + 0.5;
+    bullet.x = shieldCenter.x + nx * safeDistance;
+    bullet.y = shieldCenter.y + ny * safeDistance;
   }
 
-  const speed = Math.max(Math.sqrt(bullet.vx * bullet.vx + bullet.vy * bullet.vy), Number.EPSILON);
-  bullet.vx = nx * speed;
-  bullet.vy = ny * speed;
-
-  const safeDistance = TANK_SHIELD_RADIUS + bullet.radius + 0.5;
-  bullet.x = shieldCenter.x + nx * safeDistance;
-  bullet.y = shieldCenter.y + ny * safeDistance;
+  private getCenter(owner: Pick<ShieldOwnerPose, 'x' | 'y' | 'turretAngle'>): { x: number; y: number } {
+    return {
+      x: owner.x + Math.cos(owner.turretAngle) * this.shieldConfig.forwardOffset,
+      y: owner.y + Math.sin(owner.turretAngle) * this.shieldConfig.forwardOffset,
+    };
+  }
 }

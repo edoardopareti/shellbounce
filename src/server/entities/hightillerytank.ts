@@ -1,4 +1,6 @@
 import type { WeaponType } from '../../shared/types.js';
+import type { Mine } from './mine.js';
+import type { Shield } from './shield.js';
 import type { Weapon } from './weapon.js';
 import { Tank, type TankConfig } from './tank.js';
 
@@ -17,10 +19,12 @@ export class HightilleryTank extends Tank {
   public constructor(
     weaponType: WeaponType,
     weapon: Weapon,
+    mine: Mine,
+    shield: Shield,
     isBot: boolean,
     spawn: { x: number; y: number },
     tankConfig: TankConfig = HIGHTILLERY_TANK_CONFIG,
   ) {
-    super('Hightillery', weaponType, weapon, 0xdc2626, isBot, spawn, tankConfig);
+    super('Hightillery', weaponType, weapon, mine, shield, 0xdc2626, isBot, spawn, tankConfig);
   }
 }

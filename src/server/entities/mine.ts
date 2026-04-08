@@ -1,5 +1,11 @@
-import { MINE_RADIUS } from '../../shared/constants.js';
 import type { PlayerEntity } from './player.js';
+
+export interface MineConfig {
+  radius: number;
+  armingDelayMs: number;
+  maxLifetimeMs: number;
+  maxActiveMines: number;
+}
 
 export interface MineEntity {
   id: string;
@@ -9,18 +15,30 @@ export interface MineEntity {
   y: number;
   radius: number;
   lifetimeMs: number;
+  armingDelayMs: number;
+  maxLifetimeMs: number;
   ownerHasClearedMine: boolean;
 }
 
-export function createMineEntity(id: string, player: Pick<PlayerEntity, 'id' | 'tank'>): MineEntity {
-  return {
-    id,
-    ownerPlayerId: player.id,
-    color: player.tank.bulletColor,
-    x: player.tank.x,
-    y: player.tank.y,
-    radius: MINE_RADIUS,
-    lifetimeMs: 0,
-    ownerHasClearedMine: false,
-  };
+export abstract class Mine {
+  public constructor(private readonly mineConfig: MineConfig) {}
+
+  public createEntity(id: string, player: Pick<PlayerEntity, 'id' | 'tank'>): MineEntity {
+    return {
+      id,
+      ownerPlayerId: player.id,
+      color: player.tank.bulletColor,
+      x: player.tank.x,
+      y: player.tank.y,
+      radius: this.mineConfig.radius,
+      lifetimeMs: 0,
+      armingDelayMs: this.mineConfig.armingDelayMs,
+      maxLifetimeMs: this.mineConfig.maxLifetimeMs,
+      ownerHasClearedMine: false,
+    };
+  }
+
+  public getMaxActiveMines(): number {
+    return this.mineConfig.maxActiveMines;
+  }
 }

@@ -9,6 +9,8 @@ import {
   type TankType,
   type WeaponType,
 } from '../../shared/types.js';
+import type { Mine } from './mine.js';
+import type { Shield } from './shield.js';
 import type { Weapon } from './weapon.js';
 import { createTankByType } from './tankFactory.js';
 import type { Tank } from './tank.js';
@@ -28,13 +30,15 @@ export function createPlayerEntity(
   tankType: TankType,
   weaponType: WeaponType,
   weapon: Weapon,
+  mine: Mine,
+  shield: Shield,
 ): PlayerEntity {
   return {
     id: playerId,
     kills: 0,
     deaths: 0,
     respawnAtMs: 0,
-    tank: createTankByType(tankType, weaponType, weapon, isBot, spawn),
+    tank: createTankByType(tankType, weaponType, weapon, mine, shield, isBot, spawn),
   };
 }
 
@@ -89,10 +93,7 @@ export function resetPlayerForRespawn(player: PlayerEntity, spawn: { x: number; 
   player.tank.fireCooldownMs = 0;
   player.tank.boostRemainingMs = 0;
   player.tank.boostCooldownMs = 0;
-  player.tank.shieldHoldMs = 0;
-  player.tank.shieldCooldownMs = 0;
-  player.tank.isShieldActive = false;
-  player.tank.shieldCooldownBlocked = false;
+  player.tank.shield.reset();
   player.tank.fireCooldownBlocked = false;
   player.tank.isChargingShot = false;
   player.tank.chargeMs = 0;
@@ -103,10 +104,8 @@ export function schedulePlayerRespawn(player: PlayerEntity, nowMs: number): void
   player.tank.isAlive = false;
   player.respawnAtMs = nowMs + TANK_RESPAWN_DELAY_MS;
   player.tank.spawnProtectionMs = 0;
-  player.tank.isShieldActive = false;
-  player.tank.shieldCooldownBlocked = false;
+  player.tank.shield.deactivate();
   player.tank.fireCooldownBlocked = false;
-  player.tank.shieldHoldMs = 0;
   player.tank.isChargingShot = false;
   player.tank.chargeMs = 0;
 }

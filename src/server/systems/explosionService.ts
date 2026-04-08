@@ -42,7 +42,7 @@ export class ExplosionService {
     handlers: ExplosionHandlers,
   ): void {
     for (const player of players.values()) {
-      if (!player.tank.isAlive || player.tank.isShieldActive) {
+      if (!player.tank.isAlive || player.tank.shield.isActive) {
         continue;
       }
 

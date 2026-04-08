@@ -2,6 +2,8 @@ import {
   type TankType,
   type WeaponType,
 } from '../../shared/types.js';
+import type { Mine } from './mine.js';
+import type { Shield } from './shield.js';
 import type { Weapon } from './weapon.js';
 
 
@@ -40,6 +42,8 @@ export abstract class Tank implements TankState {
   public readonly tankType: TankType;
   public readonly weaponType: WeaponType;
   public readonly weapon: Weapon;
+  public readonly mine: Mine;
+  public readonly shield: Shield;
   public readonly tankConfig: TankConfig;
   public readonly bulletColor: number;
 
@@ -53,10 +57,6 @@ export abstract class Tank implements TankState {
   public boostRemainingMs: number;
   public boostCooldownMs: number;
   public spawnProtectionMs: number;
-  public shieldHoldMs: number;
-  public shieldCooldownMs: number;
-  public isShieldActive: boolean;
-  public shieldCooldownBlocked: boolean;
   public fireCooldownBlocked: boolean;
   public isChargingShot: boolean;
   public chargeMs: number;
@@ -65,6 +65,8 @@ export abstract class Tank implements TankState {
     tankType: TankType,
     weaponType: WeaponType,
     weapon: Weapon,
+    mine: Mine,
+    shield: Shield,
     bulletColor: number,
     isBot: boolean,
     spawn: { x: number; y: number },
@@ -73,6 +75,8 @@ export abstract class Tank implements TankState {
     this.tankType = tankType;
     this.weaponType = weaponType;
     this.weapon = weapon;
+    this.mine = mine;
+    this.shield = shield;
     this.bulletColor = bulletColor;
     this.isBot = isBot;
     this.tankConfig = tankConfig;
@@ -86,10 +90,6 @@ export abstract class Tank implements TankState {
     this.boostRemainingMs = 0;
     this.boostCooldownMs = 0;
     this.spawnProtectionMs = 0;
-    this.shieldHoldMs = 0;
-    this.shieldCooldownMs = 0;
-    this.isShieldActive = false;
-    this.shieldCooldownBlocked = false;
     this.fireCooldownBlocked = false;
     this.isChargingShot = false;
     this.chargeMs = 0;
@@ -97,6 +97,22 @@ export abstract class Tank implements TankState {
 
   public get radius(): number {
     return this.tankConfig.radius;
+  }
+
+  public get shieldHoldMs(): number {
+    return this.shield.holdDurationMs;
+  }
+
+  public get shieldCooldownMs(): number {
+    return this.shield.cooldownDurationMs;
+  }
+
+  public get isShieldActive(): boolean {
+    return this.shield.isActive;
+  }
+
+  public get shieldCooldownBlocked(): boolean {
+    return this.shield.isCooldownBlocked;
   }
 }
 
