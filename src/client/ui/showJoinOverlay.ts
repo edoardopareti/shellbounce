@@ -97,6 +97,22 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   tankLabel.htmlFor = 'join-tank-type';
   tankLabel.style.fontSize = '13px';
 
+
+  // Tooltip descriptions for tanks and weapons
+  const TANK_TYPE_TOOLTIPS: Record<string, string> = {
+    PolPot: 'Balanced.', //'Relaxed and laid back, just like the creator of this game would like to be.',
+    Hightillery: 'Aggressive.', //'Stoned yet aggressive. Sometimes trips are good trips, sometimes they are not.',
+    SSugar: 'Overstimulated.', //'Overstimulated. Ideal for Blitzkriegs und Verbrechen gegen die Menschlichkeit.',
+    Fantanyl: 'Calm.', //'Quite intimidating. Your parents would tell you to avoid him at all costs, wouldn\'t they?',
+  };
+  const WEAPON_TYPE_TOOLTIPS: Record<string, string> = {
+    SimpleGun: 'Standard weapon. Shoots one bullet at a time.', // Use it if you like getting bored or mogging your nooby friends.',
+    MachineGun: 'Rapid fire with limited range. Good for close combat.', // Perfect for who likes spamming a button until developing carpal tunnel syndrome.',
+    LaserWhipGun: 'Allows fast shooting and instant teleportation.', // Can cause headaches to you and others.',
+    GrappleGun: 'Shoots volleys that can stick to the ground. Good for open space control.', // Use it in narrow spaces to blow your own a*s.',
+    MitosisGun: 'Splits shots into multiple projectiles. Great open field strategic control.', // After some practice you will stop questioning the game developer mental stability.',
+  };
+
   const tankSelect = document.createElement('select');
   tankSelect.id = 'join-tank-type';
   tankSelect.style.height = '36px';
@@ -113,10 +129,21 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     tankSelect.appendChild(option);
   }
 
+  // Custom tooltip for tank type
+  const tankTooltip = document.createElement('div');
+  tankTooltip.style.fontSize = '12px';
+  tankTooltip.style.color = '#a5b4fc';
+  tankTooltip.style.marginTop = '-6px';
+  tankTooltip.style.marginBottom = '2px';
+  tankTooltip.style.minHeight = '16px';
+  tankTooltip.style.transition = 'opacity 0.2s';
+  tankTooltip.style.opacity = '1';
+
   const weaponLabel = document.createElement('label');
   weaponLabel.textContent = 'Weapon';
   weaponLabel.htmlFor = 'join-weapon-type';
   weaponLabel.style.fontSize = '13px';
+
 
   const weaponSelect = document.createElement('select');
   weaponSelect.id = 'join-weapon-type';
@@ -133,6 +160,16 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     option.textContent = weaponType;
     weaponSelect.appendChild(option);
   }
+
+  // Custom tooltip for weapon type
+  const weaponTooltip = document.createElement('div');
+  weaponTooltip.style.fontSize = '12px';
+  weaponTooltip.style.color = '#a5b4fc';
+  weaponTooltip.style.marginTop = '-6px';
+  weaponTooltip.style.marginBottom = '2px';
+  weaponTooltip.style.minHeight = '16px';
+  weaponTooltip.style.transition = 'opacity 0.2s';
+  weaponTooltip.style.opacity = '1';
 
   const shieldLabel = document.createElement('label');
   shieldLabel.textContent = 'Shield';
@@ -199,8 +236,10 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   panel.appendChild(nameInput);
   panel.appendChild(tankLabel);
   panel.appendChild(tankSelect);
+  panel.appendChild(tankTooltip);
   panel.appendChild(weaponLabel);
   panel.appendChild(weaponSelect);
+  panel.appendChild(weaponTooltip);
   panel.appendChild(shieldLabel);
   panel.appendChild(shieldSelect);
   panel.appendChild(previewContainer);
@@ -209,6 +248,14 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
 
   overlay.appendChild(panel);
   appHost.appendChild(overlay);
+
+
+  const updateTooltips = (): void => {
+    const tankType = tankSelect.value as TankType;
+    const weaponType = weaponSelect.value as WeaponType;
+    tankTooltip.textContent = TANK_TYPE_TOOLTIPS[tankType] || '';
+    weaponTooltip.textContent = WEAPON_TYPE_TOOLTIPS[weaponType] || '';
+  };
 
   const updatePreview = (): void => {
     const playerName = nameInput.value.trim();
@@ -219,6 +266,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
 
     colorSwatch.style.backgroundColor = color;
     previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType} / ${weaponType} / ${shieldType}`;
+    updateTooltips();
   };
 
   nameInput.addEventListener('input', updatePreview);
