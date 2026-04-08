@@ -3,6 +3,7 @@ import {
 } from '../../shared/constants.js';
 import type { PlayerEntity } from './player.js';
 
+// Fallback values for bullet properties if not specified in weapon config
 export const DEFAULT_BULLET_RADIUS = 5;
 export const DEFAULT_BULLET_MAX_LIFETIME_MS = 4000;
 

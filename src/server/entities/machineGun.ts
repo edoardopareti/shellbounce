@@ -12,16 +12,17 @@ import {
 } from './weapon.js';
 import type { MachineGunWeaponConfig } from './weaponConfig.js';
 
-const MAX_ACTIVE_BULLETS = 4;
-const NORMAL_SHOT_COOLDOWN_MS = 110;
+const MAX_ACTIVE_BULLETS = 6;
+const NORMAL_SHOT_COOLDOWN_MS = 130;
 const CHARGED_SHOT_COOLDOWN_MS = 40;
 const HOLD_TO_RAPID_FIRE_MS = 180;
 const NORMAL_SHOT_SPEED = 520;
 const NORMAL_SHOT_EXPLOSION_RADIUS = 56;
-const NORMAL_SHOT_MAX_BOUNCES = 0;
+const NORMAL_SHOT_MAX_BOUNCES = 1;
 const NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT = false;
-const NORMAL_SHOT_IS_CHARGED = false;
-const NORMAL_SHOT_RADIUS = 3.5;
+const NORMAL_SHOT_IS_CHARGED = true;
+const NORMAL_SHOT_RADIUS = 3;
+const NORMAL_SHOT_MAX_LIFETIME_MS = 550;
 
 const MACHINE_GUN_CONFIG: MachineGunWeaponConfig = {
   maxActiveBullets: MAX_ACTIVE_BULLETS,
@@ -35,6 +36,7 @@ const MACHINE_GUN_CONFIG: MachineGunWeaponConfig = {
     explodeOnWallImpact: NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT,
     isCharged: NORMAL_SHOT_IS_CHARGED,
     radius: NORMAL_SHOT_RADIUS,
+    maxLifetimeMs: NORMAL_SHOT_MAX_LIFETIME_MS,
   },
 };
 
