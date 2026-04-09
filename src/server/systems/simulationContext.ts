@@ -1,4 +1,4 @@
-import type { BulletEntity } from '../entities/bullet.js';
+import type { BulletEntity } from '../entities/bullets/bullet.js';
 
 // SimulationContext provides read-only access to the current state of the simulation
 // and utility functions for bots during their input computation.

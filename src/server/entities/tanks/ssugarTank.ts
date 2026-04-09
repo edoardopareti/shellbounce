@@ -1,0 +1,32 @@
+import type { ShieldType, WeaponType } from '../../../shared/types.js';
+import type { Mine } from '../mines/mine.js';
+import type { Shield } from '../shields/shield.js';
+import type { Weapon } from '../weapons/weapon.js';
+import { Tank, type TankConfig } from './tank.js';
+
+export const SSUGAR_TANK_CONFIG: Readonly<TankConfig> = {
+  radius: 17,
+  moveSpeed: 215,
+  reverseSpeed: 165,
+  rotationSpeed: Math.PI * 2.8,
+  muzzleOffset: 25,
+  boostMultiplier: 2.3,
+  boostDurationMs: 1750,
+  boostCooldownMs: 2050,
+};
+
+export class SSugarTank extends Tank {
+  public constructor(
+    weaponType: WeaponType,
+    shieldType: ShieldType,
+    weapon: Weapon,
+    mine: Mine,
+    shield: Shield,
+    respawnShield: Shield,
+    isBot: boolean,
+    spawn: { x: number; y: number },
+    tankConfig: TankConfig = SSUGAR_TANK_CONFIG,
+  ) {
+    super('SSugar', weaponType, shieldType, weapon, mine, shield, respawnShield, 0xf8fafc, isBot, spawn, tankConfig);
+  }
+}

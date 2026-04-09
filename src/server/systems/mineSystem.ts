@@ -2,8 +2,8 @@ import {
   FIXED_TIMESTEP_SECONDS,
 } from '../../shared/constants.js';
 import { distance } from '../../shared/math.js';
-import type { MineEntity } from '../entities/mine.js';
-import type { PlayerEntity } from '../entities/player.js';
+import type { MineEntity } from '../entities/mines/mine.js';
+import type { PlayerEntity } from '../entities/player/player.js';
 
 export interface MineSystemHandlers {
   explodeMine: (x: number, y: number, sourcePlayerId?: string) => void;

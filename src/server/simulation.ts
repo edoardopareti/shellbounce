@@ -20,12 +20,12 @@ import {
   type WeaponType,
   type WorldSnapshot,
 } from '../shared/types.js';
-import { BOT_DIFFICULTY_PROFILES, type BotDifficultyProfile, parseBotDifficulty } from './entities/bot.js';
-import { BotController } from './entities/botController.js';
-import { updateBoostState } from './entities/boost.js';
-import type { BulletEntity } from './entities/bullet.js';
-import { sanitizeInput } from './entities/input.js';
-import type { MineEntity } from './entities/mine.js';
+import { BOT_DIFFICULTY_PROFILES, type BotDifficultyProfile, parseBotDifficulty } from './entities/bot/bot.js';
+import { BotController } from './entities/bot/botController.js';
+import { updateBoostState } from './entities/boost/boost.js';
+import type { BulletEntity } from './entities/bullets/bullet.js';
+import { sanitizeInput } from './entities/input/input.js';
+import type { MineEntity } from './entities/mines/mine.js';
 import {
   createPlayerEntity,
   getTankRadiusForType,
@@ -34,28 +34,28 @@ import {
   resolveWeaponTypeForNewPlayer,
   schedulePlayerRespawn,
   type PlayerEntity,
-} from './entities/player.js';
-import { registerFrag } from './entities/scoreboard.js';
-import { buildShotPreview } from './entities/shotPreview.js';
-import { splitMitosisBulletEntity } from './entities/mitosisBullet.js';
-import { MitosisGun } from './entities/mitosisGun.js';
-import { GrappleGun } from './entities/grappleGun.js';
-import { MachineGun } from './entities/machineGun.js';
-import { LaserWhipGun } from './entities/laserWhipGun.js';
-import { SimpleGun } from './entities/simpleGun.js';
+} from './entities/player/player.js';
+import { registerFrag } from './entities/scoreboard/scoreboard.js';
+import { buildShotPreview } from './entities/shot_preview/shotPreview.js';
+import { splitMitosisBulletEntity } from './entities/bullets/mitosisBullet.js';
+import { MitosisGun } from './entities/weapons/mitosisGun.js';
+import { GrappleGun } from './entities/weapons/grappleGun.js';
+import { MachineGun } from './entities/weapons/machineGun.js';
+import { LaserWhipGun } from './entities/weapons/laserWhipGun.js';
+import { SimpleGun } from './entities/weapons/simpleGun.js';
 import { EffectBuffer } from './systems/effects.js';
 import { ExplosionService } from './systems/explosionService.js';
 import { MineSystem } from './systems/mineSystem.js';
 import { PlayerLifecycleSystem } from './systems/playerLifecycleSystem.js';
 import { ProjectileSystem } from './systems/projectileSystem.js';
 import type { SimulationContext } from './systems/simulationContext.js';
-import { WeaponRegistry } from './entities/weaponRegistry.js';
-import { MineRegistry } from './entities/mineRegistry.js';
-import { ShieldRegistry } from './entities/shieldRegistry.js';
-import { StandardMine } from './entities/standardMine.js';
-import { StandardShield } from './entities/standardShield.js';
-import { OmniDirShield } from './entities/omniDirShield.js';
-import type { Shield } from './entities/shield.js';
+import { WeaponRegistry } from './entities/weapons/weaponRegistry.js';
+import { MineRegistry } from './entities/mines/mineRegistry.js';
+import { ShieldRegistry } from './entities/shields/shieldRegistry.js';
+import { StandardMine } from './entities/mines/standardMine.js';
+import { StandardShield } from './entities/shields/standardShield.js';
+import { OmniDirShield } from './entities/shields/omniDirShield.js';
+import type { Shield } from './entities/shields/shield.js';
 
 // AuthoritativeSimulation manages the state and logic of the game,
 // including players, bullets, mines, and bots.

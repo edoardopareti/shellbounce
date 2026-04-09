@@ -1,5 +1,5 @@
-import { computePlayableBounds, getCornerSpawnPoints, isSpawnPointBlocked } from '../entities/arena.js';
-import { resetPlayerForRespawn, type PlayerEntity } from '../entities/player.js';
+import { computePlayableBounds, getCornerSpawnPoints, isSpawnPointBlocked } from '../entities/arena/arena.js';
+import { resetPlayerForRespawn, type PlayerEntity } from '../entities/player/player.js';
 
 const RESPAWN_RETRY_DELAY_MS = 250;
 

@@ -1,7 +1,7 @@
 import { distance } from '../../shared/math.js';
-import type { BulletEntity } from '../entities/bullet.js';
-import type { MineEntity } from '../entities/mine.js';
-import type { PlayerEntity } from '../entities/player.js';
+import type { BulletEntity } from '../entities/bullets/bullet.js';
+import type { MineEntity } from '../entities/mines/mine.js';
+import type { PlayerEntity } from '../entities/player/player.js';
 import { segmentIntersectsRectangle } from '../utils/collision.js';
 
 export interface ExplosionEnvironment {

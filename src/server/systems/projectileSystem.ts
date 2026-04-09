@@ -2,9 +2,9 @@ import {
   FIXED_TIMESTEP_SECONDS,
 } from '../../shared/constants.js';
 import { distance } from '../../shared/math.js';
-import { DEFAULT_BULLET_RADIUS, type BulletEntity } from '../entities/bullet.js';
-import type { MineEntity } from '../entities/mine.js';
-import type { PlayerEntity } from '../entities/player.js';
+import { DEFAULT_BULLET_RADIUS, type BulletEntity } from '../entities/bullets/bullet.js';
+import type { MineEntity } from '../entities/mines/mine.js';
+import type { PlayerEntity } from '../entities/player/player.js';
 
 export interface ProjectileUpdateHandlers {
   explodeBullet: (index: number) => void;
