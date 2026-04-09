@@ -5,6 +5,7 @@ import type {
   ServerMessage,
   ServerStateMessage,
   ServerWelcomeMessage,
+  TankSetupInput,
   TankType,
   WeaponType,
   TankInput,
@@ -17,6 +18,7 @@ export interface ClientJoinProfile {
   tankType: TankType;  // The type of tank the player wants to use.
   weaponType: WeaponType;
   shieldType: ShieldType;
+  tankSetup?: TankSetupInput;
 }
 
 export class GameClient {
@@ -57,6 +59,7 @@ export class GameClient {
         tankType: joinProfile.tankType,
         weaponType: joinProfile.weaponType,
         shieldType: joinProfile.shieldType,
+        tankSetup: joinProfile.tankSetup,
       };
       this.socket?.send(JSON.stringify(joinMessage));
     };

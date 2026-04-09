@@ -18,6 +18,9 @@ import {
   type ServerMessage,
   type TankInput,
 } from '../shared/types.js';
+import { 
+  getValidatedTankConfigForJoin,
+  isTankSetupSchema } from './entities/tanks/clientInputValidatorTank.js';
 
 
 // TODO: Currently, a single AuthoritativeSimulation instance is used for all N clients,
@@ -239,9 +242,22 @@ function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
     sendError(socket, 'Player name already taken. Choose a different name.');
     return;
   }
+
+  const tankConfigValidation = getValidatedTankConfigForJoin(message.tankType, message.tankSetup);
+  if (tankConfigValidation.error !== undefined || tankConfigValidation.tankConfig === undefined) {
+    sendError(socket, tankConfigValidation.error ?? 'Invalid tank setup.');
+    return;
+  }
   
   // Add the new player to the simulation with the generated player ID.
-  simulation.addPlayer(playerId, false, message.tankType, message.weaponType, message.shieldType);
+  simulation.addPlayer(
+    playerId,
+    false,
+    message.tankType,
+    message.weaponType,
+    message.shieldType,
+    tankConfigValidation.tankConfig,
+  );
   
   // Create a new client session and store it in the sessions map, keyed by the WebSocket connection.
   sessions.set(socket, {
@@ -285,6 +301,7 @@ function isClientMessage(value: unknown): value is ClientMessage {
       && typeof candidate.tankType === 'string'
       && typeof candidate.weaponType === 'string'
       && typeof candidate.shieldType === 'string'
+      && (candidate.tankSetup === undefined || isTankSetupSchema(candidate.tankSetup))
     );
   }
 

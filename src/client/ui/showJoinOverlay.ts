@@ -3,13 +3,16 @@ import {
   ALL_SHIELD_TYPES,
   ALL_TANK_TYPES,
   ALL_WEAPON_TYPES,
+  DEFAULT_TANK_SETUP_BY_TANK,
   DEFAULT_SHIELD_BY_TANK,
   DEFAULT_WEAPON_BY_TANK,
   type ShieldType,
+  type TankSetupInput,
   type TankType,
   type WeaponType,
 } from '../../shared/types';
 import { isShieldType, isTankType, isWeaponType } from '../utils/utils';
+import { showTankConfigWizard } from './showTankConfigWizard';
 
 const MAX_PLAYER_NAME_LENGTH = 24;
 
@@ -97,6 +100,28 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   tankLabel.htmlFor = 'join-tank-type';
   tankLabel.style.fontSize = '13px';
 
+  const tankLabelRow = document.createElement('div');
+  tankLabelRow.style.display = 'flex';
+  tankLabelRow.style.alignItems = 'center';
+  tankLabelRow.style.justifyContent = 'space-between';
+
+  const tankSetupButton = document.createElement('button');
+  tankSetupButton.type = 'button';
+  tankSetupButton.textContent = '⚙';
+  tankSetupButton.title = 'Tank Setup';
+  tankSetupButton.setAttribute('aria-label', 'Open tank setup wizard');
+  tankSetupButton.style.width = '28px';
+  tankSetupButton.style.height = '28px';
+  tankSetupButton.style.borderRadius = '8px';
+  tankSetupButton.style.border = '1px solid #475569';
+  tankSetupButton.style.background = '#0b1221';
+  tankSetupButton.style.color = '#bfdbfe';
+  tankSetupButton.style.cursor = 'pointer';
+  tankSetupButton.style.fontSize = '16px';
+
+  tankLabelRow.appendChild(tankLabel);
+  tankLabelRow.appendChild(tankSetupButton);
+
 
   // Tooltip descriptions for tanks and weapons
   const TANK_TYPE_TOOLTIPS: Record<string, string> = {
@@ -128,6 +153,12 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     option.textContent = tankType;
     tankSelect.appendChild(option);
   }
+
+  const tankSetupPreview = document.createElement('div');
+  tankSetupPreview.style.fontSize = '11px';
+  tankSetupPreview.style.color = '#93c5fd';
+  tankSetupPreview.style.minHeight = '14px';
+  tankSetupPreview.style.marginTop = '-4px';
 
   // Custom tooltip for tank type
   const tankTooltip = document.createElement('div');
@@ -234,8 +265,9 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   panel.appendChild(controlsList);
   panel.appendChild(nameLabel);
   panel.appendChild(nameInput);
-  panel.appendChild(tankLabel);
+  panel.appendChild(tankLabelRow);
   panel.appendChild(tankSelect);
+  panel.appendChild(tankSetupPreview);
   panel.appendChild(tankTooltip);
   panel.appendChild(weaponLabel);
   panel.appendChild(weaponSelect);
@@ -248,6 +280,24 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
 
   overlay.appendChild(panel);
   appHost.appendChild(overlay);
+
+  const tankSetupByTank: Record<TankType, TankSetupInput> = {
+    PolPot: { ...DEFAULT_TANK_SETUP_BY_TANK.PolPot },
+    Hightillery: { ...DEFAULT_TANK_SETUP_BY_TANK.Hightillery },
+    SSugar: { ...DEFAULT_TANK_SETUP_BY_TANK.SSugar },
+    Fantanyl: { ...DEFAULT_TANK_SETUP_BY_TANK.Fantanyl },
+  };
+  let closeTankSetupWizard: (() => void) | undefined;
+
+  const getSelectedTankSetup = (): TankSetupInput => {
+    const selectedTankType = tankSelect.value as TankType;
+    return tankSetupByTank[selectedTankType];
+  };
+
+  const updateTankSetupPreview = (): void => {
+    const setup = getSelectedTankSetup();
+    tankSetupPreview.textContent = `Setup: move ${Math.round(setup.moveSpeed)}, rot ${setup.rotationSpeedPiFactor.toFixed(2)}pi, boost x${setup.boostMultiplier.toFixed(2)}, ${Math.round(setup.boostDurationMs)}ms`;
+  };
 
 
   const updateTooltips = (): void => {
@@ -267,10 +317,31 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     colorSwatch.style.backgroundColor = color;
     previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType} / ${weaponType} / ${shieldType}`;
     updateTooltips();
+    updateTankSetupPreview();
   };
+
+  tankSetupButton.addEventListener('click', () => {
+    closeTankSetupWizard?.();
+    const selectedTankType = tankSelect.value as TankType;
+    closeTankSetupWizard = showTankConfigWizard({
+      host: overlay,
+      anchor: tankSetupButton,
+      tankType: selectedTankType,
+      currentSetup: { ...tankSetupByTank[selectedTankType] },
+      defaultSetup: DEFAULT_TANK_SETUP_BY_TANK[selectedTankType],
+      onApply: (setup) => {
+        tankSetupByTank[selectedTankType] = setup;
+        updatePreview();
+      },
+      onClose: () => {
+        closeTankSetupWizard = undefined;
+      },
+    });
+  });
 
   nameInput.addEventListener('input', updatePreview);
   tankSelect.addEventListener('change', () => {
+    closeTankSetupWizard?.();
     const selectedTankType = tankSelect.value as TankType;
     weaponSelect.value = DEFAULT_WEAPON_BY_TANK[selectedTankType];
     shieldSelect.value = DEFAULT_SHIELD_BY_TANK[selectedTankType];
@@ -308,12 +379,14 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
       return;
     }
 
+    closeTankSetupWizard?.();
     overlay.remove();
     onSubmit({
       playerId,
       tankType: selectedTankType,
       weaponType: selectedWeaponType,
       shieldType: selectedShieldType,
+      tankSetup: { ...getSelectedTankSetup() },
     });
   });
 

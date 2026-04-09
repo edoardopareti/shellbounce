@@ -15,11 +15,8 @@ import type { Mine } from '../mines/mine.js';
 import type { Shield } from '../shields/shield.js';
 import type { Weapon } from '../weapons/weapon.js';
 import { createTankByType } from '../tanks/tankFactory.js';
-import type { Tank } from '../tanks/tank.js';
-import { FANTANYL_TANK_CONFIG } from '../tanks/fantanylTank.js';
-import { HIGHTILLERY_TANK_CONFIG } from '../tanks/hightillerytank.js';
-import { POLPOT_TANK_CONFIG } from '../tanks/polPotTank.js';
-import { SSUGAR_TANK_CONFIG } from '../tanks/ssugarTank.js';
+import { getDefaultTankConfigByType } from '../tanks/tankFactory.js';
+import type { Tank, TankConfig } from '../tanks/tank.js';
 
 export interface PlayerEntity {
   id: string;
@@ -40,13 +37,14 @@ export function createPlayerEntity(
   mine: Mine,
   shield: Shield,
   respawnShield: Shield,
+  tankConfig?: TankConfig,
 ): PlayerEntity {
   return {
     id: playerId,
     kills: 0,
     deaths: 0,
     respawnAtMs: 0,
-    tank: createTankByType(tankType, weaponType, shieldType, weapon, mine, shield, respawnShield, isBot, spawn),
+    tank: createTankByType(tankType, weaponType, shieldType, weapon, mine, shield, respawnShield, isBot, spawn, tankConfig),
   };
 }
 
@@ -106,18 +104,7 @@ export function resolveShieldTypeForNewPlayer(
 }
 
 export function getTankRadiusForType(tankType: TankType): number {
-  switch (tankType) {
-    case 'PolPot':
-      return POLPOT_TANK_CONFIG.radius;
-    case 'Hightillery':
-      return HIGHTILLERY_TANK_CONFIG.radius;
-    case 'SSugar':
-      return SSUGAR_TANK_CONFIG.radius;
-    case 'Fantanyl':
-      return FANTANYL_TANK_CONFIG.radius;
-    default:
-      return POLPOT_TANK_CONFIG.radius;
-  }
+  return getDefaultTankConfigByType(tankType).radius;
 }
 
 export function resetPlayerForRespawn(player: PlayerEntity, spawn: { x: number; y: number }): void {

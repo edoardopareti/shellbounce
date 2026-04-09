@@ -4,14 +4,17 @@ import type { Shield } from '../shields/shield.js';
 import type { Weapon } from '../weapons/weapon.js';
 import { Tank, type TankConfig } from './tank.js';
 
+import { DEFAULT_TANK_SETUP_BY_TANK } from '../../../shared/types.js';
+
+const setup = DEFAULT_TANK_SETUP_BY_TANK.SSugar;
 export const SSUGAR_TANK_CONFIG: Readonly<TankConfig> = {
   radius: 17,
-  moveSpeed: 215,
-  reverseSpeed: 165,
-  rotationSpeed: Math.PI * 2.8,
+  moveSpeed: setup.moveSpeed,
+  reverseSpeed: setup.moveSpeed * 0.75,
+  rotationSpeed: Math.PI * setup.rotationSpeedPiFactor,
   muzzleOffset: 25,
-  boostMultiplier: 2.3,
-  boostDurationMs: 1750,
+  boostMultiplier: setup.boostMultiplier,
+  boostDurationMs: setup.boostDurationMs,
   boostCooldownMs: 2050,
 };
 

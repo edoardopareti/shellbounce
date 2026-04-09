@@ -1,4 +1,4 @@
-import type { PlayerEntity } from './player/player.js';
+import type { PlayerEntity } from '../player/player.js';
 
 export function registerFrag(
   victim: Pick<PlayerEntity, 'id' | 'deaths'>,

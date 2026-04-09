@@ -56,6 +56,7 @@ import { StandardMine } from './entities/mines/standardMine.js';
 import { StandardShield } from './entities/shields/standardShield.js';
 import { OmniDirShield } from './entities/shields/omniDirShield.js';
 import type { Shield } from './entities/shields/shield.js';
+import type { TankConfig } from './entities/tanks/tank.js';
 
 // AuthoritativeSimulation manages the state and logic of the game,
 // including players, bullets, mines, and bots.
@@ -138,6 +139,7 @@ export class AuthoritativeSimulation {
     preferredTankType?: TankType,
     preferredWeaponType?: WeaponType,
     preferredShieldType?: ShieldType,
+    tankConfig?: TankConfig,
   ): void {
 
     // Add a new player to the simulation with the specified playerId and bot status.
@@ -191,6 +193,7 @@ export class AuthoritativeSimulation {
       mine,
       shield,
       respawnShield,
+      tankConfig,
     );
     
     // Increment the player join counter to ensure unique player IDs for bots

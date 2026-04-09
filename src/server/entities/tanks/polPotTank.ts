@@ -4,14 +4,17 @@ import type { Shield } from '../shields/shield.js';
 import type { Weapon } from '../weapons/weapon.js';
 import { Tank, type TankConfig } from './tank.js';
 
+import { DEFAULT_TANK_SETUP_BY_TANK } from '../../../shared/types.js';
+
+const setup = DEFAULT_TANK_SETUP_BY_TANK.PolPot;
 export const POLPOT_TANK_CONFIG: Readonly<TankConfig> = {
   radius: 18,
-  moveSpeed: 205,
-  reverseSpeed: 145,
-  rotationSpeed: Math.PI * 2.55,
+  moveSpeed: setup.moveSpeed,
+  reverseSpeed: setup.moveSpeed * 0.75,
+  rotationSpeed: Math.PI * setup.rotationSpeedPiFactor,
   muzzleOffset: 26,
-  boostMultiplier: 2.35,
-  boostDurationMs: 1900,
+  boostMultiplier: setup.boostMultiplier,
+  boostDurationMs: setup.boostDurationMs,
   boostCooldownMs: 2000,
 };
 

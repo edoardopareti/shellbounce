@@ -51,6 +51,40 @@ export const DEFAULT_SHIELD_BY_TANK: Record<TankType, ShieldType> = {
   Fantanyl: 'StandardShield',
 };
 
+export interface TankSetupInput {
+  moveSpeed: number;
+  rotationSpeedPiFactor: number;
+  boostMultiplier: number;
+  boostDurationMs: number;
+}
+
+export const DEFAULT_TANK_SETUP_BY_TANK: Record<TankType, TankSetupInput> = {
+  PolPot: {
+    moveSpeed: 225,
+    rotationSpeedPiFactor: 2.0,
+    boostMultiplier: 2.15,
+    boostDurationMs: 1100,
+  },
+  Hightillery: {
+    moveSpeed: 215,
+    rotationSpeedPiFactor: 2.0,
+    boostMultiplier: 2.0,
+    boostDurationMs: 1100,
+  },
+  SSugar: {
+    moveSpeed: 245,
+    rotationSpeedPiFactor: 2.25,
+    boostMultiplier: 2.3,
+    boostDurationMs: 1000,
+  },
+  Fantanyl: {
+    moveSpeed: 205,
+    rotationSpeedPiFactor: 1.5,
+    boostMultiplier: 2.2,
+    boostDurationMs: 1250,
+  },
+};
+
 // TankInput represents the player's input state for a single game tick,
 // including movement commands, firing actions, and pointer position.
 export interface TankInput {
@@ -199,6 +233,7 @@ export interface ClientJoinMessage {
   tankType: TankType;
   weaponType: WeaponType;
   shieldType: ShieldType;
+  tankSetup?: TankSetupInput;
 }
 // ClientInputMessage represents the structure of player input messages sent from clients to the server,
 // containing the input state and a sequence number for ordering.
