@@ -13,7 +13,6 @@ import { BoostEffect } from '../render/BoostEffect';
 import { ScoreBoard } from '../render/ScoreBoard';
 import { preloadTankTextures } from '../render/tankVisuals';
 import {
-  MUZZLE_OFFSET,
   SHOT_PREVIEW_BULLET_RADIUS,
   SHOT_PREVIEW_MAX_DISTANCE,
   SHOT_PREVIEW_REFLECTIONS,
@@ -281,8 +280,8 @@ export class NetworkGameScene extends Phaser.Scene {
       for (const player of snapshot.players) {
         if (!player.isAlive) continue;
         const origin = new Phaser.Math.Vector2(
-          player.x + Math.cos(player.turretAngle) * MUZZLE_OFFSET,
-          player.y + Math.sin(player.turretAngle) * MUZZLE_OFFSET,
+          player.x + Math.cos(player.turretAngle) * player.muzzleOffset,
+          player.y + Math.sin(player.turretAngle) * player.muzzleOffset,
         );
         const trajectory = predictBulletTrajectory(
           origin,

@@ -1,4 +1,4 @@
-import { SPAWN_CORNER_PADDING, TANK_RADIUS } from '../../shared/constants.js';
+import { SPAWN_CORNER_PADDING } from '../../shared/constants.js';
 import { clamp, distance } from '../../shared/math.js';
 
 export interface PlayableBounds {
@@ -74,6 +74,7 @@ export function getCornerSpawnPoints(bounds: PlayableBounds): Array<{ x: number;
 export function isSpawnPointBlocked(
   x: number,
   y: number,
+  spawnRadius: number,
   excludedPlayerId: string,
   walls: ReadonlyArray<ArenaWall>,
   alivePlayers: ReadonlyArray<{ id: string; x: number; y: number; radius: number }>,
@@ -82,7 +83,7 @@ export function isSpawnPointBlocked(
     const closestX = clamp(x, wall.x, wall.x + wall.width);
     const closestY = clamp(y, wall.y, wall.y + wall.height);
     const distanceSquared = (x - closestX) * (x - closestX) + (y - closestY) * (y - closestY);
-    if (distanceSquared < TANK_RADIUS * TANK_RADIUS) {
+    if (distanceSquared < spawnRadius * spawnRadius) {
       return true;
     }
   }
@@ -92,7 +93,7 @@ export function isSpawnPointBlocked(
       continue;
     }
 
-    const minDistance = TANK_RADIUS + player.radius;
+    const minDistance = spawnRadius + player.radius;
     if (distance(player.x, player.y, x, y) < minDistance) {
       return true;
     }

@@ -46,6 +46,18 @@ export abstract class Shield {
     return this.shieldConfig.radius;
   }
 
+  public get forwardOffset(): number {
+    return this.shieldConfig.forwardOffset;
+  }
+
+  public get sectorAngleRadians(): number {
+    return this.shieldConfig.sectorAngleRadians;
+  }
+
+  public get mode(): ShieldConfig['mode'] {
+    return this.shieldConfig.mode;
+  }
+
   public reset(): void {
     this.holdMs = 0;
     this.cooldownMs = 0;

@@ -20,6 +20,7 @@ export class PlayerLifecycleSystem {
     players: ReadonlyMap<string, PlayerEntity>,
     walls: ReadonlyArray<{ x: number; y: number; width: number; height: number }>,
     excludedPlayerId: string,
+    spawnRadius: number,
     tick: number,
   ): { x: number; y: number } | undefined {
     
@@ -34,7 +35,7 @@ export class PlayerLifecycleSystem {
       const alivePlayers = Array.from(players.values())
         .filter((player) => player.tank.isAlive)
         .map((player) => ({ id: player.id, x: player.tank.x, y: player.tank.y, radius: player.tank.radius }));
-      if (!isSpawnPointBlocked(spawn.x, spawn.y, excludedPlayerId, walls, alivePlayers)) {
+      if (!isSpawnPointBlocked(spawn.x, spawn.y, spawnRadius, excludedPlayerId, walls, alivePlayers)) {
         return spawn;
       }
     }
@@ -56,7 +57,7 @@ export class PlayerLifecycleSystem {
       
       // Attempt to find an available spawn point for the player. If no spawn point is currently available,
       // reschedule the respawn check for a short time later to try again.
-      const spawn = this.pickAvailableSpawnPoint(players, walls, player.id, tick);
+      const spawn = this.pickAvailableSpawnPoint(players, walls, player.id, player.tank.radius, tick);
 
       if (spawn === undefined) {
         player.respawnAtMs = nowMs + RESPAWN_RETRY_DELAY_MS;

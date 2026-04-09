@@ -1,6 +1,3 @@
-import {
-  TANK_RADIUS,
-} from '../../shared/constants.js';
 import { clamp, distance, normalizeAngleRadians } from '../../shared/math.js';
 import { EMPTY_INPUT, type TankInput } from '../../shared/types.js';
 import { DEFAULT_BULLET_RADIUS, type BulletEntity } from './bullet.js';
@@ -26,7 +23,7 @@ export class BotController {
   private readonly botNextPathPlanAtMs = new Map<string, number>();
   private readonly botPathWaypointIndex = new Map<string, number>();
   private readonly botPathWaypoints = new Map<string, Array<{ x: number; y: number }>>();
-  private readonly pathGridCache = new Map<number, NavigationGrid>();
+  private readonly pathGridCache = new Map<string, NavigationGrid>();
 
   public onBotAdded(botId: string): void {
     this.botNextShotAtMs.set(botId, 0);
@@ -399,7 +396,7 @@ export class BotController {
 
     const currentWaypoint = waypoints[currentWaypointIndex];
     if (currentWaypoint !== undefined) {
-      const reachedWaypoint = distance(bot.tank.x, bot.tank.y, currentWaypoint.x, currentWaypoint.y) <= TANK_RADIUS * 0.9;
+      const reachedWaypoint = distance(bot.tank.x, bot.tank.y, currentWaypoint.x, currentWaypoint.y) <= bot.tank.radius * 0.9;
       if (reachedWaypoint) {
         this.botPathWaypointIndex.set(bot.id, currentWaypointIndex + 1);
       }
@@ -463,7 +460,7 @@ export class BotController {
     profile: BotDifficultyProfile,
     context: SimulationContext,
   ): void {
-    const grid = this.getPathGrid(profile.pathCellSize, context.world);
+    const grid = this.getPathGrid(profile.pathCellSize, bot.tank.radius, context.world);
     const path = findGridPath(grid, { x: bot.tank.x, y: bot.tank.y }, { x: target.tank.x, y: target.tank.y });
 
     const trimmedPath = path.slice(1).filter((point) => !context.intersectsAnyWall(point.x, point.y, bot.tank.radius));
@@ -474,15 +471,17 @@ export class BotController {
 
   private getPathGrid(
     cellSize: number,
+    tankRadius: number,
     world: { width: number; height: number; walls: ReadonlyArray<{ x: number; y: number; width: number; height: number }> },
   ): NavigationGrid {
-    const cached = this.pathGridCache.get(cellSize);
+    const cacheKey = `${cellSize}:${tankRadius}`;
+    const cached = this.pathGridCache.get(cacheKey);
     if (cached !== undefined) {
       return cached;
     }
 
-    const grid = buildNavigationGrid(world.width, world.height, world.walls, TANK_RADIUS, cellSize);
-    this.pathGridCache.set(cellSize, grid);
+    const grid = buildNavigationGrid(world.width, world.height, world.walls, tankRadius, cellSize);
+    this.pathGridCache.set(cacheKey, grid);
     return grid;
   }
 

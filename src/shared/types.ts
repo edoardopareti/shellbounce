@@ -90,6 +90,7 @@ export interface PlayerState {
   tankType: TankType;
   weaponType: WeaponType;
   shieldType: ShieldType;
+  shieldMode: 'sector' | 'omnidirectional';
   kills: number;
   deaths: number;
   score: number;
@@ -107,6 +108,11 @@ export interface PlayerState {
   fireCooldownBlocked: boolean;
   isChargingShot: boolean;
   chargeLevel: number;
+  muzzleOffset: number;
+  shieldRadius: number;
+  shieldForwardOffset: number;
+  shieldSectorAngleRadians: number;
+  respawnShieldRadius: number;
 }
 
 export interface BulletState {

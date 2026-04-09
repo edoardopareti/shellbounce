@@ -1,10 +1,4 @@
 import Phaser from 'phaser';
-import {
-  MUZZLE_OFFSET,
-  TANK_SHIELD_FORWARD_OFFSET,
-  TANK_SHIELD_RADIUS,
-  TANK_SHIELD_SECTOR_ANGLE_RADIANS,
-} from '../../shared/constants';
 import type { PlayerState } from '../../shared/types';
 import { getTankAppearance } from './tankVisuals';
 
@@ -34,7 +28,7 @@ export class RenderTank {
     const glowInnerRadius = glowOuterRadius * 0.5;
 
     this.shadow = this.scene.add.ellipse(0, shadowOffsetY, shadowWidth, shadowHeight, 0x020617, 0.3);
-    this.shieldRing = this.scene.add.arc(0, 0, TANK_SHIELD_RADIUS, 0, 0, false, appearance.bulletColor, 0);
+    this.shieldRing = this.scene.add.arc(0, 0, player.shieldRadius, 0, 0, false, appearance.bulletColor, 0);
     this.shieldRing.setStrokeStyle(2.5, appearance.bulletColor, 0);
     this.shieldRing.setBlendMode(Phaser.BlendModes.ADD);
 
@@ -120,8 +114,8 @@ export class RenderTank {
     this.turretSprite.setRotation(player.turretAngle);
     this.drawShieldBlockedIndicator(player.radius, player.shieldCooldownBlocked || player.fireCooldownBlocked);
 
-    const muzzleX = Math.cos(player.turretAngle) * MUZZLE_OFFSET;
-    const muzzleY = Math.sin(player.turretAngle) * MUZZLE_OFFSET;
+    const muzzleX = Math.cos(player.turretAngle) * player.muzzleOffset;
+    const muzzleY = Math.sin(player.turretAngle) * player.muzzleOffset;
     this.chargeGlowOuter.setPosition(muzzleX, muzzleY);
     this.chargeGlowInner.setPosition(muzzleX, muzzleY);
 
@@ -153,6 +147,7 @@ export class RenderTank {
     if (renderOmnidirectionalShield) {
       const shieldPulse = 0.97 + Math.sin(this.scene.time.now * 0.014) * 0.06;
       this.shieldRing.setPosition(0, 0);
+      this.shieldRing.setRadius(player.isSpawnProtected ? player.respawnShieldRadius : player.shieldRadius);
       this.shieldRing.setStartAngle(0);
       this.shieldRing.setEndAngle(360);
       const shieldColor = player.isSpawnProtected ? 0x60a5fa : player.bulletColor;
@@ -163,12 +158,13 @@ export class RenderTank {
       return;
     }
 
-    const shieldCenterLocalX = Math.cos(player.turretAngle) * TANK_SHIELD_FORWARD_OFFSET;
-    const shieldCenterLocalY = Math.sin(player.turretAngle) * TANK_SHIELD_FORWARD_OFFSET;
+    this.shieldRing.setRadius(player.shieldRadius);
+    const shieldCenterLocalX = Math.cos(player.turretAngle) * player.shieldForwardOffset;
+    const shieldCenterLocalY = Math.sin(player.turretAngle) * player.shieldForwardOffset;
     this.shieldRing.setPosition(shieldCenterLocalX, shieldCenterLocalY);
 
-    const shieldStartAngle = player.turretAngle - TANK_SHIELD_SECTOR_ANGLE_RADIANS * 0.5;
-    const shieldEndAngle = player.turretAngle + TANK_SHIELD_SECTOR_ANGLE_RADIANS * 0.5;
+    const shieldStartAngle = player.turretAngle - player.shieldSectorAngleRadians * 0.5;
+    const shieldEndAngle = player.turretAngle + player.shieldSectorAngleRadians * 0.5;
     this.shieldRing.setStartAngle(Phaser.Math.RadToDeg(shieldStartAngle));
     this.shieldRing.setEndAngle(Phaser.Math.RadToDeg(shieldEndAngle));
 

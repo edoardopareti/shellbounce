@@ -1,29 +1,6 @@
 export const TICK_RATE = 60;
 export const FIXED_TIMESTEP_SECONDS = 1 / TICK_RATE;
 
-export const TANK_RADIUS = 18;
-
-export const TANK_MOVE_SPEED = 200;
-export const TANK_REVERSE_SPEED = 150;
-export const TANK_ROTATION_SPEED = Math.PI * 2.5;
-
-export const MUZZLE_OFFSET = 26;
-
-export const TANK_BOOST_MULTIPLIER = 2.25;
-export const TANK_BOOST_DURATION_MS = 1800;
-export const TANK_BOOST_COOLDOWN_MS = 2100;
-
-export const TANK_SHIELD_RADIUS = 25;
-export const TANK_SHIELD_FORWARD_OFFSET = 15;
-export const TANK_SHIELD_SECTOR_ANGLE_RADIANS = Math.PI * 0.7;
-export const SHIELD_OVERCHARGE_MS = 2400;
-export const SHIELD_COOLDOWN_MS = 2400;
-
-export const MAX_ACTIVE_MINES_PER_TANK = 3;
-export const MINE_RADIUS = 10;
-export const MINE_LIFETIME_MS = 8000;
-export const MINE_ARMING_DELAY_MS = 380;
-
 export const TANK_RESPAWN_DELAY_MS = 3000;
 export const TANK_RESPAWN_PROTECTION_MS = 1800;
 export const SPAWN_CORNER_PADDING = 56;

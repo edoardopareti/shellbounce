@@ -28,6 +28,7 @@ import { sanitizeInput } from './entities/input.js';
 import type { MineEntity } from './entities/mine.js';
 import {
   createPlayerEntity,
+  getTankRadiusForType,
   resolveShieldTypeForNewPlayer,
   resolveTankTypeForNewPlayer, 
   resolveWeaponTypeForNewPlayer,
@@ -162,8 +163,9 @@ export class AuthoritativeSimulation {
 
     // Pick an available spawn point for the new player.
     // If no spawn points are available, default to a corner spawn point.
+    const spawnRadius = getTankRadiusForType(tankType);
     const spawn =
-      this.playerLifecycleSystem.pickAvailableSpawnPoint(this.players, this.world.walls, playerId, this.tick) ??
+      this.playerLifecycleSystem.pickAvailableSpawnPoint(this.players, this.world.walls, playerId, spawnRadius, this.tick) ??
       this.playerLifecycleSystem.getDefaultSpawnPoint();
     const weapon = this.weaponRegistry.createForWeaponType(weaponType, {
       nextBulletId: () => `b-${this.bulletCounter++}`,
@@ -404,6 +406,7 @@ export class AuthoritativeSimulation {
           tankType: player.tank.tankType,
           weaponType: player.tank.weaponType,
           shieldType: player.tank.shieldType,
+          shieldMode: player.tank.shield.mode,
           kills: player.kills,
           deaths: player.deaths,
           score: player.kills - player.deaths,
@@ -421,6 +424,11 @@ export class AuthoritativeSimulation {
           isChargingShot: player.tank.isChargingShot,
           chargeLevel: this.getChargeRatio(player),
           fireCooldownBlocked: player.tank.fireCooldownBlocked,
+          muzzleOffset: player.tank.tankConfig.muzzleOffset,
+          shieldRadius: player.tank.shield.radius,
+          shieldForwardOffset: player.tank.shield.forwardOffset,
+          shieldSectorAngleRadians: player.tank.shield.sectorAngleRadians,
+          respawnShieldRadius: player.tank.respawnShield.radius,
         })),
       bullets: this.bullets.map((bullet) => ({
         id: bullet.id,

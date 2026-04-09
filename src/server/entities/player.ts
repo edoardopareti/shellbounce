@@ -16,6 +16,10 @@ import type { Shield } from './shield.js';
 import type { Weapon } from './weapon.js';
 import { createTankByType } from './tankFactory.js';
 import type { Tank } from './tank.js';
+import { FANTANYL_TANK_CONFIG } from './fantanylTank.js';
+import { HIGHTILLERY_TANK_CONFIG } from './hightillerytank.js';
+import { POLPOT_TANK_CONFIG } from './polPotTank.js';
+import { SSUGAR_TANK_CONFIG } from './ssugarTank.js';
 
 export interface PlayerEntity {
   id: string;
@@ -99,6 +103,21 @@ export function resolveShieldTypeForNewPlayer(
   }
 
   return preferredShieldType ?? DEFAULT_SHIELD_BY_TANK[tankType];
+}
+
+export function getTankRadiusForType(tankType: TankType): number {
+  switch (tankType) {
+    case 'PolPot':
+      return POLPOT_TANK_CONFIG.radius;
+    case 'Hightillery':
+      return HIGHTILLERY_TANK_CONFIG.radius;
+    case 'SSugar':
+      return SSUGAR_TANK_CONFIG.radius;
+    case 'Fantanyl':
+      return FANTANYL_TANK_CONFIG.radius;
+    default:
+      return POLPOT_TANK_CONFIG.radius;
+  }
 }
 
 export function resetPlayerForRespawn(player: PlayerEntity, spawn: { x: number; y: number }): void {
