@@ -3,64 +3,33 @@
 import type { BulletEntity } from '../bullets/bullet.js';
 import { createStandardBulletEntity } from '../bullets/bullet.js';
 import type { PlayerEntity } from '../player/player.js';
+import { DEFAULT_WEAPON_SETUP_BY_WEAPON, type ChargedBulletWeaponSetupInput } from '../../../shared/types.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
-import type { ChargedBulletWeaponConfig } from './weaponConfig.js';
 
-const MAX_ACTIVE_BULLETS = 4;
-const NORMAL_SHOT_COOLDOWN_MS = 100;
-const CHARGED_SHOT_COOLDOWN_MS = 2400;
-const NORMAL_SHOT_SPEED = 420;
-const NORMAL_SHOT_EXPLOSION_RADIUS = 84;
-const NORMAL_SHOT_MAX_BOUNCES = 3;
-const NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT = false;
-const NORMAL_SHOT_IS_CHARGED = false;
-const NORMAL_SHOT_MAX_LIFETIME_MS = 4000;
-const CHARGED_SHOT_SPEED_MULTIPLIER = 2.5;
-const CHARGED_SHOT_EXPLOSION_RADIUS_MULTIPLIER = 1.5;
-const CHARGED_SHOT_MAX_BOUNCES = 1;
-const CHARGED_SHOT_EXPLODE_ON_WALL_IMPACT = false;
-const CHARGED_SHOT_IS_CHARGED = true;
-
-const SIMPLE_GUN_CONFIG: ChargedBulletWeaponConfig = {
-  maxActiveBullets: MAX_ACTIVE_BULLETS,
-  normalShotCooldownMs: NORMAL_SHOT_COOLDOWN_MS,
-  chargedShotCooldownMs: CHARGED_SHOT_COOLDOWN_MS,
-  normalShot: {
-    speed: NORMAL_SHOT_SPEED,
-    explosionRadius: NORMAL_SHOT_EXPLOSION_RADIUS,
-    maxBounces: NORMAL_SHOT_MAX_BOUNCES,
-    explodeOnWallImpact: NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT,
-    isCharged: NORMAL_SHOT_IS_CHARGED,
-    maxLifetimeMs: NORMAL_SHOT_MAX_LIFETIME_MS,
-  },
-  chargedShot: {
-    speedMultiplier: CHARGED_SHOT_SPEED_MULTIPLIER,
-    explosionRadiusMultiplier: CHARGED_SHOT_EXPLOSION_RADIUS_MULTIPLIER,
-    maxBounces: CHARGED_SHOT_MAX_BOUNCES,
-    explodeOnWallImpact: CHARGED_SHOT_EXPLODE_ON_WALL_IMPACT,
-    isCharged: CHARGED_SHOT_IS_CHARGED,
-  },
-};
+export const SIMPLE_GUN_CONFIG: ChargedBulletWeaponSetupInput = DEFAULT_WEAPON_SETUP_BY_WEAPON.SimpleGun;
 
 export interface SimpleGunRuntime extends Pick<WeaponRuntime,
   'nextBulletId' | 'detonateOldestBulletForPlayer'
 > {}
 
 export class SimpleGun extends Weapon {
-  public constructor(private readonly runtime: SimpleGunRuntime) {
+  public constructor(
+    private readonly runtime: SimpleGunRuntime,
+    private readonly config: ChargedBulletWeaponSetupInput = SIMPLE_GUN_CONFIG,
+  ) {
     super();
   }
 
   public getMaxActiveBullets(): number {
-    return SIMPLE_GUN_CONFIG.maxActiveBullets;
+    return this.config.maxActiveBullets;
   }
 
   protected createNormalShot(player: PlayerEntity): BulletEntity {
-    return createStandardBulletEntity(this.runtime.nextBulletId(), player, SIMPLE_GUN_CONFIG.normalShot);
+    return createStandardBulletEntity(this.runtime.nextBulletId(), player, this.config.normalShot);
   }
 
   protected createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity {
-    const { normalShot, chargedShot } = SIMPLE_GUN_CONFIG;
+    const { normalShot, chargedShot } = this.config;
     const speed = lerp(
       normalShot.speed,
       normalShot.speed * chargedShot.speedMultiplier,
@@ -90,11 +59,11 @@ export class SimpleGun extends Weapon {
   }
 
   protected getNormalShotCooldownMs(): number {
-    return SIMPLE_GUN_CONFIG.normalShotCooldownMs;
+    return this.config.normalShotCooldownMs;
   }
 
   protected getChargedShotCooldownMs(): number {
-    return SIMPLE_GUN_CONFIG.chargedShotCooldownMs;
+    return this.config.chargedShotCooldownMs;
   }
 }
 

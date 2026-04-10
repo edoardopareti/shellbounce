@@ -12,11 +12,16 @@ import { getArenaWorld } from '../shared/map.js';
 import { circleIntersectsRect, normalizeAngleRadians } from '../shared/math.js';
 import {
   ALL_WEAPON_TYPES,
+  type ChargedBulletWeaponSetupInput,
   EMPTY_INPUT,
+  type LaserWhipWeaponSetupInput,
+  type MachineGunWeaponSetupInput,
   type ShieldType,
   type ShotPreviewState,
   type TankInput,
   type TankType,
+  type VolleyWeaponSetupInput,
+  type WeaponSetupInput,
   type WeaponType,
   type WorldSnapshot,
 } from '../shared/types.js';
@@ -85,15 +90,15 @@ export class AuthoritativeSimulation {
 
   public constructor() {
     // Register default weapons for each weapon type in the weapon registry.
-    this.weaponRegistry.registerDefault((runtime) => new SimpleGun(runtime));
+    this.weaponRegistry.registerDefault((runtime, weaponSetup) => new SimpleGun(runtime, weaponSetup as ChargedBulletWeaponSetupInput | undefined));
     for (const weaponType of ALL_WEAPON_TYPES) {
-      this.weaponRegistry.register(weaponType, (runtime) => new SimpleGun(runtime));
+      this.weaponRegistry.register(weaponType, (runtime, weaponSetup) => new SimpleGun(runtime, weaponSetup as ChargedBulletWeaponSetupInput | undefined));
     }
 
-    this.weaponRegistry.register('MitosisGun', (runtime) => new MitosisGun(runtime));
-    this.weaponRegistry.register('GrappleGun', (runtime) => new GrappleGun(runtime));
-    this.weaponRegistry.register('LaserWhipGun', (runtime) => new LaserWhipGun(runtime));
-    this.weaponRegistry.register('MachineGun', (runtime) => new MachineGun(runtime));
+    this.weaponRegistry.register('MitosisGun', (runtime, weaponSetup) => new MitosisGun(runtime, weaponSetup as ChargedBulletWeaponSetupInput | undefined));
+    this.weaponRegistry.register('GrappleGun', (runtime, weaponSetup) => new GrappleGun(runtime, weaponSetup as VolleyWeaponSetupInput | undefined));
+    this.weaponRegistry.register('LaserWhipGun', (runtime, weaponSetup) => new LaserWhipGun(runtime, weaponSetup as LaserWhipWeaponSetupInput | undefined));
+    this.weaponRegistry.register('MachineGun', (runtime, weaponSetup) => new MachineGun(runtime, weaponSetup as MachineGunWeaponSetupInput | undefined));
 
     this.mineRegistry.registerDefault(() => new StandardMine());
 
@@ -140,6 +145,7 @@ export class AuthoritativeSimulation {
     preferredWeaponType?: WeaponType,
     preferredShieldType?: ShieldType,
     tankConfig?: TankConfig,
+    weaponSetup?: WeaponSetupInput,
   ): void {
 
     // Add a new player to the simulation with the specified playerId and bot status.
@@ -177,7 +183,7 @@ export class AuthoritativeSimulation {
       detonateSplitMitosisBulletsForPlayer: (id: string) => this.tryDetonateSplitMitosisBulletsForPlayer(id),
       armOrDetonateGrappleBulletsForPlayer: (id: string) => this.tryArmOrDetonateGrappleBulletsForPlayer(id),
       pullPlayerToOwnedLaserTip: (id: string, stepDistance: number) => this.tryPullPlayerToOwnedLaserTip(id, stepDistance),
-    });
+    }, weaponSetup);
     const mine = this.mineRegistry.createDefault();
     const shield = this.shieldRegistry.createForShieldType(shieldType);
     const respawnShield = this.shieldRegistry.createForShieldType('OmniDirShield');

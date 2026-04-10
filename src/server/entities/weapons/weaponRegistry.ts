@@ -1,7 +1,7 @@
-import type { WeaponType } from '../../../shared/types.js';
+import type { WeaponSetupInput, WeaponType } from '../../../shared/types.js';
 import type { Weapon, WeaponRuntime } from './weapon.js';
 
-export type WeaponFactory = (runtime: WeaponRuntime) => Weapon;
+export type WeaponFactory = (runtime: WeaponRuntime, weaponSetup?: WeaponSetupInput) => Weapon;
 
 export class WeaponRegistry {
   // This class manages the registration and creation of weapon instances based on tank types.
@@ -22,7 +22,11 @@ export class WeaponRegistry {
     this.defaultFactory = factory;
   }
 
-  public createForWeaponType(weaponType: WeaponType, runtime: WeaponRuntime): Weapon {
+  public createForWeaponType(
+    weaponType: WeaponType,
+    runtime: WeaponRuntime,
+    weaponSetup?: WeaponSetupInput,
+  ): Weapon {
     // Create a weapon instance for the given weapon type using the registered factory.
     // Look up the factory for the specified weapon type. If not found, use the default factory.
     const factory = this.factories.get(weaponType) ?? this.defaultFactory;
@@ -30,6 +34,6 @@ export class WeaponRegistry {
       throw new Error(`No weapon factory registered for weapon type: ${weaponType}`);
     }
 
-    return factory(runtime);
+    return factory(runtime, weaponSetup);
   }
 }

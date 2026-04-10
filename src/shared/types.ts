@@ -85,6 +85,179 @@ export const DEFAULT_TANK_SETUP_BY_TANK: Record<TankType, TankSetupInput> = {
   },
 };
 
+export interface WeaponBulletSetupInput {
+  speed: number;
+  explosionRadius: number;
+  maxBounces: number;
+  explodeOnWallImpact: boolean;
+  isCharged: boolean;
+  radius?: number;
+  maxLifetimeMs?: number;
+}
+
+export interface WeaponSetupBase {
+  maxActiveBullets: number;
+  normalShotCooldownMs: number;
+  chargedShotCooldownMs: number;
+}
+
+export interface ChargedShotScalingSetup {
+  speedMultiplier: number;
+  explosionRadiusMultiplier: number;
+  maxBounces: number;
+  explodeOnWallImpact: boolean;
+  isCharged: boolean;
+}
+
+export interface ChargedBulletWeaponSetupInput extends WeaponSetupBase {
+  normalShot: WeaponBulletSetupInput;
+  chargedShot: ChargedShotScalingSetup;
+}
+
+export interface VolleyWeaponSetupInput extends ChargedBulletWeaponSetupInput {
+  volleyAngleOffsetsRadians: number[];
+  requiresEmptyChamberToShoot: boolean;
+  grappleArmedDetonationDelayMs?: number;
+  grappleManualDetonationMinDelayMs?: number;
+}
+
+export interface MachineGunWeaponSetupInput extends WeaponSetupBase {
+  bullet: WeaponBulletSetupInput;
+  holdToRapidFireMs: number;
+}
+
+export interface LaserWhipWeaponSetupInput extends WeaponSetupBase {
+  normalShot: {
+    speed: number;
+    explosionRadius: number;
+    maxBounces: number;
+    laserLength: number;
+    radius: number;
+    maxLifetimeMs: number;
+  };
+  chargedShot: {
+    speedMultiplier: number;
+    maxBounces: number;
+    isCharged: boolean;
+  };
+  whip: {
+    pullStepDistance: number;
+  };
+}
+
+export interface WeaponSetupInputByWeaponType {
+  SimpleGun: ChargedBulletWeaponSetupInput;
+  MitosisGun: ChargedBulletWeaponSetupInput;
+  MachineGun: MachineGunWeaponSetupInput;
+  GrappleGun: VolleyWeaponSetupInput;
+  LaserWhipGun: LaserWhipWeaponSetupInput;
+}
+
+export type WeaponSetupInput = WeaponSetupInputByWeaponType[WeaponType];
+
+export const DEFAULT_WEAPON_SETUP_BY_WEAPON: WeaponSetupInputByWeaponType = {
+  SimpleGun: {
+    maxActiveBullets: 4,
+    normalShotCooldownMs: 100,
+    chargedShotCooldownMs: 2400,
+    normalShot: {
+      speed: 420,
+      explosionRadius: 84,
+      maxBounces: 3,
+      explodeOnWallImpact: false,
+      isCharged: false,
+      maxLifetimeMs: 4000,
+    },
+    chargedShot: {
+      speedMultiplier: 2.5,
+      explosionRadiusMultiplier: 1.5,
+      maxBounces: 1,
+      explodeOnWallImpact: false,
+      isCharged: true,
+    },
+  },
+  MitosisGun: {
+    maxActiveBullets: 3,
+    normalShotCooldownMs: 100,
+    chargedShotCooldownMs: 2400,
+    normalShot: {
+      speed: 420,
+      explosionRadius: 84,
+      maxBounces: 3,
+      explodeOnWallImpact: false,
+      isCharged: false,
+      maxLifetimeMs: 4000,
+    },
+    chargedShot: {
+      speedMultiplier: 2.5,
+      explosionRadiusMultiplier: 1.5,
+      maxBounces: 0,
+      explodeOnWallImpact: true,
+      isCharged: true,
+    },
+  },
+  MachineGun: {
+    maxActiveBullets: 6,
+    normalShotCooldownMs: 130,
+    chargedShotCooldownMs: 40,
+    holdToRapidFireMs: 180,
+    bullet: {
+      speed: 520,
+      explosionRadius: 56,
+      maxBounces: 1,
+      explodeOnWallImpact: false,
+      isCharged: true,
+      radius: 3,
+      maxLifetimeMs: 550,
+    },
+  },
+  GrappleGun: {
+    maxActiveBullets: 6,
+    normalShotCooldownMs: 200,
+    chargedShotCooldownMs: 2500,
+    normalShot: {
+      speed: 420,
+      explosionRadius: 45,
+      maxBounces: 3,
+      explodeOnWallImpact: false,
+      isCharged: false,
+      maxLifetimeMs: 4000,
+    },
+    chargedShot: {
+      speedMultiplier: 2.5,
+      explosionRadiusMultiplier: 1.5,
+      maxBounces: 0,
+      explodeOnWallImpact: true,
+      isCharged: true,
+    },
+    volleyAngleOffsetsRadians: [-(Math.PI / 15), 0, Math.PI / 15],
+    requiresEmptyChamberToShoot: false,
+    grappleArmedDetonationDelayMs: 2500,
+    grappleManualDetonationMinDelayMs: 1000,
+  },
+  LaserWhipGun: {
+    maxActiveBullets: 1,
+    normalShotCooldownMs: 130,
+    chargedShotCooldownMs: 250,
+    normalShot: {
+      speed: 1200,
+      explosionRadius: 70,
+      maxBounces: 1,
+      laserLength: 90,
+      radius: 4,
+      maxLifetimeMs: 2300,
+    },
+    chargedShot: {
+      speedMultiplier: 2.2,
+      maxBounces: 0,
+      isCharged: true,
+    },
+    whip: {
+      pullStepDistance: 28,
+    },
+  },
+};
+
 // TankInput represents the player's input state for a single game tick,
 // including movement commands, firing actions, and pointer position.
 export interface TankInput {
@@ -234,6 +407,7 @@ export interface ClientJoinMessage {
   weaponType: WeaponType;
   shieldType: ShieldType;
   tankSetup?: TankSetupInput;
+  weaponSetup?: WeaponSetupInput;
 }
 // ClientInputMessage represents the structure of player input messages sent from clients to the server,
 // containing the input state and a sequence number for ordering.

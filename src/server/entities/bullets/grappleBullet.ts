@@ -1,5 +1,5 @@
 import type { PlayerEntity } from '../player/player.js';
-import type { VolleyWeaponConfig } from '../weapons/weaponConfig.js';
+import type { VolleyWeaponSetupInput } from '../../../shared/types.js';
 import {
   type BulletOwner,
   type GrappleBulletEntity,
@@ -55,7 +55,7 @@ export function createGrappleVolley(
     isCharged: boolean;
   },
   volleyConfig: Pick<
-    VolleyWeaponConfig,
+    VolleyWeaponSetupInput,
     'volleyAngleOffsetsRadians' | 'grappleArmedDetonationDelayMs' | 'grappleManualDetonationMinDelayMs'
   >,
   nextBulletId: () => string,

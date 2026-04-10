@@ -2,6 +2,7 @@
 
 import { FIXED_TIMESTEP_SECONDS } from '../../../shared/constants.js';
 import type { TankInput } from '../../../shared/types.js';
+import { DEFAULT_WEAPON_SETUP_BY_WEAPON, type MachineGunWeaponSetupInput } from '../../../shared/types.js';
 import type { BulletEntity } from '../bullets/bullet.js';
 import { createStandardBulletEntity } from '../bullets/bullet.js';
 import type { PlayerEntity } from '../player/player.js';
@@ -10,55 +11,31 @@ import {
   type WeaponActionResult,
   type WeaponRuntime,
 } from './weapon.js';
-import type { MachineGunWeaponConfig } from './weaponConfig.js';
 
-const MAX_ACTIVE_BULLETS = 6;
-const NORMAL_SHOT_COOLDOWN_MS = 130;
-const CHARGED_SHOT_COOLDOWN_MS = 40;
-const HOLD_TO_RAPID_FIRE_MS = 180;
-const NORMAL_SHOT_SPEED = 520;
-const NORMAL_SHOT_EXPLOSION_RADIUS = 56;
-const NORMAL_SHOT_MAX_BOUNCES = 1;
-const NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT = false;
-const NORMAL_SHOT_IS_CHARGED = true;
-const NORMAL_SHOT_RADIUS = 3;
-const NORMAL_SHOT_MAX_LIFETIME_MS = 550;
-
-const MACHINE_GUN_CONFIG: MachineGunWeaponConfig = {
-  maxActiveBullets: MAX_ACTIVE_BULLETS,
-  normalShotCooldownMs: NORMAL_SHOT_COOLDOWN_MS,
-  chargedShotCooldownMs: CHARGED_SHOT_COOLDOWN_MS,
-  holdToRapidFireMs: HOLD_TO_RAPID_FIRE_MS,
-  bullet: {
-    speed: NORMAL_SHOT_SPEED,
-    explosionRadius: NORMAL_SHOT_EXPLOSION_RADIUS,
-    maxBounces: NORMAL_SHOT_MAX_BOUNCES,
-    explodeOnWallImpact: NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT,
-    isCharged: NORMAL_SHOT_IS_CHARGED,
-    radius: NORMAL_SHOT_RADIUS,
-    maxLifetimeMs: NORMAL_SHOT_MAX_LIFETIME_MS,
-  },
-};
+export const MACHINE_GUN_CONFIG: MachineGunWeaponSetupInput = DEFAULT_WEAPON_SETUP_BY_WEAPON.MachineGun;
 
 export interface MachineGunRuntime extends Pick<WeaponRuntime,
   'nextBulletId' | 'detonateAllBulletsForPlayer'
 > {}
 
 export class MachineGun extends Weapon {
-  public constructor(private readonly runtime: MachineGunRuntime) {
+  public constructor(
+    private readonly runtime: MachineGunRuntime,
+    private readonly config: MachineGunWeaponSetupInput = MACHINE_GUN_CONFIG,
+  ) {
     super();
   }
 
   public getMaxActiveBullets(): number {
-    return MACHINE_GUN_CONFIG.maxActiveBullets;
+    return this.config.maxActiveBullets;
   }
 
   protected createNormalShot(player: PlayerEntity): BulletEntity {
-    return createStandardBulletEntity(this.runtime.nextBulletId(), player, MACHINE_GUN_CONFIG.bullet);
+    return createStandardBulletEntity(this.runtime.nextBulletId(), player, this.config.bullet);
   }
 
   protected createChargedShot(player: PlayerEntity, _chargeRatio: number): BulletEntity {
-    return createStandardBulletEntity(this.runtime.nextBulletId(), player, MACHINE_GUN_CONFIG.bullet);
+    return createStandardBulletEntity(this.runtime.nextBulletId(), player, this.config.bullet);
   }
 
   protected handleSurprise(player: PlayerEntity, triggered: boolean): void {
@@ -70,11 +47,11 @@ export class MachineGun extends Weapon {
   }
 
   protected getNormalShotCooldownMs(): number {
-    return MACHINE_GUN_CONFIG.normalShotCooldownMs;
+    return this.config.normalShotCooldownMs;
   }
 
   protected getChargedShotCooldownMs(): number {
-    return MACHINE_GUN_CONFIG.chargedShotCooldownMs;
+    return this.config.chargedShotCooldownMs;
   }
 
   public handleInput(
@@ -110,7 +87,7 @@ export class MachineGun extends Weapon {
     }
 
     player.tank.chargeMs += FIXED_TIMESTEP_SECONDS * 1000;
-    const rapidModeActive = player.tank.chargeMs >= MACHINE_GUN_CONFIG.holdToRapidFireMs;
+    const rapidModeActive = player.tank.chargeMs >= this.config.holdToRapidFireMs;
 
     if (!rapidModeActive || !canShoot || player.tank.fireCooldownMs > 0) {
       return { firedBullets: [], selfDestructed: false };

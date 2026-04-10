@@ -17,10 +17,12 @@ import {
   type ClientMessage,
   type ServerMessage,
   type TankInput,
+  type WeaponType,
 } from '../shared/types.js';
 import { 
   getValidatedTankConfigForJoin,
   isTankSetupSchema } from './entities/tanks/clientInputValidatorTank.js';
+import { getValidatedWeaponSetupForJoin, isWeaponSetupSchema } from './entities/weapons/clientInputValidatorWeapon.js';
 
 
 // TODO: Currently, a single AuthoritativeSimulation instance is used for all N clients,
@@ -248,6 +250,12 @@ function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
     sendError(socket, tankConfigValidation.error ?? 'Invalid tank setup.');
     return;
   }
+
+  const weaponSetupValidation = getValidatedWeaponSetupForJoin(message.weaponType, message.weaponSetup);
+  if (weaponSetupValidation.error !== undefined || weaponSetupValidation.weaponSetup === undefined) {
+    sendError(socket, weaponSetupValidation.error ?? 'Invalid weapon setup.');
+    return;
+  }
   
   // Add the new player to the simulation with the generated player ID.
   simulation.addPlayer(
@@ -257,6 +265,7 @@ function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
     message.weaponType,
     message.shieldType,
     tankConfigValidation.tankConfig,
+    weaponSetupValidation.weaponSetup,
   );
   
   // Create a new client session and store it in the sessions map, keyed by the WebSocket connection.
@@ -296,12 +305,15 @@ function isClientMessage(value: unknown): value is ClientMessage {
 
   const candidate = value as Partial<ClientMessage>;
   if (candidate.type === 'join') {
+    const candidateWeaponType = candidate.weaponType;
+    const hasValidWeaponType = typeof candidateWeaponType === 'string' && ALL_WEAPON_TYPES.includes(candidateWeaponType as WeaponType);
     return (
       typeof candidate.playerId === 'string'
       && typeof candidate.tankType === 'string'
       && typeof candidate.weaponType === 'string'
       && typeof candidate.shieldType === 'string'
       && (candidate.tankSetup === undefined || isTankSetupSchema(candidate.tankSetup))
+      && (candidate.weaponSetup === undefined || (hasValidWeaponType && isWeaponSetupSchema(candidateWeaponType as WeaponType, candidate.weaponSetup)))
     );
   }
 

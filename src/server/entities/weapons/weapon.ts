@@ -1,14 +1,13 @@
 import {
+  DEFAULT_CHARGED_SHOT_MAX_HOLD_MS,
+  DEFAULT_CHARGED_SHOT_MIN_HOLD_MS,
+  DEFAULT_CHARGED_SHOT_OVERCHARGE_MS,
   FIXED_TIMESTEP_SECONDS,
 } from '../../../shared/constants.js';
 import { clamp } from '../../../shared/math.js';
 import type { TankInput } from '../../../shared/types.js';
 import type { BulletEntity } from '../bullets/bullet.js';
 import type { PlayerEntity } from '../player/player.js';
-
-const DEFAULT_CHARGED_SHOT_MIN_HOLD_MS = 150;
-const DEFAULT_CHARGED_SHOT_MAX_HOLD_MS = 1200;
-const DEFAULT_CHARGED_SHOT_OVERCHARGE_MS = 2400;
 
 // Base runtime contract used by weapon implementations.
 // WeaponRuntime defines the methods that weapon classes can call to interact with the simulation.

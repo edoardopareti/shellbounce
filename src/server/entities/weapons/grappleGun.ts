@@ -3,68 +3,29 @@
 import type { BulletEntity } from '../bullets/bullet.js';
 import { createGrappleVolley } from '../bullets/grappleBullet.js';
 import type { PlayerEntity } from '../player/player.js';
+import { DEFAULT_WEAPON_SETUP_BY_WEAPON, type VolleyWeaponSetupInput } from '../../../shared/types.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
-import type { VolleyWeaponConfig } from './weaponConfig.js';
 
-const MAX_ACTIVE_BULLETS = 6;
-const NORMAL_SHOT_COOLDOWN_MS = 200;
-const CHARGED_SHOT_COOLDOWN_MS = 2500;
-const NORMAL_SHOT_SPEED = 420;
-const NORMAL_SHOT_EXPLOSION_RADIUS = 45;
-const NORMAL_SHOT_MAX_BOUNCES = 3;
-const NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT = false;
-const NORMAL_SHOT_IS_CHARGED = false;
-const NORMAL_SHOT_MAX_LIFETIME_MS = 4000;
-const CHARGED_SHOT_SPEED_MULTIPLIER = 2.5;
-const CHARGED_SHOT_EXPLOSION_RADIUS_MULTIPLIER = 1.5;
-const CHARGED_SHOT_MAX_BOUNCES = 0;
-const CHARGED_SHOT_EXPLODE_ON_WALL_IMPACT = true;
-const CHARGED_SHOT_IS_CHARGED = true;
-const VOLLEY_ANGLE_OFFSETS_RADIANS = [-(Math.PI / 15), 0, Math.PI / 15];
-const REQUIRES_EMPTY_CHAMBER_TO_SHOOT = false;
-const GRAPPLE_ARMED_DETONATION_DELAY_MS = 2500;
-const GRAPPLE_MANUAL_DETONATION_MIN_DELAY_MS = 1000;
-
-const GRAPPLE_GUN_CONFIG: VolleyWeaponConfig = {
-  maxActiveBullets: MAX_ACTIVE_BULLETS,
-  normalShotCooldownMs: NORMAL_SHOT_COOLDOWN_MS,
-  chargedShotCooldownMs: CHARGED_SHOT_COOLDOWN_MS,
-  normalShot: {
-    speed: NORMAL_SHOT_SPEED,
-    explosionRadius: NORMAL_SHOT_EXPLOSION_RADIUS,
-    maxBounces: NORMAL_SHOT_MAX_BOUNCES,
-    explodeOnWallImpact: NORMAL_SHOT_EXPLODE_ON_WALL_IMPACT,
-    isCharged: NORMAL_SHOT_IS_CHARGED,
-    maxLifetimeMs: NORMAL_SHOT_MAX_LIFETIME_MS,
-  },
-  chargedShot: {
-    speedMultiplier: CHARGED_SHOT_SPEED_MULTIPLIER,
-    explosionRadiusMultiplier: CHARGED_SHOT_EXPLOSION_RADIUS_MULTIPLIER,
-    maxBounces: CHARGED_SHOT_MAX_BOUNCES,
-    explodeOnWallImpact: CHARGED_SHOT_EXPLODE_ON_WALL_IMPACT,
-    isCharged: CHARGED_SHOT_IS_CHARGED,
-  },
-  volleyAngleOffsetsRadians: VOLLEY_ANGLE_OFFSETS_RADIANS,
-  requiresEmptyChamberToShoot: REQUIRES_EMPTY_CHAMBER_TO_SHOOT,
-  grappleArmedDetonationDelayMs: GRAPPLE_ARMED_DETONATION_DELAY_MS,
-  grappleManualDetonationMinDelayMs: GRAPPLE_MANUAL_DETONATION_MIN_DELAY_MS,
-};
+export const GRAPPLE_GUN_CONFIG: VolleyWeaponSetupInput = DEFAULT_WEAPON_SETUP_BY_WEAPON.GrappleGun;
 
 export interface GrappleGunRuntime extends Pick<WeaponRuntime,
   'nextBulletId' | 'armOrDetonateGrappleBulletsForPlayer'
 > {}
 
 export class GrappleGun extends Weapon {
-  public constructor(private readonly runtime: GrappleGunRuntime) {
+  public constructor(
+    private readonly runtime: GrappleGunRuntime,
+    private readonly config: VolleyWeaponSetupInput = GRAPPLE_GUN_CONFIG,
+  ) {
     super();
   }
 
   public getMaxActiveBullets(): number {
-    return GRAPPLE_GUN_CONFIG.maxActiveBullets;
+    return this.config.maxActiveBullets;
   }
 
   protected canStartShot(activeBulletCount: number): boolean {
-    if (GRAPPLE_GUN_CONFIG.requiresEmptyChamberToShoot) {
+    if (this.config.requiresEmptyChamberToShoot) {
       return activeBulletCount === 0;
     }
 
@@ -75,18 +36,18 @@ export class GrappleGun extends Weapon {
   protected createNormalShot(player: PlayerEntity): BulletEntity[] {
     return createGrappleVolley(
       player,
-      GRAPPLE_GUN_CONFIG.normalShot,
+      this.config.normalShot,
       {
-        volleyAngleOffsetsRadians: GRAPPLE_GUN_CONFIG.volleyAngleOffsetsRadians,
-        grappleArmedDetonationDelayMs: GRAPPLE_GUN_CONFIG.grappleArmedDetonationDelayMs,
-        grappleManualDetonationMinDelayMs: GRAPPLE_GUN_CONFIG.grappleManualDetonationMinDelayMs,
+        volleyAngleOffsetsRadians: this.config.volleyAngleOffsetsRadians,
+        grappleArmedDetonationDelayMs: this.config.grappleArmedDetonationDelayMs,
+        grappleManualDetonationMinDelayMs: this.config.grappleManualDetonationMinDelayMs,
       },
       () => this.runtime.nextBulletId(),
     );
   }
 
   protected createChargedShot(player: PlayerEntity, chargeRatio: number): BulletEntity[] {
-    const { normalShot, chargedShot } = GRAPPLE_GUN_CONFIG;
+    const { normalShot, chargedShot } = this.config;
     const speed = lerp(
       normalShot.speed,
       normalShot.speed * chargedShot.speedMultiplier,
@@ -107,9 +68,9 @@ export class GrappleGun extends Weapon {
         isCharged: chargedShot.isCharged,
       },
       {
-        volleyAngleOffsetsRadians: GRAPPLE_GUN_CONFIG.volleyAngleOffsetsRadians,
-        grappleArmedDetonationDelayMs: GRAPPLE_GUN_CONFIG.grappleArmedDetonationDelayMs,
-        grappleManualDetonationMinDelayMs: GRAPPLE_GUN_CONFIG.grappleManualDetonationMinDelayMs,
+        volleyAngleOffsetsRadians: this.config.volleyAngleOffsetsRadians,
+        grappleArmedDetonationDelayMs: this.config.grappleArmedDetonationDelayMs,
+        grappleManualDetonationMinDelayMs: this.config.grappleManualDetonationMinDelayMs,
       },
       () => this.runtime.nextBulletId(),
     );
@@ -127,11 +88,11 @@ export class GrappleGun extends Weapon {
   }
 
   protected getNormalShotCooldownMs(): number {
-    return GRAPPLE_GUN_CONFIG.normalShotCooldownMs;
+    return this.config.normalShotCooldownMs;
   }
 
   protected getChargedShotCooldownMs(): number {
-    return GRAPPLE_GUN_CONFIG.chargedShotCooldownMs;
+    return this.config.chargedShotCooldownMs;
   }
 
 }

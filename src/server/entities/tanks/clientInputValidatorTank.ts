@@ -1,3 +1,14 @@
+import type { TankSetupInput, TankType } from '../../../shared/types.js';
+import {
+  BOOST_DURATION_MS_LIMITS,
+  BOOST_MULTIPLIER_LIMITS,
+  MOVE_SPEED_LIMITS,
+  ROTATION_SPEED_PI_FACTOR_LIMITS,
+} from '../../../shared/tankSetupConfig.js';
+import { getDefaultTankConfigByType } from './tankFactory.js';
+import type { TankConfig } from './tank.js';
+
+
 // Type guard for TankSetupInput schema
 export function isTankSetupSchema(value: unknown): value is TankSetupInput {
   if (typeof value !== 'object' || value === null) {
@@ -12,16 +23,6 @@ export function isTankSetupSchema(value: unknown): value is TankSetupInput {
     && typeof candidate.boostDurationMs === 'number'
   );
 }
-import type { TankSetupInput, TankType } from '../../../shared/types.js';
-import {
-  BOOST_DURATION_MS_LIMITS,
-  BOOST_MULTIPLIER_LIMITS,
-  MOVE_SPEED_LIMITS,
-  ROTATION_SPEED_PI_FACTOR_LIMITS,
-} from '../../../shared/tankSetupConfig.js';
-import { getDefaultTankConfigByType } from './tankFactory.js';
-import type { TankConfig } from './tank.js';
-
 interface RangeRule {
   min: number;
   max: number;

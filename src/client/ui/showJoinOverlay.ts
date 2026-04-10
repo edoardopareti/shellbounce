@@ -3,16 +3,20 @@ import {
   ALL_SHIELD_TYPES,
   ALL_TANK_TYPES,
   ALL_WEAPON_TYPES,
+  DEFAULT_WEAPON_SETUP_BY_WEAPON,
   DEFAULT_TANK_SETUP_BY_TANK,
   DEFAULT_SHIELD_BY_TANK,
   DEFAULT_WEAPON_BY_TANK,
   type ShieldType,
   type TankSetupInput,
   type TankType,
+  type WeaponSetupInput,
+  type WeaponSetupInputByWeaponType,
   type WeaponType,
 } from '../../shared/types';
 import { isShieldType, isTankType, isWeaponType } from '../utils/utils';
 import { showTankConfigWizard } from './showTankConfigWizard';
+import { showWeaponConfigWizard } from './showWeaponConfigWizard';
 
 const MAX_PLAYER_NAME_LENGTH = 24;
 
@@ -175,6 +179,28 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   weaponLabel.htmlFor = 'join-weapon-type';
   weaponLabel.style.fontSize = '13px';
 
+  const weaponLabelRow = document.createElement('div');
+  weaponLabelRow.style.display = 'flex';
+  weaponLabelRow.style.alignItems = 'center';
+  weaponLabelRow.style.justifyContent = 'space-between';
+
+  const weaponSetupButton = document.createElement('button');
+  weaponSetupButton.type = 'button';
+  weaponSetupButton.textContent = '⚙';
+  weaponSetupButton.title = 'Weapon Setup';
+  weaponSetupButton.setAttribute('aria-label', 'Open weapon setup wizard');
+  weaponSetupButton.style.width = '28px';
+  weaponSetupButton.style.height = '28px';
+  weaponSetupButton.style.borderRadius = '8px';
+  weaponSetupButton.style.border = '1px solid #475569';
+  weaponSetupButton.style.background = '#0b1221';
+  weaponSetupButton.style.color = '#bfdbfe';
+  weaponSetupButton.style.cursor = 'pointer';
+  weaponSetupButton.style.fontSize = '16px';
+
+  weaponLabelRow.appendChild(weaponLabel);
+  weaponLabelRow.appendChild(weaponSetupButton);
+
 
   const weaponSelect = document.createElement('select');
   weaponSelect.id = 'join-weapon-type';
@@ -191,6 +217,12 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     option.textContent = weaponType;
     weaponSelect.appendChild(option);
   }
+
+  const weaponSetupPreview = document.createElement('div');
+  weaponSetupPreview.style.fontSize = '11px';
+  weaponSetupPreview.style.color = '#93c5fd';
+  weaponSetupPreview.style.minHeight = '14px';
+  weaponSetupPreview.style.marginTop = '-4px';
 
   // Custom tooltip for weapon type
   const weaponTooltip = document.createElement('div');
@@ -269,8 +301,9 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   panel.appendChild(tankSelect);
   panel.appendChild(tankSetupPreview);
   panel.appendChild(tankTooltip);
-  panel.appendChild(weaponLabel);
+  panel.appendChild(weaponLabelRow);
   panel.appendChild(weaponSelect);
+  panel.appendChild(weaponSetupPreview);
   panel.appendChild(weaponTooltip);
   panel.appendChild(shieldLabel);
   panel.appendChild(shieldSelect);
@@ -287,7 +320,55 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     SSugar: { ...DEFAULT_TANK_SETUP_BY_TANK.SSugar },
     Fantanyl: { ...DEFAULT_TANK_SETUP_BY_TANK.Fantanyl },
   };
+  const cloneWeaponSetupByType = <T extends WeaponType>(
+    weaponType: T,
+    setup: WeaponSetupInputByWeaponType[T],
+  ): WeaponSetupInputByWeaponType[T] => {
+    if (weaponType === 'GrappleGun') {
+      const typedSetup = setup as WeaponSetupInputByWeaponType['GrappleGun'];
+      return {
+        ...typedSetup,
+        normalShot: { ...typedSetup.normalShot },
+        chargedShot: { ...typedSetup.chargedShot },
+        volleyAngleOffsetsRadians: [...typedSetup.volleyAngleOffsetsRadians],
+      } as WeaponSetupInputByWeaponType[T];
+    }
+
+    if (weaponType === 'MachineGun') {
+      const typedSetup = setup as WeaponSetupInputByWeaponType['MachineGun'];
+      return {
+        ...typedSetup,
+        bullet: { ...typedSetup.bullet },
+      } as WeaponSetupInputByWeaponType[T];
+    }
+
+    if (weaponType === 'LaserWhipGun') {
+      const typedSetup = setup as WeaponSetupInputByWeaponType['LaserWhipGun'];
+      return {
+        ...typedSetup,
+        normalShot: { ...typedSetup.normalShot },
+        chargedShot: { ...typedSetup.chargedShot },
+        whip: { ...typedSetup.whip },
+      } as WeaponSetupInputByWeaponType[T];
+    }
+
+    const typedSetup = setup as WeaponSetupInputByWeaponType['SimpleGun'] | WeaponSetupInputByWeaponType['MitosisGun'];
+    return {
+      ...typedSetup,
+      normalShot: { ...typedSetup.normalShot },
+      chargedShot: { ...typedSetup.chargedShot },
+    } as WeaponSetupInputByWeaponType[T];
+  };
+
+  const weaponSetupByWeapon: WeaponSetupInputByWeaponType = {
+    SimpleGun: cloneWeaponSetupByType('SimpleGun', DEFAULT_WEAPON_SETUP_BY_WEAPON.SimpleGun),
+    MitosisGun: cloneWeaponSetupByType('MitosisGun', DEFAULT_WEAPON_SETUP_BY_WEAPON.MitosisGun),
+    MachineGun: cloneWeaponSetupByType('MachineGun', DEFAULT_WEAPON_SETUP_BY_WEAPON.MachineGun),
+    GrappleGun: cloneWeaponSetupByType('GrappleGun', DEFAULT_WEAPON_SETUP_BY_WEAPON.GrappleGun),
+    LaserWhipGun: cloneWeaponSetupByType('LaserWhipGun', DEFAULT_WEAPON_SETUP_BY_WEAPON.LaserWhipGun),
+  };
   let closeTankSetupWizard: (() => void) | undefined;
+  let closeWeaponSetupWizard: (() => void) | undefined;
 
   const getSelectedTankSetup = (): TankSetupInput => {
     const selectedTankType = tankSelect.value as TankType;
@@ -297,6 +378,17 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   const updateTankSetupPreview = (): void => {
     const setup = getSelectedTankSetup();
     tankSetupPreview.textContent = `Setup: move ${Math.round(setup.moveSpeed)}, rot ${setup.rotationSpeedPiFactor.toFixed(2)}pi, boost x${setup.boostMultiplier.toFixed(2)}, ${Math.round(setup.boostDurationMs)}ms`;
+  };
+
+  const getSelectedWeaponSetup = (): WeaponSetupInput => {
+    const selectedWeaponType = weaponSelect.value as WeaponType;
+    return weaponSetupByWeapon[selectedWeaponType];
+  };
+
+  const updateWeaponSetupPreview = (): void => {
+    const selectedWeaponType = weaponSelect.value as WeaponType;
+    const setup = getSelectedWeaponSetup();
+    weaponSetupPreview.textContent = `Setup (${selectedWeaponType}): max ${setup.maxActiveBullets}, cd ${Math.round(setup.normalShotCooldownMs)}/${Math.round(setup.chargedShotCooldownMs)}ms`;
   };
 
 
@@ -318,9 +410,11 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     previewText.textContent = `${playerName.length > 0 ? playerName : 'YourName'} -> ${tankType} / ${weaponType} / ${shieldType}`;
     updateTooltips();
     updateTankSetupPreview();
+    updateWeaponSetupPreview();
   };
 
   tankSetupButton.addEventListener('click', () => {
+    closeWeaponSetupWizard?.();
     closeTankSetupWizard?.();
     const selectedTankType = tankSelect.value as TankType;
     closeTankSetupWizard = showTankConfigWizard({
@@ -339,15 +433,49 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     });
   });
 
+  weaponSetupButton.addEventListener('click', () => {
+    closeTankSetupWizard?.();
+    closeWeaponSetupWizard?.();
+    const selectedWeaponType = weaponSelect.value as WeaponType;
+    closeWeaponSetupWizard = showWeaponConfigWizard({
+      host: overlay,
+      anchor: weaponSetupButton,
+      weaponType: selectedWeaponType,
+      currentSetup: cloneWeaponSetupByType(selectedWeaponType, weaponSetupByWeapon[selectedWeaponType]),
+      defaultSetup: cloneWeaponSetupByType(selectedWeaponType, DEFAULT_WEAPON_SETUP_BY_WEAPON[selectedWeaponType]),
+      onApply: (setup) => {
+        if (selectedWeaponType === 'SimpleGun') {
+          weaponSetupByWeapon.SimpleGun = cloneWeaponSetupByType('SimpleGun', setup as WeaponSetupInputByWeaponType['SimpleGun']);
+        } else if (selectedWeaponType === 'MitosisGun') {
+          weaponSetupByWeapon.MitosisGun = cloneWeaponSetupByType('MitosisGun', setup as WeaponSetupInputByWeaponType['MitosisGun']);
+        } else if (selectedWeaponType === 'MachineGun') {
+          weaponSetupByWeapon.MachineGun = cloneWeaponSetupByType('MachineGun', setup as WeaponSetupInputByWeaponType['MachineGun']);
+        } else if (selectedWeaponType === 'GrappleGun') {
+          weaponSetupByWeapon.GrappleGun = cloneWeaponSetupByType('GrappleGun', setup as WeaponSetupInputByWeaponType['GrappleGun']);
+        } else {
+          weaponSetupByWeapon.LaserWhipGun = cloneWeaponSetupByType('LaserWhipGun', setup as WeaponSetupInputByWeaponType['LaserWhipGun']);
+        }
+        updatePreview();
+      },
+      onClose: () => {
+        closeWeaponSetupWizard = undefined;
+      },
+    });
+  });
+
   nameInput.addEventListener('input', updatePreview);
   tankSelect.addEventListener('change', () => {
     closeTankSetupWizard?.();
+    closeWeaponSetupWizard?.();
     const selectedTankType = tankSelect.value as TankType;
     weaponSelect.value = DEFAULT_WEAPON_BY_TANK[selectedTankType];
     shieldSelect.value = DEFAULT_SHIELD_BY_TANK[selectedTankType];
     updatePreview();
   });
-  weaponSelect.addEventListener('change', updatePreview);
+  weaponSelect.addEventListener('change', () => {
+    closeWeaponSetupWizard?.();
+    updatePreview();
+  });
   shieldSelect.addEventListener('change', updatePreview);
 
   panel.addEventListener('submit', (event) => {
@@ -380,6 +508,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     }
 
     closeTankSetupWizard?.();
+    closeWeaponSetupWizard?.();
     overlay.remove();
     onSubmit({
       playerId,
@@ -387,6 +516,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
       weaponType: selectedWeaponType,
       shieldType: selectedShieldType,
       tankSetup: { ...getSelectedTankSetup() },
+      weaponSetup: cloneWeaponSetupByType(selectedWeaponType, getSelectedWeaponSetup() as WeaponSetupInputByWeaponType[typeof selectedWeaponType]),
     });
   });
 
