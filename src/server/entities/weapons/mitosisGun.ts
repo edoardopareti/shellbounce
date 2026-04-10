@@ -3,8 +3,9 @@
 import type { BulletEntity } from '../bullets/bullet.js';
 import { createMitosisBulletEntity } from '../bullets/mitosisBullet.js';
 import type { PlayerEntity } from '../player/player.js';
-import { DEFAULT_WEAPON_SETUP_BY_WEAPON, type ChargedBulletWeaponSetupInput } from '../../../shared/types.js';
+import { type ChargedBulletWeaponSetupInput } from '../../../shared/types.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
+import { DEFAULT_WEAPON_SETUP_BY_WEAPON } from '../../../shared/constants.js';
 
 export const MITOSIS_GUN_CONFIG: ChargedBulletWeaponSetupInput = DEFAULT_WEAPON_SETUP_BY_WEAPON.MitosisGun;
 

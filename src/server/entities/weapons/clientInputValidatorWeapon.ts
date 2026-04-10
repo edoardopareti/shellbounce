@@ -1,5 +1,4 @@
 import {
-  DEFAULT_WEAPON_SETUP_BY_WEAPON,
   type ChargedBulletWeaponSetupInput,
   type LaserWhipWeaponSetupInput,
   type MachineGunWeaponSetupInput,
@@ -8,12 +7,13 @@ import {
   type WeaponType,
 } from '../../../shared/types.js';
 import {
+  DEFAULT_WEAPON_SETUP_BY_WEAPON,
   CHARGED_BULLET_LIMITS,
   GRAPPLE_SPECIFIC_LIMITS,
   LASER_WHIP_SPECIFIC_LIMITS,
   MACHINE_GUN_SPECIFIC_LIMITS,
   WEAPON_COMMON_LIMITS,
-} from '../../../shared/weaponSetupConfig.js';
+} from '../../../shared/constants.js';
 
 export interface WeaponConfigValidationResult {
   weaponSetup?: WeaponSetupInput;

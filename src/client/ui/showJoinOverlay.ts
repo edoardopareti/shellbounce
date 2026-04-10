@@ -3,8 +3,6 @@ import {
   ALL_SHIELD_TYPES,
   ALL_TANK_TYPES,
   ALL_WEAPON_TYPES,
-  DEFAULT_WEAPON_SETUP_BY_WEAPON,
-  DEFAULT_TANK_SETUP_BY_TANK,
   DEFAULT_SHIELD_BY_TANK,
   DEFAULT_WEAPON_BY_TANK,
   type ShieldType,
@@ -17,6 +15,7 @@ import {
 import { isShieldType, isTankType, isWeaponType } from '../utils/utils';
 import { showTankConfigWizard } from './showTankConfigWizard';
 import { showWeaponConfigWizard } from './showWeaponConfigWizard';
+import { DEFAULT_TANK_SETUP_BY_TANK, DEFAULT_WEAPON_SETUP_BY_WEAPON } from '../../shared/constants';
 
 const MAX_PLAYER_NAME_LENGTH = 24;
 

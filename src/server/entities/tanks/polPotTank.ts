@@ -4,7 +4,7 @@ import type { Shield } from '../shields/shield.js';
 import type { Weapon } from '../weapons/weapon.js';
 import { Tank, type TankConfig } from './tank.js';
 
-import { DEFAULT_TANK_SETUP_BY_TANK } from '../../../shared/types.js';
+import { DEFAULT_TANK_SETUP_BY_TANK } from '../../../shared/constants.js';
 
 const setup = DEFAULT_TANK_SETUP_BY_TANK.PolPot;
 export const POLPOT_TANK_CONFIG: Readonly<TankConfig> = {

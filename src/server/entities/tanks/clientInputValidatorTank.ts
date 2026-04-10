@@ -4,7 +4,7 @@ import {
   BOOST_MULTIPLIER_LIMITS,
   MOVE_SPEED_LIMITS,
   ROTATION_SPEED_PI_FACTOR_LIMITS,
-} from '../../../shared/tankSetupConfig.js';
+} from '../../../shared/constants.js';
 import { getDefaultTankConfigByType } from './tankFactory.js';
 import type { TankConfig } from './tank.js';
 

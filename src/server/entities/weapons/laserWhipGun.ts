@@ -3,8 +3,9 @@
 import type { BulletEntity } from '../bullets/bullet.js';
 import { createLaserBulletEntity } from '../bullets/laserBullet.js';
 import type { PlayerEntity } from '../player/player.js';
-import { DEFAULT_WEAPON_SETUP_BY_WEAPON, type LaserWhipWeaponSetupInput } from '../../../shared/types.js';
+import { type LaserWhipWeaponSetupInput } from '../../../shared/types.js';
 import { Weapon, type WeaponRuntime } from './weapon.js';
+import { DEFAULT_WEAPON_SETUP_BY_WEAPON } from '../../../shared/constants.js';
 
 export const LASER_WHIP_CONFIG: LaserWhipWeaponSetupInput = DEFAULT_WEAPON_SETUP_BY_WEAPON.LaserWhipGun;
 

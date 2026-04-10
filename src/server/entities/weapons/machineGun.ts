@@ -2,7 +2,7 @@
 
 import { FIXED_TIMESTEP_SECONDS } from '../../../shared/constants.js';
 import type { TankInput } from '../../../shared/types.js';
-import { DEFAULT_WEAPON_SETUP_BY_WEAPON, type MachineGunWeaponSetupInput } from '../../../shared/types.js';
+import { type MachineGunWeaponSetupInput } from '../../../shared/types.js';
 import type { BulletEntity } from '../bullets/bullet.js';
 import { createStandardBulletEntity } from '../bullets/bullet.js';
 import type { PlayerEntity } from '../player/player.js';
@@ -11,6 +11,7 @@ import {
   type WeaponActionResult,
   type WeaponRuntime,
 } from './weapon.js';
+import { DEFAULT_WEAPON_SETUP_BY_WEAPON } from '../../../shared/constants.js';
 
 export const MACHINE_GUN_CONFIG: MachineGunWeaponSetupInput = DEFAULT_WEAPON_SETUP_BY_WEAPON.MachineGun;
 

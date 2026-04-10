@@ -12,7 +12,7 @@ import {
   LASER_WHIP_SPECIFIC_LIMITS,
   MACHINE_GUN_SPECIFIC_LIMITS,
   WEAPON_COMMON_LIMITS,
-} from '../../shared/weaponSetupConfig';
+} from '../../shared/constants';
 
 interface WeaponConfigWizardOptions {
   host: HTMLElement;
