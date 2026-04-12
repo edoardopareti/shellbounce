@@ -1,20 +1,27 @@
 import { Shield } from './shield.js';
+import { DEFAULT_SHIELD_SETUP_BY_SHIELD } from '../../../shared/constants.js';
+import type { OmniDirShieldSetupInput } from '../../../shared/types.js';
 
-const OMNIDIR_SHIELD_RADIUS = 30;
-const OMNIDIR_SHIELD_COOLDOWN_MS = 2500;
-const OMNIDIR_SHIELD_OVERCHARGE_MS = 1200;
+export const OMNIDIR_SHIELD_SETUP_DEFAULT: OmniDirShieldSetupInput = DEFAULT_SHIELD_SETUP_BY_SHIELD.OmniDirShield;
 
 export const OMNIDIR_SHIELD_CONFIG = {
-  radius: OMNIDIR_SHIELD_RADIUS,
+  radius: OMNIDIR_SHIELD_SETUP_DEFAULT.radius,
   forwardOffset: 0,
   sectorAngleRadians: Math.PI * 2,
-  cooldownMs: OMNIDIR_SHIELD_COOLDOWN_MS,
-  overchargeMs: OMNIDIR_SHIELD_OVERCHARGE_MS,
+  cooldownMs: OMNIDIR_SHIELD_SETUP_DEFAULT.cooldownMs,
+  overchargeMs: OMNIDIR_SHIELD_SETUP_DEFAULT.overchargeMs,
   mode: 'omnidirectional',
 } as const;
 
 export class OmniDirShield extends Shield {
-  public constructor() {
-    super(OMNIDIR_SHIELD_CONFIG);
+  public constructor(setup: OmniDirShieldSetupInput = OMNIDIR_SHIELD_SETUP_DEFAULT) {
+    super({
+      radius: setup.radius,
+      forwardOffset: 0,
+      sectorAngleRadians: Math.PI * 2,
+      cooldownMs: setup.cooldownMs,
+      overchargeMs: setup.overchargeMs,
+      mode: 'omnidirectional',
+    });
   }
 }

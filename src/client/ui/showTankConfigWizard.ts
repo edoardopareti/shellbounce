@@ -1,10 +1,5 @@
 import { type TankSetupInput, type TankType } from '../../shared/types';
-import {
-  BOOST_DURATION_MS_LIMITS,
-  BOOST_MULTIPLIER_LIMITS,
-  MOVE_SPEED_LIMITS,
-  ROTATION_SPEED_PI_FACTOR_LIMITS,
-} from '../../shared/constants.js';
+import { TANK_LIMITS } from '../../shared/constants.js';
 
 interface TankConfigWizardOptions {
   host: HTMLElement;
@@ -23,16 +18,35 @@ interface TankConfigFieldSpec {
   max: number;
   step: number;
   suffix?: string;
+  tooltip?: string;
 }
 
-const FIELD_SPECS: TankConfigFieldSpec[] = [
-  { key: 'moveSpeed', label: 'Move Speed', ...MOVE_SPEED_LIMITS, step: 1 },
-  { key: 'rotationSpeedPiFactor', label: 'Rotation x PI', ...ROTATION_SPEED_PI_FACTOR_LIMITS, step: 0.05, suffix: 'pi' },
-  { key: 'boostMultiplier', label: 'Boost Multiplier', ...BOOST_MULTIPLIER_LIMITS, step: 0.05 },
-  { key: 'boostDurationMs', label: 'Boost Duration', ...BOOST_DURATION_MS_LIMITS, step: 50, suffix: 'ms' },
-];
+function buildFieldSpecs(tankType: TankType): TankConfigFieldSpec[] {
+  const limits = TANK_LIMITS[tankType];
+  return [
+    { key: 'moveSpeed',
+      label: 'Move Speed', ...limits.moveSpeed,
+      step: 5,
+      tooltip: 'Base speed of the tank.',},
+    { key: 'rotationSpeedPiFactor',
+      label: 'Rotation x PI', ...limits.rotationSpeedPiFactor,
+      step: 0.2,
+      suffix: 'pi',
+      tooltip: 'Rotation speed of the tank in multiples of PI' },
+    { key: 'boostMultiplier',
+      label: 'Boost Multiplier', ...limits.boostMultiplier,
+      step: 0.1,
+      tooltip: 'Multiplier applied to the tank\'s speed during a boost' },
+    { key: 'boostDurationMs',
+      label: 'Boost Duration', ...limits.boostDurationMs,
+      step: 100,
+      suffix: 'ms',
+      tooltip: 'Duration of the tank\'s boost in milliseconds' },
+  ];
+}
 
 export function showTankConfigWizard(options: TankConfigWizardOptions): () => void {
+  const fieldSpecs = buildFieldSpecs(options.tankType);
   const panel = document.createElement('div');
   panel.style.position = 'fixed';
   panel.style.zIndex = '10000';
@@ -57,7 +71,7 @@ export function showTankConfigWizard(options: TankConfigWizardOptions): () => vo
 
   const fieldInputs = new Map<keyof TankSetupInput, HTMLInputElement>();
 
-  for (const field of FIELD_SPECS) {
+  for (const field of fieldSpecs) {
     const row = document.createElement('div');
     row.style.display = 'grid';
     row.style.gridTemplateColumns = '1fr 110px';
@@ -67,6 +81,9 @@ export function showTankConfigWizard(options: TankConfigWizardOptions): () => vo
     const label = document.createElement('label');
     label.textContent = field.suffix ? `${field.label} (${field.suffix})` : field.label;
     label.style.fontSize = '12px';
+    if ('tooltip' in field && field.tooltip) {
+      label.title = field.tooltip;
+    }
 
     const input = document.createElement('input');
     input.type = 'number';
@@ -146,7 +163,7 @@ export function showTankConfigWizard(options: TankConfigWizardOptions): () => vo
   const parseSetup = (): TankSetupInput | undefined => {
     const setup: Partial<TankSetupInput> = {};
 
-    for (const field of FIELD_SPECS) {
+    for (const field of fieldSpecs) {
       const input = fieldInputs.get(field.key);
       if (input === undefined) {
         return undefined;
@@ -185,7 +202,7 @@ export function showTankConfigWizard(options: TankConfigWizardOptions): () => vo
   };
 
   resetButton.addEventListener('click', () => {
-    for (const field of FIELD_SPECS) {
+    for (const field of fieldSpecs) {
       const input = fieldInputs.get(field.key);
       if (input !== undefined) {
         input.value = String(options.defaultSetup[field.key]);

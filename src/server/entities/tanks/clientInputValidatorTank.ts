@@ -1,10 +1,5 @@
 import type { TankSetupInput, TankType } from '../../../shared/types.js';
-import {
-  BOOST_DURATION_MS_LIMITS,
-  BOOST_MULTIPLIER_LIMITS,
-  MOVE_SPEED_LIMITS,
-  ROTATION_SPEED_PI_FACTOR_LIMITS,
-} from '../../../shared/constants.js';
+import { TANK_LIMITS } from '../../../shared/constants.js';
 import { getDefaultTankConfigByType } from './tankFactory.js';
 import type { TankConfig } from './tank.js';
 
@@ -29,12 +24,15 @@ interface RangeRule {
   label: string;
 }
 
-const RANGE_RULES: Record<keyof TankSetupInput, RangeRule> = {
-  moveSpeed: { ...MOVE_SPEED_LIMITS, label: 'moveSpeed' },
-  rotationSpeedPiFactor: { ...ROTATION_SPEED_PI_FACTOR_LIMITS, label: 'rotationSpeedPiFactor' },
-  boostMultiplier: { ...BOOST_MULTIPLIER_LIMITS, label: 'boostMultiplier' },
-  boostDurationMs: { ...BOOST_DURATION_MS_LIMITS, label: 'boostDurationMs' },
-};
+function getRangeRules(tankType: TankType): Record<keyof TankSetupInput, RangeRule> {
+  const limits = TANK_LIMITS[tankType];
+  return {
+    moveSpeed: { ...limits.moveSpeed, label: 'moveSpeed' },
+    rotationSpeedPiFactor: { ...limits.rotationSpeedPiFactor, label: 'rotationSpeedPiFactor' },
+    boostMultiplier: { ...limits.boostMultiplier, label: 'boostMultiplier' },
+    boostDurationMs: { ...limits.boostDurationMs, label: 'boostDurationMs' },
+  };
+}
 
 export interface TankConfigValidationResult {
   tankConfig?: TankConfig;
@@ -46,12 +44,13 @@ export function getValidatedTankConfigForJoin(
   tankSetup?: TankSetupInput,
 ): TankConfigValidationResult {
   const baseConfig = getDefaultTankConfigByType(tankType);
+  const rangeRules = getRangeRules(tankType);
   if (tankSetup === undefined) {
     return { tankConfig: baseConfig };
   }
 
-  for (const field of Object.keys(RANGE_RULES) as Array<keyof TankSetupInput>) {
-    const rule = RANGE_RULES[field];
+  for (const field of Object.keys(rangeRules) as Array<keyof TankSetupInput>) {
+    const rule = rangeRules[field];
     const value = tankSetup[field];
     if (!Number.isFinite(value)) {
       return { error: `Invalid tank setup: ${rule.label} must be a finite number.` };

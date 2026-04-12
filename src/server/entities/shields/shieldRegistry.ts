@@ -1,7 +1,7 @@
-import type { ShieldType } from '../../../shared/types.js';
+import type { ShieldSetupInput, ShieldType } from '../../../shared/types.js';
 import type { Shield } from './shield.js';
 
-export type ShieldFactory = () => Shield;
+export type ShieldFactory = (shieldSetup?: ShieldSetupInput) => Shield;
 
 export class ShieldRegistry {
   private readonly factories = new Map<ShieldType, ShieldFactory>();
@@ -15,13 +15,13 @@ export class ShieldRegistry {
     this.defaultFactory = factory;
   }
 
-  public createForShieldType(shieldType: ShieldType): Shield {
+  public createForShieldType(shieldType: ShieldType, shieldSetup?: ShieldSetupInput): Shield {
     const factory = this.factories.get(shieldType) ?? this.defaultFactory;
     if (factory === undefined) {
       throw new Error(`No shield factory registered for shield type: ${shieldType}`);
     }
 
-    return factory();
+    return factory(shieldSetup);
   }
 
   public createDefault(): Shield {

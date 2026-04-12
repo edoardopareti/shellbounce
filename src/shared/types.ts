@@ -19,37 +19,101 @@ export interface Wall {
 // that can be used to select different arena layouts.
 export type MapName = 'map1' | 'map2' | 'map3';
 
+export interface SetupRange {
+  min: number;
+  max: number;
+}
+
+export interface TankLimits {
+  moveSpeed: SetupRange;
+  rotationSpeedPiFactor: SetupRange;
+  boostMultiplier: SetupRange;
+  boostDurationMs: SetupRange;
+}
+
+export interface ShieldCommonLimits {
+  radius: SetupRange;
+  cooldownMs: SetupRange;
+  overchargeMs: SetupRange;
+}
+
+export interface StandardShieldSpecificLimits {
+  forwardOffset: SetupRange;
+  sectorAngleRadians: SetupRange;
+}
+
+export interface WeaponCommonLimits {
+  maxActiveBullets: SetupRange;
+  normalShotCooldownMs: SetupRange;
+  chargedShotCooldownMs: SetupRange;
+}
+
+export interface ChargedBulletLimits {
+  normalShotSpeed: SetupRange;
+  normalShotExplosionRadius: SetupRange;
+  normalShotMaxBounces: SetupRange;
+  normalShotRadius: SetupRange;
+  normalShotMaxLifetimeMs: SetupRange;
+  chargedSpeedMultiplier: SetupRange;
+  chargedExplosionRadiusMultiplier: SetupRange;
+  chargedMaxBounces: SetupRange;
+}
+
+export interface MachineGunSpecificLimits {
+  holdToRapidFireMs: SetupRange;
+}
+
+export interface LaserWhipSpecificLimits {
+  normalShotLaserLength: SetupRange;
+  whipPullStepDistance: SetupRange;
+}
+
+export interface GrappleSpecificLimits {
+  grappleArmedDetonationDelayMs: SetupRange;
+  grappleManualDetonationMinDelayMs: SetupRange;
+  volleyAngleOffsetRadians: SetupRange;
+  volleyAngleOffsetsCount: SetupRange;
+}
+
+export interface ChargedBulletWeaponLimits extends WeaponCommonLimits, ChargedBulletLimits {}
+
+export interface MachineGunWeaponLimits extends WeaponCommonLimits, ChargedBulletLimits, MachineGunSpecificLimits {}
+
+export interface LaserWhipWeaponLimits extends WeaponCommonLimits, LaserWhipSpecificLimits {
+  normalShotSpeed: SetupRange;
+  normalShotExplosionRadius: SetupRange;
+  normalShotMaxBounces: SetupRange;
+  normalShotRadius: SetupRange;
+  normalShotMaxLifetimeMs: SetupRange;
+  chargedSpeedMultiplier: SetupRange;
+  chargedExplosionRadiusMultiplier: SetupRange;
+  chargedMaxBounces: SetupRange;
+}
+
+export interface GrappleWeaponLimits extends WeaponCommonLimits, ChargedBulletLimits, GrappleSpecificLimits {}
+
+export interface WeaponLimitsByType {
+  SimpleGun: ChargedBulletWeaponLimits;
+  MitosisGun: ChargedBulletWeaponLimits;
+  MachineGun: MachineGunWeaponLimits;
+  GrappleGun: GrappleWeaponLimits;
+  LaserWhipGun: LaserWhipWeaponLimits;
+}
+
+export type WeaponLimits = WeaponLimitsByType[WeaponType];
+
+export interface ShieldLimitsByType {
+  StandardShield: ShieldCommonLimits & StandardShieldSpecificLimits;
+  OmniDirShield: ShieldCommonLimits;
+}
+
+export type ShieldLimits = ShieldLimitsByType[ShieldType];
+
 export type TankType = 'PolPot' | 'Hightillery' | 'SSugar' | 'Fantanyl';
-export const ALL_TANK_TYPES: readonly TankType[] = ['PolPot', 'Hightillery', 'SSugar', 'Fantanyl'];
 
 export type WeaponType = 'SimpleGun' | 'MitosisGun' | 'MachineGun' | 'GrappleGun' | 'LaserWhipGun';
-export const ALL_WEAPON_TYPES: readonly WeaponType[] = [
-  'SimpleGun',
-  'MitosisGun',
-  'MachineGun',
-  'GrappleGun',
-  'LaserWhipGun',
-];
-
-export const DEFAULT_WEAPON_BY_TANK: Record<TankType, WeaponType> = {
-  PolPot: 'MitosisGun',
-  Hightillery: 'MachineGun',
-  SSugar: 'LaserWhipGun',
-  Fantanyl: 'GrappleGun',
-};
 
 export type ShieldType = 'StandardShield' | 'OmniDirShield';
-export const ALL_SHIELD_TYPES: readonly ShieldType[] = [
-  'StandardShield',
-  'OmniDirShield',
-];
-
-export const DEFAULT_SHIELD_BY_TANK: Record<TankType, ShieldType> = {
-  PolPot: 'StandardShield',
-  Hightillery: 'StandardShield',
-  SSugar: 'StandardShield',
-  Fantanyl: 'StandardShield',
-};
 
 export interface TankSetupInput {
   moveSpeed: number;
@@ -126,7 +190,32 @@ export interface WeaponSetupInputByWeaponType {
   LaserWhipGun: LaserWhipWeaponSetupInput;
 }
 
+export type WeaponSetupInputByType = WeaponSetupInputByWeaponType;
+
 export type WeaponSetupInput = WeaponSetupInputByWeaponType[WeaponType];
+
+export interface ShieldSetupBase {
+  radius: number;
+  cooldownMs: number;
+  overchargeMs: number;
+}
+
+export interface StandardShieldSetupInput extends ShieldSetupBase {
+  forwardOffset: number;
+  sectorAngleRadians: number;
+}
+
+export interface OmniDirShieldSetupInput extends ShieldSetupBase {}
+
+export interface ShieldSetupInputByShieldType {
+  StandardShield: StandardShieldSetupInput;
+  OmniDirShield: OmniDirShieldSetupInput;
+}
+
+export type TankSetupInputByType = Record<TankType, TankSetupInput>;
+export type ShieldSetupInputByType = ShieldSetupInputByShieldType;
+
+export type ShieldSetupInput = ShieldSetupInputByShieldType[ShieldType];
 
 // TankInput represents the player's input state for a single game tick,
 // including movement commands, firing actions, and pointer position.
@@ -145,22 +234,6 @@ export interface TankInput {
   pointerWorldX: number;
   pointerWorldY: number;
 }
-
-export const EMPTY_INPUT: TankInput = {
-  moveForward: false,
-  moveBackward: false,
-  turnLeft: false,
-  turnRight: false,
-  shieldHeld: false,
-  firePressed: false,
-  fireHeld: false,
-  fireReleased: false,
-  detonatePressed: false,
-  placeMinePressed: false,
-  boostPressed: false,
-  pointerWorldX: 0,
-  pointerWorldY: 0,
-};
 
 export interface PlayerState {
   id: string;
@@ -253,21 +326,6 @@ export interface WorldSnapshot {
   shotPreviews?: ShotPreviewState[];
 }
 
-// ConnectionState class to avoid magic strings for connection state
-export class ConnectionState {
-  static readonly Disconnected = 'disconnected';
-  static readonly Connecting = 'connecting';
-  static readonly Connected = 'connected';
-
-  static values(): string[] {
-    return [
-      ConnectionState.Disconnected,
-      ConnectionState.Connecting,
-      ConnectionState.Connected,
-    ];
-  }
-}
-
 // ClientMessage represents the structure of messages sent from clients to the server,
 // which can be either a join request or player input commands.
 export interface ClientJoinMessage {
@@ -278,6 +336,7 @@ export interface ClientJoinMessage {
   shieldType: ShieldType;
   tankSetup?: TankSetupInput;
   weaponSetup?: WeaponSetupInput;
+  shieldSetup?: ShieldSetupInput;
 }
 // ClientInputMessage represents the structure of player input messages sent from clients to the server,
 // containing the input state and a sequence number for ordering.

@@ -10,19 +10,19 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { TICK_RATE } from '../shared/constants.js';
 import { AuthoritativeSimulation } from './simulation.js';
 import {
-  ALL_SHIELD_TYPES,
-  ALL_TANK_TYPES,
-  ALL_WEAPON_TYPES,
   type ClientJoinMessage,
   type ClientMessage,
+  type ShieldType,
   type ServerMessage,
   type TankInput,
   type WeaponType,
 } from '../shared/types.js';
+import { ALL_SHIELD_TYPES, ALL_TANK_TYPES, ALL_WEAPON_TYPES } from '../shared/constants.js';
 import { 
   getValidatedTankConfigForJoin,
   isTankSetupSchema } from './entities/tanks/clientInputValidatorTank.js';
 import { getValidatedWeaponSetupForJoin, isWeaponSetupSchema } from './entities/weapons/clientInputValidatorWeapon.js';
+import { getValidatedShieldSetupForJoin, isShieldSetupSchema } from './entities/shields/clientInputValidatorShield.js';
 
 
 // TODO: Currently, a single AuthoritativeSimulation instance is used for all N clients,
@@ -256,6 +256,12 @@ function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
     sendError(socket, weaponSetupValidation.error ?? 'Invalid weapon setup.');
     return;
   }
+
+  const shieldSetupValidation = getValidatedShieldSetupForJoin(message.shieldType, message.shieldSetup);
+  if (shieldSetupValidation.error !== undefined || shieldSetupValidation.shieldSetup === undefined) {
+    sendError(socket, shieldSetupValidation.error ?? 'Invalid shield setup.');
+    return;
+  }
   
   // Add the new player to the simulation with the generated player ID.
   simulation.addPlayer(
@@ -266,6 +272,7 @@ function handleJoin(socket: WebSocket, message: ClientJoinMessage): void {
     message.shieldType,
     tankConfigValidation.tankConfig,
     weaponSetupValidation.weaponSetup,
+    shieldSetupValidation.shieldSetup,
   );
   
   // Create a new client session and store it in the sessions map, keyed by the WebSocket connection.
@@ -306,7 +313,9 @@ function isClientMessage(value: unknown): value is ClientMessage {
   const candidate = value as Partial<ClientMessage>;
   if (candidate.type === 'join') {
     const candidateWeaponType = candidate.weaponType;
+    const candidateShieldType = candidate.shieldType;
     const hasValidWeaponType = typeof candidateWeaponType === 'string' && ALL_WEAPON_TYPES.includes(candidateWeaponType as WeaponType);
+    const hasValidShieldType = typeof candidateShieldType === 'string' && ALL_SHIELD_TYPES.includes(candidateShieldType as ShieldType);
     return (
       typeof candidate.playerId === 'string'
       && typeof candidate.tankType === 'string'
@@ -314,6 +323,7 @@ function isClientMessage(value: unknown): value is ClientMessage {
       && typeof candidate.shieldType === 'string'
       && (candidate.tankSetup === undefined || isTankSetupSchema(candidate.tankSetup))
       && (candidate.weaponSetup === undefined || (hasValidWeaponType && isWeaponSetupSchema(candidateWeaponType as WeaponType, candidate.weaponSetup)))
+      && (candidate.shieldSetup === undefined || (hasValidShieldType && isShieldSetupSchema(candidateShieldType as ShieldType, candidate.shieldSetup)))
     );
   }
 

@@ -1,17 +1,15 @@
 import {
   type ChargedBulletWeaponSetupInput,
+  type GrappleWeaponLimits,
   type LaserWhipWeaponSetupInput,
   type MachineGunWeaponSetupInput,
   type VolleyWeaponSetupInput,
+  type WeaponLimitsByType,
   type WeaponSetupInput,
   type WeaponType,
 } from '../../shared/types';
 import {
-  CHARGED_BULLET_LIMITS,
-  GRAPPLE_SPECIFIC_LIMITS,
-  LASER_WHIP_SPECIFIC_LIMITS,
-  MACHINE_GUN_SPECIFIC_LIMITS,
-  WEAPON_COMMON_LIMITS,
+  WEAPON_LIMITS,
 } from '../../shared/constants';
 
 interface WeaponConfigWizardOptions {
@@ -78,8 +76,7 @@ function cloneWeaponSetup(setup: WeaponSetupInput): WeaponSetupInput {
 }
 
 function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
-  const commonLimits = WEAPON_COMMON_LIMITS[weaponType];
-  const chargedLimits = CHARGED_BULLET_LIMITS[weaponType];
+  const commonLimits = WEAPON_LIMITS[weaponType];
 
   const common: FieldSpec[] = [
     {
@@ -96,7 +93,7 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
       label: 'Normal Cooldown',
       min: commonLimits.normalShotCooldownMs.min,
       max: commonLimits.normalShotCooldownMs.max,
-      step: 10,
+      step: 5,
       suffix: 'ms',
       getValue: (setup) => setup.normalShotCooldownMs,
       setValue: (setup, value) => { setup.normalShotCooldownMs = value; },
@@ -106,37 +103,39 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
       label: 'Charged Cooldown',
       min: commonLimits.chargedShotCooldownMs.min,
       max: commonLimits.chargedShotCooldownMs.max,
-      step: 10,
+      step: 25,
       suffix: 'ms',
       getValue: (setup) => setup.chargedShotCooldownMs,
       setValue: (setup, value) => { setup.chargedShotCooldownMs = value; },
     },
   ];
 
-  const chargedBulletCommon = (): FieldSpec[] => [
+  const chargedBulletCommon = (
+    limits: WeaponLimitsByType['SimpleGun'] | WeaponLimitsByType['MitosisGun'] | WeaponLimitsByType['GrappleGun'],
+  ): FieldSpec[] => [
     {
       kind: 'number',
       label: 'Shot Speed',
-      min: chargedLimits.normalShotSpeed.min,
-      max: chargedLimits.normalShotSpeed.max,
-      step: 5,
+      min: limits.normalShotSpeed.min,
+      max: limits.normalShotSpeed.max,
+      step: 25,
       getValue: (setup) => (setup as ChargedBulletWeaponSetupInput).normalShot.speed,
       setValue: (setup, value) => { (setup as ChargedBulletWeaponSetupInput).normalShot.speed = value; },
     },
     {
       kind: 'number',
       label: 'Explosion Radius',
-      min: chargedLimits.normalShotExplosionRadius.min,
-      max: chargedLimits.normalShotExplosionRadius.max,
-      step: 1,
+      min: limits.normalShotExplosionRadius.min,
+      max: limits.normalShotExplosionRadius.max,
+      step: 5,
       getValue: (setup) => (setup as ChargedBulletWeaponSetupInput).normalShot.explosionRadius,
       setValue: (setup, value) => { (setup as ChargedBulletWeaponSetupInput).normalShot.explosionRadius = value; },
     },
     {
       kind: 'number',
       label: 'Normal Max Bounces',
-      min: chargedLimits.normalShotMaxBounces.min,
-      max: chargedLimits.normalShotMaxBounces.max,
+      min: limits.normalShotMaxBounces.min,
+      max: limits.normalShotMaxBounces.max,
       step: 1,
       getValue: (setup) => (setup as ChargedBulletWeaponSetupInput).normalShot.maxBounces,
       setValue: (setup, value) => { (setup as ChargedBulletWeaponSetupInput).normalShot.maxBounces = value; },
@@ -144,9 +143,9 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
     {
       kind: 'number',
       label: 'Shot Lifetime',
-      min: chargedLimits.normalShotMaxLifetimeMs.min,
-      max: chargedLimits.normalShotMaxLifetimeMs.max,
-      step: 50,
+      min: limits.normalShotMaxLifetimeMs.min,
+      max: limits.normalShotMaxLifetimeMs.max,
+      step: 100,
       suffix: 'ms',
       getValue: (setup) => (setup as ChargedBulletWeaponSetupInput).normalShot.maxLifetimeMs ?? 0,
       setValue: (setup, value) => { (setup as ChargedBulletWeaponSetupInput).normalShot.maxLifetimeMs = value; },
@@ -166,26 +165,26 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
     {
       kind: 'number',
       label: 'Charged Speed Multiplier',
-      min: chargedLimits.chargedSpeedMultiplier.min,
-      max: chargedLimits.chargedSpeedMultiplier.max,
-      step: 0.05,
+      min: limits.chargedSpeedMultiplier.min,
+      max: limits.chargedSpeedMultiplier.max,
+      step: 0.1,
       getValue: (setup) => (setup as ChargedBulletWeaponSetupInput).chargedShot.speedMultiplier,
       setValue: (setup, value) => { (setup as ChargedBulletWeaponSetupInput).chargedShot.speedMultiplier = value; },
     },
     {
       kind: 'number',
       label: 'Charged Explosion Multiplier',
-      min: chargedLimits.chargedExplosionRadiusMultiplier.min,
-      max: chargedLimits.chargedExplosionRadiusMultiplier.max,
-      step: 0.05,
+      min: limits.chargedExplosionRadiusMultiplier.min,
+      max: limits.chargedExplosionRadiusMultiplier.max,
+      step: 0.1,
       getValue: (setup) => (setup as ChargedBulletWeaponSetupInput).chargedShot.explosionRadiusMultiplier,
       setValue: (setup, value) => { (setup as ChargedBulletWeaponSetupInput).chargedShot.explosionRadiusMultiplier = value; },
     },
     {
       kind: 'number',
       label: 'Charged Max Bounces',
-      min: chargedLimits.chargedMaxBounces.min,
-      max: chargedLimits.chargedMaxBounces.max,
+      min: limits.chargedMaxBounces.min,
+      max: limits.chargedMaxBounces.max,
       step: 1,
       getValue: (setup) => (setup as ChargedBulletWeaponSetupInput).chargedShot.maxBounces,
       setValue: (setup, value) => { (setup as ChargedBulletWeaponSetupInput).chargedShot.maxBounces = value; },
@@ -205,35 +204,36 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
   ];
 
   if (weaponType === 'SimpleGun' || weaponType === 'MitosisGun') {
-    return [...common, ...chargedBulletCommon()];
+    return [...common, ...chargedBulletCommon(WEAPON_LIMITS[weaponType])];
   }
 
   if (weaponType === 'MachineGun') {
+    const limits = WEAPON_LIMITS.MachineGun;
     return [
       ...common,
       {
         kind: 'number',
         label: 'Shot Speed',
-        min: chargedLimits.normalShotSpeed.min,
-        max: chargedLimits.normalShotSpeed.max,
-        step: 5,
+        min: limits.normalShotSpeed.min,
+        max: limits.normalShotSpeed.max,
+        step: 25,
         getValue: (setup) => (setup as MachineGunWeaponSetupInput).bullet.speed,
         setValue: (setup, value) => { (setup as MachineGunWeaponSetupInput).bullet.speed = value; },
       },
       {
         kind: 'number',
         label: 'Explosion Radius',
-        min: chargedLimits.normalShotExplosionRadius.min,
-        max: chargedLimits.normalShotExplosionRadius.max,
-        step: 1,
+        min: limits.normalShotExplosionRadius.min,
+        max: limits.normalShotExplosionRadius.max,
+        step: 5,
         getValue: (setup) => (setup as MachineGunWeaponSetupInput).bullet.explosionRadius,
         setValue: (setup, value) => { (setup as MachineGunWeaponSetupInput).bullet.explosionRadius = value; },
       },
       {
         kind: 'number',
         label: 'Bullet Max Bounces',
-        min: chargedLimits.normalShotMaxBounces.min,
-        max: chargedLimits.normalShotMaxBounces.max,
+        min: limits.normalShotMaxBounces.min,
+        max: limits.normalShotMaxBounces.max,
         step: 1,
         getValue: (setup) => (setup as MachineGunWeaponSetupInput).bullet.maxBounces,
         setValue: (setup, value) => { (setup as MachineGunWeaponSetupInput).bullet.maxBounces = value; },
@@ -241,8 +241,8 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
       {
         kind: 'number',
         label: 'Bullet Radius',
-        min: chargedLimits.normalShotRadius.min,
-        max: chargedLimits.normalShotRadius.max,
+        min: limits.normalShotRadius.min,
+        max: limits.normalShotRadius.max,
         step: 1,
         getValue: (setup) => (setup as MachineGunWeaponSetupInput).bullet.radius ?? 0,
         setValue: (setup, value) => { (setup as MachineGunWeaponSetupInput).bullet.radius = value; },
@@ -250,9 +250,9 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
       {
         kind: 'number',
         label: 'Bullet Lifetime',
-        min: chargedLimits.normalShotMaxLifetimeMs.min,
-        max: chargedLimits.normalShotMaxLifetimeMs.max,
-        step: 10,
+        min: limits.normalShotMaxLifetimeMs.min,
+        max: limits.normalShotMaxLifetimeMs.max,
+        step: 100,
         suffix: 'ms',
         getValue: (setup) => (setup as MachineGunWeaponSetupInput).bullet.maxLifetimeMs ?? 0,
         setValue: (setup, value) => { (setup as MachineGunWeaponSetupInput).bullet.maxLifetimeMs = value; },
@@ -272,9 +272,9 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
       {
         kind: 'number',
         label: 'Rapid Fire Hold',
-        min: MACHINE_GUN_SPECIFIC_LIMITS.holdToRapidFireMs.min,
-        max: MACHINE_GUN_SPECIFIC_LIMITS.holdToRapidFireMs.max,
-        step: 10,
+        min: limits.holdToRapidFireMs.min,
+        max: limits.holdToRapidFireMs.max,
+        step: 25,
         suffix: 'ms',
         getValue: (setup) => (setup as MachineGunWeaponSetupInput).holdToRapidFireMs,
         setValue: (setup, value) => { (setup as MachineGunWeaponSetupInput).holdToRapidFireMs = value; },
@@ -283,31 +283,32 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
   }
 
   if (weaponType === 'LaserWhipGun') {
+    const limits = WEAPON_LIMITS.LaserWhipGun;
     return [
       ...common,
       {
         kind: 'number',
         label: 'Shot Speed',
-        min: chargedLimits.normalShotSpeed.min,
-        max: chargedLimits.normalShotSpeed.max,
-        step: 5,
+        min: limits.normalShotSpeed.min,
+        max: limits.normalShotSpeed.max,
+        step: 25,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).normalShot.speed,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).normalShot.speed = value; },
       },
       {
         kind: 'number',
         label: 'Explosion Radius',
-        min: chargedLimits.normalShotExplosionRadius.min,
-        max: chargedLimits.normalShotExplosionRadius.max,
-        step: 1,
+        min: limits.normalShotExplosionRadius.min,
+        max: limits.normalShotExplosionRadius.max,
+        step: 5,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).normalShot.explosionRadius,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).normalShot.explosionRadius = value; },
       },
       {
         kind: 'number',
         label: 'Normal Max Bounces',
-        min: chargedLimits.normalShotMaxBounces.min,
-        max: chargedLimits.normalShotMaxBounces.max,
+        min: limits.normalShotMaxBounces.min,
+        max: limits.normalShotMaxBounces.max,
         step: 1,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).normalShot.maxBounces,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).normalShot.maxBounces = value; },
@@ -315,27 +316,27 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
       {
         kind: 'number',
         label: 'Laser Length',
-        min: LASER_WHIP_SPECIFIC_LIMITS.normalShotLaserLength.min,
-        max: LASER_WHIP_SPECIFIC_LIMITS.normalShotLaserLength.max,
-        step: 1,
+        min: limits.normalShotLaserLength.min,
+        max: limits.normalShotLaserLength.max,
+        step: 5,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).normalShot.laserLength,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).normalShot.laserLength = value; },
       },
       {
         kind: 'number',
         label: 'Laser Radius',
-        min: chargedLimits.normalShotRadius.min,
-        max: chargedLimits.normalShotRadius.max,
-        step: 1,
+        min: limits.normalShotRadius.min,
+        max: limits.normalShotRadius.max,
+        step: 5,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).normalShot.radius,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).normalShot.radius = value; },
       },
       {
         kind: 'number',
         label: 'Laser Lifetime',
-        min: chargedLimits.normalShotMaxLifetimeMs.min,
-        max: chargedLimits.normalShotMaxLifetimeMs.max,
-        step: 10,
+        min: limits.normalShotMaxLifetimeMs.min,
+        max: limits.normalShotMaxLifetimeMs.max,
+        step: 100,
         suffix: 'ms',
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).normalShot.maxLifetimeMs,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).normalShot.maxLifetimeMs = value; },
@@ -343,26 +344,26 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
       {
         kind: 'number',
         label: 'Pull Step Distance',
-        min: LASER_WHIP_SPECIFIC_LIMITS.whipPullStepDistance.min,
-        max: LASER_WHIP_SPECIFIC_LIMITS.whipPullStepDistance.max,
-        step: 1,
+        min: limits.whipPullStepDistance.min,
+        max: limits.whipPullStepDistance.max,
+        step: 10,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).whip.pullStepDistance,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).whip.pullStepDistance = value; },
       },
       {
         kind: 'number',
         label: 'Charged Speed Multiplier',
-        min: chargedLimits.chargedSpeedMultiplier.min,
-        max: chargedLimits.chargedSpeedMultiplier.max,
-        step: 0.05,
+        min: limits.chargedSpeedMultiplier.min,
+        max: limits.chargedSpeedMultiplier.max,
+        step: 0.1,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).chargedShot.speedMultiplier,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).chargedShot.speedMultiplier = value; },
       },
       {
         kind: 'number',
         label: 'Charged Max Bounces',
-        min: chargedLimits.chargedMaxBounces.min,
-        max: chargedLimits.chargedMaxBounces.max,
+        min: limits.chargedMaxBounces.min,
+        max: limits.chargedMaxBounces.max,
         step: 1,
         getValue: (setup) => (setup as LaserWhipWeaponSetupInput).chargedShot.maxBounces,
         setValue: (setup, value) => { (setup as LaserWhipWeaponSetupInput).chargedShot.maxBounces = value; },
@@ -376,15 +377,16 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
     ];
   }
 
+  const grappleLimits = WEAPON_LIMITS.GrappleGun as GrappleWeaponLimits;
   return [
     ...common,
-    ...chargedBulletCommon(),
+    ...chargedBulletCommon(grappleLimits),
     {
       kind: 'number',
       label: 'Volley Spread',
       min: 0,
-      max: GRAPPLE_SPECIFIC_LIMITS.volleyAngleOffsetRadians.max,
-      step: 0.01,
+      max: grappleLimits.volleyAngleOffsetRadians.max,
+      step: 0.1,
       suffix: 'rad',
       getValue: (setup) => {
         const grapple = setup as VolleyWeaponSetupInput;
@@ -398,9 +400,9 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
     {
       kind: 'number',
       label: 'Armed Detonation Delay',
-      min: GRAPPLE_SPECIFIC_LIMITS.grappleArmedDetonationDelayMs.min,
-      max: GRAPPLE_SPECIFIC_LIMITS.grappleArmedDetonationDelayMs.max,
-      step: 10,
+      min: grappleLimits.grappleArmedDetonationDelayMs.min,
+      max: grappleLimits.grappleArmedDetonationDelayMs.max,
+      step: 100,
       suffix: 'ms',
       getValue: (setup) => (setup as VolleyWeaponSetupInput).grappleArmedDetonationDelayMs ?? 0,
       setValue: (setup, value) => { (setup as VolleyWeaponSetupInput).grappleArmedDetonationDelayMs = value; },
@@ -408,9 +410,9 @@ function buildFieldSpecs(weaponType: WeaponType): FieldSpec[] {
     {
       kind: 'number',
       label: 'Manual Detonation Min Delay',
-      min: GRAPPLE_SPECIFIC_LIMITS.grappleManualDetonationMinDelayMs.min,
-      max: GRAPPLE_SPECIFIC_LIMITS.grappleManualDetonationMinDelayMs.max,
-      step: 10,
+      min: grappleLimits.grappleManualDetonationMinDelayMs.min,
+      max: grappleLimits.grappleManualDetonationMinDelayMs.max,
+      step: 100,
       suffix: 'ms',
       getValue: (setup) => (setup as VolleyWeaponSetupInput).grappleManualDetonationMinDelayMs ?? 0,
       setValue: (setup, value) => { (setup as VolleyWeaponSetupInput).grappleManualDetonationMinDelayMs = value; },

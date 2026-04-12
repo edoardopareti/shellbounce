@@ -1,5 +1,6 @@
 import { clamp, distance, normalizeAngleRadians } from '../../../shared/math.js';
-import { EMPTY_INPUT, type TankInput } from '../../../shared/types.js';
+import type { TankInput } from '../../../shared/types.js';
+import { EMPTY_INPUT } from '../../../shared/constants.js';
 import { DEFAULT_BULLET_RADIUS, type BulletEntity } from '../bullets/bullet.js';
 import type { NavigationGrid } from '../grid/grid.js';
 import { buildNavigationGrid, findGridPath } from '../grid/grid.js';

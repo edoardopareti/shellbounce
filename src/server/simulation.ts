@@ -11,11 +11,11 @@ import { ENEMY_AI_DIFFICULTY, ENEMY_COUNT, SELECTED_MAP } from '../shared/config
 import { getArenaWorld } from '../shared/map.js';
 import { circleIntersectsRect, normalizeAngleRadians } from '../shared/math.js';
 import {
-  ALL_WEAPON_TYPES,
   type ChargedBulletWeaponSetupInput,
-  EMPTY_INPUT,
   type LaserWhipWeaponSetupInput,
   type MachineGunWeaponSetupInput,
+  type ShieldSetupInput,
+  type ShieldSetupInputByShieldType,
   type ShieldType,
   type ShotPreviewState,
   type TankInput,
@@ -25,6 +25,7 @@ import {
   type WeaponType,
   type WorldSnapshot,
 } from '../shared/types.js';
+import { ALL_WEAPON_TYPES, EMPTY_INPUT } from '../shared/constants.js';
 import { BOT_DIFFICULTY_PROFILES, type BotDifficultyProfile, parseBotDifficulty } from './entities/bot/bot.js';
 import { BotController } from './entities/bot/botController.js';
 import { updateBoostState } from './entities/boost/boost.js';
@@ -102,9 +103,9 @@ export class AuthoritativeSimulation {
 
     this.mineRegistry.registerDefault(() => new StandardMine());
 
-    this.shieldRegistry.registerDefault(() => new StandardShield());
-    this.shieldRegistry.register('StandardShield', () => new StandardShield());
-    this.shieldRegistry.register('OmniDirShield', () => new OmniDirShield());
+    this.shieldRegistry.registerDefault((shieldSetup) => new StandardShield(shieldSetup as ShieldSetupInputByShieldType['StandardShield'] | undefined));
+    this.shieldRegistry.register('StandardShield', (shieldSetup) => new StandardShield(shieldSetup as ShieldSetupInputByShieldType['StandardShield'] | undefined));
+    this.shieldRegistry.register('OmniDirShield', (shieldSetup) => new OmniDirShield(shieldSetup as ShieldSetupInputByShieldType['OmniDirShield'] | undefined));
   }
 
   public step(): void {
@@ -146,6 +147,7 @@ export class AuthoritativeSimulation {
     preferredShieldType?: ShieldType,
     tankConfig?: TankConfig,
     weaponSetup?: WeaponSetupInput,
+    shieldSetup?: ShieldSetupInput,
   ): void {
 
     // Add a new player to the simulation with the specified playerId and bot status.
@@ -185,7 +187,7 @@ export class AuthoritativeSimulation {
       pullPlayerToOwnedLaserTip: (id: string, stepDistance: number) => this.tryPullPlayerToOwnedLaserTip(id, stepDistance),
     }, weaponSetup);
     const mine = this.mineRegistry.createDefault();
-    const shield = this.shieldRegistry.createForShieldType(shieldType);
+    const shield = this.shieldRegistry.createForShieldType(shieldType, shieldSetup);
     const respawnShield = this.shieldRegistry.createForShieldType('OmniDirShield');
 
     const player = createPlayerEntity(

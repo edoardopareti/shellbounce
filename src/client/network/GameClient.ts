@@ -5,6 +5,7 @@ import type {
   ServerMessage,
   ServerStateMessage,
   ServerWelcomeMessage,
+  ShieldSetupInput,
   TankSetupInput,
   TankType,
   WeaponSetupInput,
@@ -12,7 +13,20 @@ import type {
   TankInput,
   WorldSnapshot,
 } from '../../shared/types';
-import { ConnectionState } from '../../shared/types';
+
+export class ConnectionState {
+  static readonly Disconnected = 'disconnected';
+  static readonly Connecting = 'connecting';
+  static readonly Connected = 'connected';
+
+  static values(): string[] {
+    return [
+      ConnectionState.Disconnected,
+      ConnectionState.Connecting,
+      ConnectionState.Connected,
+    ];
+  }
+}
 
 export interface ClientJoinProfile {
   playerId: string;  // The player's chosen name or identifier to be used in the game.
@@ -21,6 +35,7 @@ export interface ClientJoinProfile {
   shieldType: ShieldType;
   tankSetup?: TankSetupInput;
   weaponSetup?: WeaponSetupInput;
+  shieldSetup?: ShieldSetupInput;
 }
 
 export class GameClient {
@@ -63,6 +78,7 @@ export class GameClient {
         shieldType: joinProfile.shieldType,
         tankSetup: joinProfile.tankSetup,
         weaponSetup: joinProfile.weaponSetup,
+        shieldSetup: joinProfile.shieldSetup,
       };
       this.socket?.send(JSON.stringify(joinMessage));
     };

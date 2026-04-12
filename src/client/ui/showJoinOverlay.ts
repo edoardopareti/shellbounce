@@ -1,10 +1,7 @@
 import type { ClientJoinProfile } from '../network/GameClient';
 import {
-  ALL_SHIELD_TYPES,
-  ALL_TANK_TYPES,
-  ALL_WEAPON_TYPES,
-  DEFAULT_SHIELD_BY_TANK,
-  DEFAULT_WEAPON_BY_TANK,
+  type ShieldSetupInput,
+  type ShieldSetupInputByShieldType,
   type ShieldType,
   type TankSetupInput,
   type TankType,
@@ -12,10 +9,22 @@ import {
   type WeaponSetupInputByWeaponType,
   type WeaponType,
 } from '../../shared/types';
+import {
+  ALL_SHIELD_TYPES,
+  ALL_TANK_TYPES,
+  ALL_WEAPON_TYPES,
+  DEFAULT_SHIELD_BY_TANK,
+  DEFAULT_WEAPON_BY_TANK,
+} from '../../shared/constants';
 import { isShieldType, isTankType, isWeaponType } from '../utils/utils';
 import { showTankConfigWizard } from './showTankConfigWizard';
 import { showWeaponConfigWizard } from './showWeaponConfigWizard';
-import { DEFAULT_TANK_SETUP_BY_TANK, DEFAULT_WEAPON_SETUP_BY_WEAPON } from '../../shared/constants';
+import { showShieldConfigWizard } from './showShieldConfigWizard';
+import {
+  DEFAULT_SHIELD_SETUP_BY_SHIELD,
+  DEFAULT_TANK_SETUP_BY_TANK,
+  DEFAULT_WEAPON_SETUP_BY_WEAPON,
+} from '../../shared/constants';
 
 const MAX_PLAYER_NAME_LENGTH = 24;
 
@@ -140,6 +149,10 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     GrappleGun: 'Shoots volleys that can stick to the ground. Good for open space control.', // Use it in narrow spaces to blow your own a*s.',
     MitosisGun: 'Splits shots into multiple projectiles. Great for strategic field control.', // After some practice you will stop questioning the game developer mental stability.',
   };
+  const SHIELD_TYPE_TOOLTIPS: Record<string, string> = {
+    StandardShield: 'Basic shield. Provides protection in the front arc.', // Not easy to master: may led to curse the developer.',
+    OmniDirShield: 'Provides protection in all directions, but with lower durability.', // Oh come on, really?',
+  };
 
   const tankSelect = document.createElement('select');
   tankSelect.id = 'join-tank-type';
@@ -238,6 +251,28 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   shieldLabel.htmlFor = 'join-shield-type';
   shieldLabel.style.fontSize = '13px';
 
+  const shieldLabelRow = document.createElement('div');
+  shieldLabelRow.style.display = 'flex';
+  shieldLabelRow.style.alignItems = 'center';
+  shieldLabelRow.style.justifyContent = 'space-between';
+
+  const shieldSetupButton = document.createElement('button');
+  shieldSetupButton.type = 'button';
+  shieldSetupButton.textContent = '⚙';
+  shieldSetupButton.title = 'Shield Setup';
+  shieldSetupButton.setAttribute('aria-label', 'Open shield setup wizard');
+  shieldSetupButton.style.width = '28px';
+  shieldSetupButton.style.height = '28px';
+  shieldSetupButton.style.borderRadius = '8px';
+  shieldSetupButton.style.border = '1px solid #475569';
+  shieldSetupButton.style.background = '#0b1221';
+  shieldSetupButton.style.color = '#bfdbfe';
+  shieldSetupButton.style.cursor = 'pointer';
+  shieldSetupButton.style.fontSize = '16px';
+
+  shieldLabelRow.appendChild(shieldLabel);
+  shieldLabelRow.appendChild(shieldSetupButton);
+
   const shieldSelect = document.createElement('select');
   shieldSelect.id = 'join-shield-type';
   shieldSelect.style.height = '36px';
@@ -253,6 +288,22 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     option.textContent = shieldType;
     shieldSelect.appendChild(option);
   }
+
+  const shieldSetupPreview = document.createElement('div');
+  shieldSetupPreview.style.fontSize = '11px';
+  shieldSetupPreview.style.color = '#93c5fd';
+  shieldSetupPreview.style.minHeight = '14px';
+  shieldSetupPreview.style.marginTop = '-4px';
+
+  // Custom tooltip for shield type
+  const shieldTooltip = document.createElement('div');
+  shieldTooltip.style.fontSize = '12px';
+  shieldTooltip.style.color = '#a5b4fc';
+  shieldTooltip.style.marginTop = '-6px';
+  shieldTooltip.style.marginBottom = '2px';
+  shieldTooltip.style.minHeight = '16px';
+  shieldTooltip.style.transition = 'opacity 0.2s';
+  shieldTooltip.style.opacity = '1';
 
   const previewContainer = document.createElement('div');
   previewContainer.style.display = 'flex';
@@ -304,8 +355,10 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
   panel.appendChild(weaponSelect);
   panel.appendChild(weaponSetupPreview);
   panel.appendChild(weaponTooltip);
-  panel.appendChild(shieldLabel);
+  panel.appendChild(shieldLabelRow);
   panel.appendChild(shieldSelect);
+  panel.appendChild(shieldSetupPreview);
+  panel.appendChild(shieldTooltip);
   panel.appendChild(previewContainer);
   panel.appendChild(errorText);
   panel.appendChild(confirmButton);
@@ -366,8 +419,13 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     GrappleGun: cloneWeaponSetupByType('GrappleGun', DEFAULT_WEAPON_SETUP_BY_WEAPON.GrappleGun),
     LaserWhipGun: cloneWeaponSetupByType('LaserWhipGun', DEFAULT_WEAPON_SETUP_BY_WEAPON.LaserWhipGun),
   };
+  const shieldSetupByShield: ShieldSetupInputByShieldType = {
+    StandardShield: { ...DEFAULT_SHIELD_SETUP_BY_SHIELD.StandardShield },
+    OmniDirShield: { ...DEFAULT_SHIELD_SETUP_BY_SHIELD.OmniDirShield },
+  };
   let closeTankSetupWizard: (() => void) | undefined;
   let closeWeaponSetupWizard: (() => void) | undefined;
+  let closeShieldSetupWizard: (() => void) | undefined;
 
   const getSelectedTankSetup = (): TankSetupInput => {
     const selectedTankType = tankSelect.value as TankType;
@@ -390,12 +448,33 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     weaponSetupPreview.textContent = `Setup (${selectedWeaponType}): max ${setup.maxActiveBullets}, cd ${Math.round(setup.normalShotCooldownMs)}/${Math.round(setup.chargedShotCooldownMs)}ms`;
   };
 
+  const cloneShieldSetupByType = (setup: ShieldSetupInput): ShieldSetupInput => ({ ...setup });
+
+  const getSelectedShieldSetup = (): ShieldSetupInput => {
+    const selectedShieldType = shieldSelect.value as ShieldType;
+    return shieldSetupByShield[selectedShieldType];
+  };
+
+  const updateShieldSetupPreview = (): void => {
+    const selectedShieldType = shieldSelect.value as ShieldType;
+    const setup = getSelectedShieldSetup();
+    if (selectedShieldType === 'StandardShield') {
+      const typed = setup as ShieldSetupInputByShieldType['StandardShield'];
+      shieldSetupPreview.textContent = `Setup (${selectedShieldType}): r ${Math.round(typed.radius)}, off ${Math.round(typed.forwardOffset)}, angle ${typed.sectorAngleRadians.toFixed(2)} rad, cd/oc ${Math.round(typed.cooldownMs)}/${Math.round(typed.overchargeMs)}ms`;
+      return;
+    }
+
+    const typed = setup as ShieldSetupInputByShieldType['OmniDirShield'];
+    shieldSetupPreview.textContent = `Setup (${selectedShieldType}): r ${Math.round(typed.radius)}, cd/oc ${Math.round(typed.cooldownMs)}/${Math.round(typed.overchargeMs)}ms`;
+  };
+
 
   const updateTooltips = (): void => {
     const tankType = tankSelect.value as TankType;
     const weaponType = weaponSelect.value as WeaponType;
     tankTooltip.textContent = TANK_TYPE_TOOLTIPS[tankType] || '';
     weaponTooltip.textContent = WEAPON_TYPE_TOOLTIPS[weaponType] || '';
+    shieldTooltip.textContent = SHIELD_TYPE_TOOLTIPS[shieldSelect.value] || '';
   };
 
   const updatePreview = (): void => {
@@ -410,10 +489,12 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     updateTooltips();
     updateTankSetupPreview();
     updateWeaponSetupPreview();
+    updateShieldSetupPreview();
   };
 
   tankSetupButton.addEventListener('click', () => {
     closeWeaponSetupWizard?.();
+    closeShieldSetupWizard?.();
     closeTankSetupWizard?.();
     const selectedTankType = tankSelect.value as TankType;
     closeTankSetupWizard = showTankConfigWizard({
@@ -434,6 +515,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
 
   weaponSetupButton.addEventListener('click', () => {
     closeTankSetupWizard?.();
+    closeShieldSetupWizard?.();
     closeWeaponSetupWizard?.();
     const selectedWeaponType = weaponSelect.value as WeaponType;
     closeWeaponSetupWizard = showWeaponConfigWizard({
@@ -462,10 +544,36 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     });
   });
 
+  shieldSetupButton.addEventListener('click', () => {
+    closeTankSetupWizard?.();
+    closeWeaponSetupWizard?.();
+    closeShieldSetupWizard?.();
+    const selectedShieldType = shieldSelect.value as ShieldType;
+    closeShieldSetupWizard = showShieldConfigWizard({
+      host: overlay,
+      anchor: shieldSetupButton,
+      shieldType: selectedShieldType,
+      currentSetup: cloneShieldSetupByType(shieldSetupByShield[selectedShieldType]),
+      defaultSetup: cloneShieldSetupByType(DEFAULT_SHIELD_SETUP_BY_SHIELD[selectedShieldType]),
+      onApply: (setup) => {
+        if (selectedShieldType === 'StandardShield') {
+          shieldSetupByShield.StandardShield = cloneShieldSetupByType(setup) as ShieldSetupInputByShieldType['StandardShield'];
+        } else {
+          shieldSetupByShield.OmniDirShield = cloneShieldSetupByType(setup) as ShieldSetupInputByShieldType['OmniDirShield'];
+        }
+        updatePreview();
+      },
+      onClose: () => {
+        closeShieldSetupWizard = undefined;
+      },
+    });
+  });
+
   nameInput.addEventListener('input', updatePreview);
   tankSelect.addEventListener('change', () => {
     closeTankSetupWizard?.();
     closeWeaponSetupWizard?.();
+    closeShieldSetupWizard?.();
     const selectedTankType = tankSelect.value as TankType;
     weaponSelect.value = DEFAULT_WEAPON_BY_TANK[selectedTankType];
     shieldSelect.value = DEFAULT_SHIELD_BY_TANK[selectedTankType];
@@ -475,7 +583,10 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
     closeWeaponSetupWizard?.();
     updatePreview();
   });
-  shieldSelect.addEventListener('change', updatePreview);
+  shieldSelect.addEventListener('change', () => {
+    closeShieldSetupWizard?.();
+    updatePreview();
+  });
 
   panel.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -508,6 +619,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
 
     closeTankSetupWizard?.();
     closeWeaponSetupWizard?.();
+    closeShieldSetupWizard?.();
     overlay.remove();
     onSubmit({
       playerId,
@@ -516,6 +628,7 @@ export function showJoinOverlay(onSubmit: (joinProfile: ClientJoinProfile) => vo
       shieldType: selectedShieldType,
       tankSetup: { ...getSelectedTankSetup() },
       weaponSetup: cloneWeaponSetupByType(selectedWeaponType, getSelectedWeaponSetup() as WeaponSetupInputByWeaponType[typeof selectedWeaponType]),
+      shieldSetup: cloneShieldSetupByType(getSelectedShieldSetup()),
     });
   });
 

@@ -8,11 +8,7 @@ import {
 } from '../../../shared/types.js';
 import {
   DEFAULT_WEAPON_SETUP_BY_WEAPON,
-  CHARGED_BULLET_LIMITS,
-  GRAPPLE_SPECIFIC_LIMITS,
-  LASER_WHIP_SPECIFIC_LIMITS,
-  MACHINE_GUN_SPECIFIC_LIMITS,
-  WEAPON_COMMON_LIMITS,
+  WEAPON_LIMITS,
 } from '../../../shared/constants.js';
 
 export interface WeaponConfigValidationResult {
@@ -56,7 +52,7 @@ function validateCommonRangesForWeapon(
   weaponType: WeaponType,
   candidate: { maxActiveBullets: number; normalShotCooldownMs: number; chargedShotCooldownMs: number },
 ): string | undefined {
-  const limits = WEAPON_COMMON_LIMITS[weaponType];
+  const limits = WEAPON_LIMITS[weaponType];
   return (
     checkRange('maxActiveBullets', candidate.maxActiveBullets, limits.maxActiveBullets.min, limits.maxActiveBullets.max)
     ?? checkRange('normalShotCooldownMs', candidate.normalShotCooldownMs, limits.normalShotCooldownMs.min, limits.normalShotCooldownMs.max)
@@ -86,7 +82,7 @@ function validateNormalShotRangesForWeapon(
     maxLifetimeMs?: number;
   },
 ): string | undefined {
-  const limits = CHARGED_BULLET_LIMITS[weaponType];
+  const limits = WEAPON_LIMITS[weaponType];
   return (
     checkRange('normalShot.speed', candidate.speed, limits.normalShotSpeed.min, limits.normalShotSpeed.max)
     ?? checkRange('normalShot.explosionRadius', candidate.explosionRadius, limits.normalShotExplosionRadius.min, limits.normalShotExplosionRadius.max)
@@ -114,7 +110,7 @@ function validateChargedShotRangesForWeapon(
   weaponType: WeaponType,
   candidate: { speedMultiplier: number; explosionRadiusMultiplier: number; maxBounces: number },
 ): string | undefined {
-  const limits = CHARGED_BULLET_LIMITS[weaponType];
+  const limits = WEAPON_LIMITS[weaponType];
   return (
     checkRange('chargedShot.speedMultiplier', candidate.speedMultiplier, limits.chargedSpeedMultiplier.min, limits.chargedSpeedMultiplier.max)
     ?? checkRange('chargedShot.explosionRadiusMultiplier', candidate.explosionRadiusMultiplier, limits.chargedExplosionRadiusMultiplier.min, limits.chargedExplosionRadiusMultiplier.max)
@@ -183,20 +179,21 @@ function validateChargedBulletRanges(weaponType: WeaponType, setup: ChargedBulle
 }
 
 function validateMachineGunRanges(weaponType: WeaponType, setup: MachineGunWeaponSetupInput): string | undefined {
+  const limits = WEAPON_LIMITS.MachineGun;
   return (
     validateCommonRangesForWeapon(weaponType, setup)
     ?? validateNormalShotRangesForWeapon(weaponType, setup.bullet)
     ?? checkRange(
       'holdToRapidFireMs',
       setup.holdToRapidFireMs,
-      MACHINE_GUN_SPECIFIC_LIMITS.holdToRapidFireMs.min,
-      MACHINE_GUN_SPECIFIC_LIMITS.holdToRapidFireMs.max,
+      limits.holdToRapidFireMs.min,
+      limits.holdToRapidFireMs.max,
     )
   );
 }
 
 function validateLaserWhipRanges(weaponType: WeaponType, setup: LaserWhipWeaponSetupInput): string | undefined {
-  const limits = CHARGED_BULLET_LIMITS[weaponType];
+  const limits = WEAPON_LIMITS.LaserWhipGun;
   return (
     validateCommonRangesForWeapon(weaponType, setup)
     ?? checkRange('normalShot.speed', setup.normalShot.speed, limits.normalShotSpeed.min, limits.normalShotSpeed.max)
@@ -206,23 +203,24 @@ function validateLaserWhipRanges(weaponType: WeaponType, setup: LaserWhipWeaponS
     ?? checkRange('normalShot.maxLifetimeMs', setup.normalShot.maxLifetimeMs, limits.normalShotMaxLifetimeMs.min, limits.normalShotMaxLifetimeMs.max)
     ?? checkRange('chargedShot.speedMultiplier', setup.chargedShot.speedMultiplier, limits.chargedSpeedMultiplier.min, limits.chargedSpeedMultiplier.max)
     ?? checkRange('chargedShot.maxBounces', setup.chargedShot.maxBounces, limits.chargedMaxBounces.min, limits.chargedMaxBounces.max)
-    ?? checkRange('normalShot.laserLength', setup.normalShot.laserLength, LASER_WHIP_SPECIFIC_LIMITS.normalShotLaserLength.min, LASER_WHIP_SPECIFIC_LIMITS.normalShotLaserLength.max)
-    ?? checkRange('whip.pullStepDistance', setup.whip.pullStepDistance, LASER_WHIP_SPECIFIC_LIMITS.whipPullStepDistance.min, LASER_WHIP_SPECIFIC_LIMITS.whipPullStepDistance.max)
+    ?? checkRange('normalShot.laserLength', setup.normalShot.laserLength, limits.normalShotLaserLength.min, limits.normalShotLaserLength.max)
+    ?? checkRange('whip.pullStepDistance', setup.whip.pullStepDistance, limits.whipPullStepDistance.min, limits.whipPullStepDistance.max)
   );
 }
 
 function validateGrappleRanges(weaponType: WeaponType, setup: VolleyWeaponSetupInput): string | undefined {
+  const limits = WEAPON_LIMITS.GrappleGun;
   const arrayLength = setup.volleyAngleOffsetsRadians.length;
-  if (arrayLength < GRAPPLE_SPECIFIC_LIMITS.volleyAngleOffsetsCount.min || arrayLength > GRAPPLE_SPECIFIC_LIMITS.volleyAngleOffsetsCount.max) {
-    return `Invalid weapon setup: volleyAngleOffsetsRadians must have between ${GRAPPLE_SPECIFIC_LIMITS.volleyAngleOffsetsCount.min} and ${GRAPPLE_SPECIFIC_LIMITS.volleyAngleOffsetsCount.max} entries.`;
+  if (arrayLength < limits.volleyAngleOffsetsCount.min || arrayLength > limits.volleyAngleOffsetsCount.max) {
+    return `Invalid weapon setup: volleyAngleOffsetsRadians must have between ${limits.volleyAngleOffsetsCount.min} and ${limits.volleyAngleOffsetsCount.max} entries.`;
   }
 
   for (const angleOffset of setup.volleyAngleOffsetsRadians) {
     const angleError = checkRange(
       'volleyAngleOffsetsRadians entry',
       angleOffset,
-      GRAPPLE_SPECIFIC_LIMITS.volleyAngleOffsetRadians.min,
-      GRAPPLE_SPECIFIC_LIMITS.volleyAngleOffsetRadians.max,
+      limits.volleyAngleOffsetRadians.min,
+      limits.volleyAngleOffsetRadians.max,
     );
     if (angleError !== undefined) {
       return angleError;
@@ -236,16 +234,16 @@ function validateGrappleRanges(weaponType: WeaponType, setup: VolleyWeaponSetupI
       : checkRange(
         'grappleArmedDetonationDelayMs',
         setup.grappleArmedDetonationDelayMs,
-        GRAPPLE_SPECIFIC_LIMITS.grappleArmedDetonationDelayMs.min,
-        GRAPPLE_SPECIFIC_LIMITS.grappleArmedDetonationDelayMs.max,
+        limits.grappleArmedDetonationDelayMs.min,
+        limits.grappleArmedDetonationDelayMs.max,
       ))
     ?? (setup.grappleManualDetonationMinDelayMs === undefined
       ? undefined
       : checkRange(
         'grappleManualDetonationMinDelayMs',
         setup.grappleManualDetonationMinDelayMs,
-        GRAPPLE_SPECIFIC_LIMITS.grappleManualDetonationMinDelayMs.min,
-        GRAPPLE_SPECIFIC_LIMITS.grappleManualDetonationMinDelayMs.max,
+        limits.grappleManualDetonationMinDelayMs.min,
+        limits.grappleManualDetonationMinDelayMs.max,
       ))
   );
 }

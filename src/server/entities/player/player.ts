@@ -1,13 +1,13 @@
 import { PLAYER_TANK_TYPE } from '../../../shared/config.js';
 import {
+  ALL_TANK_TYPES,
+  DEFAULT_SHIELD_BY_TANK,
+  DEFAULT_WEAPON_BY_TANK,
   TANK_RESPAWN_DELAY_MS,
   TANK_RESPAWN_PROTECTION_MS,
 } from '../../../shared/constants.js';
 import {
-  DEFAULT_SHIELD_BY_TANK,
-  ALL_TANK_TYPES,
   type ShieldType,
-  DEFAULT_WEAPON_BY_TANK,
   type TankType,
   type WeaponType,
 } from '../../../shared/types.js';

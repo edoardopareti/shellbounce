@@ -1,22 +1,27 @@
 import { Shield } from './shield.js';
+import { DEFAULT_SHIELD_SETUP_BY_SHIELD } from '../../../shared/constants.js';
+import type { StandardShieldSetupInput } from '../../../shared/types.js';
 
-const TANK_SHIELD_RADIUS = 30;
-const TANK_SHIELD_FORWARD_OFFSET = 15;
-const TANK_SHIELD_SECTOR_ANGLE_RADIANS = Math.PI * 0.7;
-const SHIELD_COOLDOWN_MS = 3000;
-const SHIELD_OVERCHARGE_MS = 2000;
+export const STANDARD_SHIELD_SETUP_DEFAULT: StandardShieldSetupInput = DEFAULT_SHIELD_SETUP_BY_SHIELD.StandardShield;
 
 export const STANDARD_SHIELD_CONFIG = {
-  radius: TANK_SHIELD_RADIUS,
-  forwardOffset: TANK_SHIELD_FORWARD_OFFSET,
-  sectorAngleRadians: TANK_SHIELD_SECTOR_ANGLE_RADIANS,
-  cooldownMs: SHIELD_COOLDOWN_MS,
-  overchargeMs: SHIELD_OVERCHARGE_MS,
+  radius: STANDARD_SHIELD_SETUP_DEFAULT.radius,
+  forwardOffset: STANDARD_SHIELD_SETUP_DEFAULT.forwardOffset,
+  sectorAngleRadians: STANDARD_SHIELD_SETUP_DEFAULT.sectorAngleRadians,
+  cooldownMs: STANDARD_SHIELD_SETUP_DEFAULT.cooldownMs,
+  overchargeMs: STANDARD_SHIELD_SETUP_DEFAULT.overchargeMs,
   mode: 'sector',
 } as const;
 
 export class StandardShield extends Shield {
-  public constructor() {
-    super(STANDARD_SHIELD_CONFIG);
+  public constructor(setup: StandardShieldSetupInput = STANDARD_SHIELD_SETUP_DEFAULT) {
+    super({
+      radius: setup.radius,
+      forwardOffset: setup.forwardOffset,
+      sectorAngleRadians: setup.sectorAngleRadians,
+      cooldownMs: setup.cooldownMs,
+      overchargeMs: setup.overchargeMs,
+      mode: 'sector',
+    });
   }
 }

@@ -1,11 +1,9 @@
 import {
-  ALL_SHIELD_TYPES,
-  ALL_TANK_TYPES,
-  ALL_WEAPON_TYPES,
   type ShieldType,
   type TankType,
   type WeaponType,
 } from '../../shared/types';
+import { ALL_SHIELD_TYPES, ALL_TANK_TYPES, ALL_WEAPON_TYPES } from '../../shared/constants';
 
 export function isTankType(value: string): value is TankType {
   return ALL_TANK_TYPES.some((tankType) => tankType === value);
